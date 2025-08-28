@@ -1,0 +1,5 @@
+{
+  "name": "Gemini Node Canvas",
+  "description": "A visual node-based editor to create text-to-image generation workflows using the Gemini API. Connect nodes, type prompts, and generate images in an interactive canvas environment.",
+  "requestFramePermissions": []
+}
