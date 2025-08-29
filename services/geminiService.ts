@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Modality } from "@google/genai";
 
 // The API key is loaded from env.js, which should be created in the project root.
 const getApiKey = (): string | undefined => {
@@ -63,6 +63,19 @@ const getFriendlyErrorMessage = (error: unknown): string => {
     return message;
 };
 
+const dataUrlToPart = (dataUrl: string) => {
+    const [header, base64Data] = dataUrl.split(',');
+    const mimeType = header.match(/:(.*?);/)?.[1];
+    if (!mimeType || !base64Data) {
+        throw new Error('Invalid data URL format for image.');
+    }
+    return {
+        inlineData: {
+            mimeType,
+            data: base64Data,
+        },
+    };
+};
 
 export const generateImageFromPrompt = async (
   characterDescription: string,
@@ -123,4 +136,43 @@ export const generateImageFromPrompt = async (
     console.error("Failed to generate image after all retries.", lastError);
     const friendlyMessage = getFriendlyErrorMessage(lastError);
     throw new Error(friendlyMessage);
+};
+
+export const editImageWithPrompt = async (
+    base64ImageDataUrl: string,
+    prompt: string
+): Promise<string> => {
+    if (!ai) {
+        throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
+    }
+
+    try {
+        const imagePart = dataUrlToPart(base64ImageDataUrl);
+        const textPart = { text: prompt };
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image-preview',
+            contents: {
+                parts: [imagePart, textPart],
+            },
+            config: {
+                responseModalities: [Modality.IMAGE, Modality.TEXT],
+            },
+        });
+
+        for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData) {
+                const mimeType = part.inlineData.mimeType;
+                const base64ImageBytes = part.inlineData.data;
+                return `data:${mimeType};base64,${base64ImageBytes}`;
+            }
+        }
+
+        throw new Error("API did not return an edited image.");
+
+    } catch (error) {
+        console.error("Failed to edit image:", error);
+        const friendlyMessage = getFriendlyErrorMessage(error);
+        throw new Error(friendlyMessage);
+    }
 };
