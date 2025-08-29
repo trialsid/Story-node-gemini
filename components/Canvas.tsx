@@ -19,6 +19,7 @@ interface CanvasProps {
   onOutputMouseDown: (nodeId: string) => void;
   onInputMouseDown: (nodeId: string) => void;
   onInputMouseUp: (nodeId: string) => void;
+  onDeleteNode: (nodeId: string) => void;
   nodeDimensions: { [key in NodeType]: { width: number; height: number } };
   canvasOffset: { x: number; y: number };
   zoom: number;
@@ -41,6 +42,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
   onOutputMouseDown,
   onInputMouseDown,
   onInputMouseUp,
+  onDeleteNode,
   nodeDimensions,
   canvasOffset,
   zoom,
@@ -120,6 +122,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
             onOutputMouseDown={onOutputMouseDown}
             onInputMouseDown={onInputMouseDown}
             onInputMouseUp={onInputMouseUp}
+            onDelete={onDeleteNode}
             dimensions={nodeDimensions[node.type]}
           />
         ))}

@@ -4,6 +4,7 @@ import { NodeData, NodeType, Connection } from './types';
 import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
 import ImageModal from './components/ImageModal';
+import ConfirmationModal from './components/ConfirmationModal';
 import { generateImageFromPrompt, editImageWithPrompt } from './services/geminiService';
 
 const NODE_DIMENSIONS = {
@@ -50,6 +51,7 @@ const App: React.FC = () => {
   const [tempConnectionStartNodeId, setTempConnectionStartNodeId] = useState<string | null>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
+  const [nodeToDelete, setNodeToDelete] = useState<string | null>(null);
 
   // State for canvas transform
   const [isPanning, setIsPanning] = useState(false);
@@ -287,6 +289,23 @@ const App: React.FC = () => {
     }
   }, [nodes, updateNodeData]);
 
+  const requestDeleteNode = (nodeId: string) => {
+    setNodeToDelete(nodeId);
+  };
+
+  const cancelDeleteNode = () => {
+    setNodeToDelete(null);
+  };
+
+  const confirmDeleteNode = () => {
+    if (!nodeToDelete) return;
+    setNodes(prevNodes => prevNodes.filter(n => n.id !== nodeToDelete));
+    setConnections(prevConnections =>
+      prevConnections.filter(c => c.fromNodeId !== nodeToDelete && c.toNodeId !== nodeToDelete)
+    );
+    setNodeToDelete(null);
+  };
+
   const handleImageClick = useCallback((imageUrl: string) => setModalImageUrl(imageUrl), []);
   const handleCloseModal = useCallback(() => setModalImageUrl(null), []);
 
@@ -311,6 +330,7 @@ const App: React.FC = () => {
         onOutputMouseDown={handleOutputMouseDown}
         onInputMouseDown={handleInputMouseDown}
         onInputMouseUp={handleInputMouseUp}
+        onDeleteNode={requestDeleteNode}
         nodeDimensions={NODE_DIMENSIONS}
         canvasOffset={canvasOffset}
         zoom={zoom}
@@ -318,6 +338,13 @@ const App: React.FC = () => {
         mousePosition={mousePosition}
       />
       <ImageModal imageUrl={modalImageUrl} onClose={handleCloseModal} />
+      <ConfirmationModal
+        isOpen={!!nodeToDelete}
+        onConfirm={confirmDeleteNode}
+        onCancel={cancelDeleteNode}
+        title="Delete Node"
+        message="Are you sure you want to delete this node and all of its connections? This action cannot be undone."
+      />
     </div>
   );
 };

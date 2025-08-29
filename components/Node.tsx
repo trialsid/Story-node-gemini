@@ -1,9 +1,11 @@
+
 import React from 'react';
 import { NodeData, NodeType, Connection } from '../types';
 import ImageIcon from './icons/ImageIcon';
 import SparklesIcon from './icons/SparklesIcon';
 import TextIcon from './icons/TextIcon';
 import EditIcon from './icons/EditIcon';
+import TrashIcon from './icons/TrashIcon';
 import NodeHandle from './NodeHandle';
 
 interface NodeProps {
@@ -17,13 +19,30 @@ interface NodeProps {
   onOutputMouseDown: (nodeId: string) => void;
   onInputMouseDown: (nodeId: string) => void;
   onInputMouseUp: (nodeId: string) => void;
+  onDelete: (nodeId: string) => void;
   dimensions: { width: number; height: number };
 }
 
-const NodeHeader: React.FC<{ title: string; icon: React.ReactNode }> = ({ title, icon }) => (
-  <div className="flex items-center space-x-2 p-2 bg-gray-700 rounded-t-lg cursor-move">
-    {icon}
-    <span className="font-bold text-sm">{title}</span>
+interface NodeHeaderProps {
+  title: string;
+  icon: React.ReactNode;
+  onDelete: () => void;
+}
+
+const NodeHeader: React.FC<NodeHeaderProps> = ({ title, icon, onDelete }) => (
+  <div className="flex items-center justify-between p-2 bg-gray-700 rounded-t-lg cursor-move">
+    <div className="flex items-center space-x-2">
+      {icon}
+      <span className="font-bold text-sm">{title}</span>
+    </div>
+    <button
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={onDelete}
+      className="p-1 rounded-full text-gray-400 hover:bg-red-500/50 hover:text-white transition-colors z-10"
+      aria-label="Delete node"
+    >
+      <TrashIcon className="w-4 h-4" />
+    </button>
   </div>
 );
 
@@ -42,6 +61,7 @@ const Node: React.FC<NodeProps> = ({
   onOutputMouseDown,
   onInputMouseDown,
   onInputMouseUp,
+  onDelete,
   dimensions
 }) => {
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -80,6 +100,7 @@ const Node: React.FC<NodeProps> = ({
             <NodeHeader 
                 title='Text Node'
                 icon={<TextIcon className="w-4 h-4 text-yellow-400" />}
+                onDelete={() => onDelete(node.id)}
             />
             <div className="flex-grow p-2 space-y-2">
                 <label className={labelClassName}>Text Output</label>
@@ -109,6 +130,7 @@ const Node: React.FC<NodeProps> = ({
             <NodeHeader 
                 title='Character Generator'
                 icon={<ImageIcon className="w-4 h-4 text-cyan-400" />}
+                onDelete={() => onDelete(node.id)}
             />
             <div className="flex-grow p-2 space-y-2 overflow-y-auto">
                 <div>
@@ -174,6 +196,7 @@ const Node: React.FC<NodeProps> = ({
             <NodeHeader 
                 title='Image Editor'
                 icon={<EditIcon className="w-4 h-4 text-purple-400" />}
+                onDelete={() => onDelete(node.id)}
             />
             <div className="flex-grow p-2 space-y-2 overflow-y-auto">
                 <div>
