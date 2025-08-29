@@ -1,16 +1,19 @@
 import { GoogleGenAI } from "@google/genai";
 
-// IMPORTANT: Set your API key in the environment variables.
-// Do not hardcode the API key in the code.
-const API_KEY = process.env.API_KEY;
+// The API key is loaded from env.js, which should be created in the project root.
+const getApiKey = (): string | undefined => {
+    // The `process.env.API_KEY` is polyfilled by `env.js` on the window object.
+    const apiKey = (globalThis as any).process?.env?.API_KEY;
+    if (apiKey && apiKey !== "PASTE_YOUR_GEMINI_API_KEY_HERE") {
+        return apiKey;
+    }
+    return undefined;
+};
 
-if (!API_KEY) {
-    // In a real application, you'd want to handle this more gracefully.
-    // For this example, we'll log an error to the console.
-    console.error("API_KEY environment variable is not set. Please set it to use the Gemini API.");
-}
+const API_KEY = getApiKey();
 
-const ai = new GoogleGenAI({ apiKey: API_KEY! });
+// Initialize the GenAI client only if the API key is available.
+const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
 
 const stylePrompts: { [key: string]: string } = {
   'Studio Portrait Photo': 'A professional studio portrait with controlled lighting. Use a three-point lighting setup (key, fill, and back light) to create depth. The background should be a solid, neutral color. The subject should be in sharp focus with a shallow depth of field (e.g., f/2.8). High-resolution, crisp details.',
@@ -24,9 +27,40 @@ const stylePrompts: { [key: string]: string } = {
 };
 
 const layoutPrompts: { [key: string]: string } = {
-  '4-panel grid': 'A 4-panel grid. Each panel must feature a distinct and unique shot of the character: 1. Full body shot. 2. Close-up portrait. 3. Action pose. 4. Character wearing an alternate costume or expressing a different emotion.',
-  '6-panel grid': 'A 6-panel grid. Each panel must feature a distinct and unique shot of the character, showcasing different angles, costumes, or actions. Examples: 1. Front view. 2. Back view. 3. Side profile. 4. Action pose. 5. Close-up on face. 6. Wearing a casual outfit.',
-  'T-pose reference sheet': 'A character reference sheet with the character in a T-pose, showing clear front and back views for 3D modeling reference.',
+  '4-panel grid': 'A 4-panel grid layout. Each panel should showcase the character from a different perspective to provide a comprehensive reference. Include a mix of shots such as a full body view, a close-up portrait, an action pose, and a view showing an alternate expression or costume.',
+  '6-panel grid': 'A 6-panel grid layout. Each panel must feature a distinct and unique shot of the character, showcasing various angles, costumes, and actions to create a detailed character sheet. Include front, back, and side profiles, along with action poses and emotional close-ups.',
+  'T-pose reference sheet': 'A character reference sheet for 3D modeling. Display the character in a standard T-pose, providing clear, unobstructed front and back views on a neutral background.',
+};
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const MAX_RETRIES = 3;
+const INITIAL_DELAY_MS = 2000;
+
+const getFriendlyErrorMessage = (error: unknown): string => {
+    if (!(error instanceof Error)) {
+        return "An unknown error occurred.";
+    }
+
+    const message = error.message;
+
+    if (message.includes('429') || message.includes('RESOURCE_EXHAUSTED') || message.includes('quota')) {
+        return "API quota exceeded. Please wait a moment and try again.";
+    }
+
+    // Try to parse for a more specific message from the API response
+    try {
+        const jsonStringMatch = message.match(/{.*}/);
+        if (jsonStringMatch) {
+            const errorObj = JSON.parse(jsonStringMatch[0]);
+            if (errorObj?.error?.message) {
+                return errorObj.error.message;
+            }
+        }
+    } catch (e) {
+        // Parsing failed, fall through to return the original message
+    }
+    
+    return message;
 };
 
 
@@ -36,43 +70,57 @@ export const generateImageFromPrompt = async (
   layout: string,
   aspectRatio: string
 ): Promise<string> => {
-  if (!API_KEY) {
-    return Promise.reject("API Key is not configured.");
-  }
+    if (!ai) {
+        throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
+    }
 
-  const layoutInstruction = layoutPrompts[layout] || '';
-  const styleInstruction = stylePrompts[style] || `A ${style}.`;
+    const layoutInstruction = layoutPrompts[layout] || '';
+    const styleInstruction = stylePrompts[style] || `A ${style}.`;
 
-  const finalPrompt = `
+    const finalPrompt = `
     Create a photorealistic character reference sheet.
     **Character Description:** ${characterDescription}.
     **Style:** ${styleInstruction}
     **Layout:** ${layoutInstruction}
-    Ensure the character is consistent across all panels/views. The background should be a solid, neutral color (e.g., light gray) unless the style dictates otherwise. High-resolution, professional photography, photorealistic detail.
-  `;
+    Ensure the character is consistent across all panels/views. The background should be a solid, neutral color unless the style dictates otherwise. High-resolution, professional photography, photorealistic detail.
+    `;
 
-  try {
-    const response = await ai.models.generateImages({
-      model: 'imagen-4.0-generate-001',
-      prompt: finalPrompt,
-      config: {
-        numberOfImages: 1,
-        outputMimeType: 'image/jpeg',
-        aspectRatio: aspectRatio as "1:1" | "3:4" | "4:3" | "9:16" | "16:9",
-      },
-    });
+    let lastError: unknown;
 
-    if (response.generatedImages && response.generatedImages.length > 0) {
-      const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
-      return `data:image/jpeg;base64,${base64ImageBytes}`;
-    } else {
-      throw new Error("No image was generated by the API.");
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            const response = await ai.models.generateImages({
+                model: 'imagen-4.0-generate-001',
+                prompt: finalPrompt,
+                config: {
+                    numberOfImages: 1,
+                    outputMimeType: 'image/jpeg',
+                    aspectRatio: aspectRatio as "1:1" | "3:4" | "4:3" | "9:16" | "16:9",
+                },
+            });
+
+            if (response.generatedImages && response.generatedImages.length > 0) {
+                const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
+                return `data:image/jpeg;base64,${base64ImageBytes}`;
+            } else {
+                throw new Error("No image was generated by the API.");
+            }
+        } catch (error) {
+            lastError = error;
+            console.error(`Attempt ${attempt} failed:`, error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+
+            if ((errorMessage.includes('429') || errorMessage.includes('RESOURCE_EXHAUSTED')) && attempt < MAX_RETRIES) {
+                const delay = INITIAL_DELAY_MS * Math.pow(2, attempt - 1); // Exponential backoff
+                console.log(`Rate limit exceeded. Retrying in ${delay / 1000}s...`);
+                await sleep(delay);
+            } else {
+                break; // Non-retriable error or max retries reached
+            }
+        }
     }
-  } catch (error) {
-    console.error("Error generating image:", error);
-    if (error instanceof Error) {
-        return Promise.reject(`Failed to generate image: ${error.message}`);
-    }
-    return Promise.reject("An unknown error occurred during image generation.");
-  }
+    
+    console.error("Failed to generate image after all retries.", lastError);
+    const friendlyMessage = getFriendlyErrorMessage(lastError);
+    throw new Error(friendlyMessage);
 };
