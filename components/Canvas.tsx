@@ -3,6 +3,7 @@ import React, { forwardRef } from 'react';
 import { NodeData, Connection, NodeType } from '../types';
 import Node from './Node';
 import Connector from './Connector';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface CanvasProps {
   nodes: NodeData[];
@@ -49,7 +50,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
   tempConnectionStartNodeId,
   mousePosition,
 }, ref) => {
-
+  const { styles } = useTheme();
   const baseGridSize = 24;
 
   const getNodeHandlePosition = (node: NodeData, handleType: 'input' | 'output'): { x: number; y: number } => {
@@ -85,7 +86,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
       x: (mousePosition.x - canvasOffset.x) / zoom,
       y: (mousePosition.y - canvasOffset.y) / zoom,
     };
-    tempConnectionPath = <Connector from={fromPos} to={toPos} isTemporary />;
+    tempConnectionPath = <Connector from={fromPos} to={toPos} isTemporary color={styles.connector.tempColor} />;
   }
 
   return (
@@ -93,7 +94,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
       ref={ref}
       className="flex-grow relative w-full h-full cursor-grab active:cursor-grabbing overflow-hidden"
       style={{
-        backgroundImage: 'radial-gradient(circle at 1px 1px, #4A5568 1px, transparent 0)',
+        backgroundImage: `radial-gradient(circle at 1px 1px, ${styles.canvas.grid} 1px, transparent 0)`,
         backgroundSize: `${baseGridSize * zoom}px ${baseGridSize * zoom}px`,
         backgroundPosition: `${canvasOffset.x}px ${canvasOffset.y}px`,
       }}
@@ -138,7 +139,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
                   if (!fromNode || !toNode) return null;
                   const fromPos = getNodeHandlePosition(fromNode, 'output');
                   const toPos = getNodeHandlePosition(toNode, 'input');
-                  return <Connector key={conn.id} from={fromPos} to={toPos} />;
+                  return <Connector key={conn.id} from={fromPos} to={toPos} color={styles.connector.color} />;
               })}
               {tempConnectionPath}
           </g>

@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface ImageModalProps {
   imageUrl: string | null;
@@ -7,6 +8,7 @@ interface ImageModalProps {
 }
 
 const ImageModal: React.FC<ImageModalProps> = ({ imageUrl, onClose }) => {
+  const { styles } = useTheme();
   if (!imageUrl) {
     return null;
   }
@@ -16,7 +18,7 @@ const ImageModal: React.FC<ImageModalProps> = ({ imageUrl, onClose }) => {
       role="dialog"
       aria-modal="true"
       aria-label="Full size image view"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-80 backdrop-blur-sm cursor-zoom-out transition-opacity duration-300 ease-in-out"
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${styles.modal.overlay} backdrop-blur-sm cursor-zoom-out transition-opacity duration-300 ease-in-out`}
       onClick={onClose}
     >
       <img

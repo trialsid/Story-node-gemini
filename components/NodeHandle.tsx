@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface NodeHandleProps {
   onMouseDown?: (e: React.MouseEvent) => void;
@@ -9,8 +10,9 @@ interface NodeHandleProps {
 }
 
 const NodeHandle: React.FC<NodeHandleProps> = ({ onMouseDown, onMouseUp, isConnected, style }) => {
-  const baseClasses = "absolute w-4 h-4 rounded-full border-2 border-gray-400 bg-gray-600 hover:bg-cyan-500 hover:border-cyan-400 transition-colors cursor-crosshair z-10";
-  const connectedClasses = isConnected ? 'bg-cyan-500 border-cyan-400' : '';
+  const { styles } = useTheme();
+  const baseClasses = `absolute w-4 h-4 rounded-full border-2 ${styles.handle.border} ${styles.handle.bg} ${styles.handle.hoverBg} ${styles.handle.hoverBorder} transition-colors cursor-crosshair z-10`;
+  const connectedClasses = isConnected ? `${styles.handle.connectedBg} ${styles.handle.connectedBorder}` : '';
 
   return (
     <div

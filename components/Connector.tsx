@@ -5,16 +5,17 @@ interface ConnectorProps {
   from: { x: number; y: number };
   to: { x: number; y: number };
   isTemporary?: boolean;
+  color: string;
 }
 
-const Connector: React.FC<ConnectorProps> = ({ from, to, isTemporary = false }) => {
+const Connector: React.FC<ConnectorProps> = ({ from, to, isTemporary = false, color }) => {
   const controlPointOffset = Math.max(75, Math.abs(to.x - from.x) * 0.4);
   const pathData = `M ${from.x} ${from.y} C ${from.x + controlPointOffset} ${from.y}, ${to.x - controlPointOffset} ${to.y}, ${to.x} ${to.y}`;
 
   return (
     <path
       d={pathData}
-      stroke={isTemporary ? '#F6E05E' : '#2DD4BF'} // yellow-300 : teal-400
+      stroke={color}
       strokeWidth="3"
       fill="none"
       strokeDasharray={isTemporary ? '4 4' : 'none'}

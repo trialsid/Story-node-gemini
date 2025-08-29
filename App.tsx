@@ -6,6 +6,8 @@ import Toolbar from './components/Toolbar';
 import ImageModal from './components/ImageModal';
 import ConfirmationModal from './components/ConfirmationModal';
 import { generateImageFromPrompt, editImageWithPrompt } from './services/geminiService';
+import { useTheme } from './contexts/ThemeContext';
+import ThemeSwitcher from './components/ThemeSwitcher';
 
 const NODE_DIMENSIONS = {
   [NodeType.CharacterGenerator]: { width: 256, height: 580 },
@@ -58,6 +60,8 @@ const App: React.FC = () => {
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [canvasOffset, setCanvasOffset] = useState({ x: 50, y: 50 });
   const [zoom, setZoom] = useState(1);
+
+  const { styles } = useTheme();
 
   const addNode = useCallback(() => {
     const newNode: NodeData = {
@@ -312,8 +316,9 @@ const App: React.FC = () => {
   const isDragging = draggingNodeId !== null || tempConnectionStartNodeId !== null;
 
   return (
-    <div className={`w-screen h-screen bg-gray-900 text-white overflow-hidden flex flex-col font-sans ${isDragging ? 'select-none' : ''}`}>
+    <div className={`w-screen h-screen ${styles.app.bg} ${styles.app.text} overflow-hidden flex flex-col font-sans ${isDragging ? 'select-none' : ''}`}>
       <Toolbar onAddNode={addNode} onAddTextNode={addTextNode} onAddImageEditorNode={addImageEditorNode} />
+      <ThemeSwitcher />
       <Canvas
         ref={canvasRef}
         nodes={nodes}

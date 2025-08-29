@@ -7,6 +7,7 @@ import TextIcon from './icons/TextIcon';
 import EditIcon from './icons/EditIcon';
 import TrashIcon from './icons/TrashIcon';
 import NodeHandle from './NodeHandle';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface NodeProps {
   node: NodeData;
@@ -29,26 +30,25 @@ interface NodeHeaderProps {
   onDelete: () => void;
 }
 
-const NodeHeader: React.FC<NodeHeaderProps> = ({ title, icon, onDelete }) => (
-  <div className="flex items-center justify-between p-2 bg-gray-700 rounded-t-lg cursor-move">
-    <div className="flex items-center space-x-2">
-      {icon}
-      <span className="font-bold text-sm">{title}</span>
+const NodeHeader: React.FC<NodeHeaderProps> = ({ title, icon, onDelete }) => {
+  const { styles } = useTheme();
+  return (
+    <div className={`flex items-center justify-between p-2 ${styles.node.headerBg} rounded-t-lg cursor-move`}>
+      <div className="flex items-center space-x-2">
+        {icon}
+        <span className="font-bold text-sm">{title}</span>
+      </div>
+      <button
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={onDelete}
+        className="p-1 rounded-full text-gray-400 hover:bg-red-500/50 hover:text-white transition-colors z-10"
+        aria-label="Delete node"
+      >
+        <TrashIcon className="w-4 h-4" />
+      </button>
     </div>
-    <button
-      onMouseDown={(e) => e.stopPropagation()}
-      onClick={onDelete}
-      className="p-1 rounded-full text-gray-400 hover:bg-red-500/50 hover:text-white transition-colors z-10"
-      aria-label="Delete node"
-    >
-      <TrashIcon className="w-4 h-4" />
-    </button>
-  </div>
-);
-
-const selectClassName = "w-full p-1 bg-gray-900 border border-gray-600 rounded-md text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-cyan-500";
-const labelClassName = "text-xs font-semibold text-gray-400";
-const imagePreviewClassName = "w-full h-[128px] bg-gray-900/50 rounded-md flex items-center justify-center border border-dashed border-gray-600";
+  );
+};
 
 const Node: React.FC<NodeProps> = ({
   node,
@@ -64,6 +64,13 @@ const Node: React.FC<NodeProps> = ({
   onDelete,
   dimensions
 }) => {
+  const { styles } = useTheme();
+
+  const selectClassName = `w-full p-1 ${styles.node.inputBg} border ${styles.node.inputBorder} rounded-md text-sm ${styles.node.text} focus:outline-none focus:ring-2 ${styles.node.inputFocusRing}`;
+  const labelClassName = `text-xs font-semibold ${styles.node.labelText}`;
+  const imagePreviewClassName = (height = 128) => `w-full h-[${height}px] ${styles.node.imagePlaceholderBg} rounded-md flex items-center justify-center border border-dashed ${styles.node.imagePlaceholderBorder}`;
+  const textAreaClassName = (isDisabled = false) => `w-full h-20 p-1 ${isDisabled ? 'bg-gray-700 text-gray-400' : styles.node.inputBg} border ${styles.node.inputBorder} rounded-md text-sm ${isDisabled ? '' : styles.node.text} focus:outline-none focus:ring-2 ${styles.node.inputFocusRing} resize-none`;
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('.cursor-move')) {
         onDragStart(node.id, e);
@@ -86,7 +93,7 @@ const Node: React.FC<NodeProps> = ({
 
   return (
     <div
-      className="absolute bg-gray-800 border border-gray-700 rounded-lg shadow-xl flex flex-col"
+      className={`absolute ${styles.node.bg} border ${styles.node.border} rounded-lg flex flex-col`}
       style={{
         left: node.position.x,
         top: node.position.y,
@@ -107,7 +114,7 @@ const Node: React.FC<NodeProps> = ({
                 <textarea
                     value={node.data.text || ''}
                     onChange={(e) => onUpdateData(node.id, { text: e.target.value })}
-                    className="w-full h-24 p-1 bg-gray-900 border border-gray-600 rounded-md text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-yellow-500 resize-none"
+                    className={`w-full h-24 p-1 ${styles.node.inputBg} border ${styles.node.inputBorder} rounded-md text-sm ${styles.node.text} focus:outline-none focus:ring-2 ${styles.node.inputFocusRing} resize-none`}
                     placeholder="Type your text here..."
                 />
             </div>
@@ -157,12 +164,12 @@ const Node: React.FC<NodeProps> = ({
                         value={node.data.characterDescription || ''}
                         onChange={(e) => onUpdateData(node.id, { characterDescription: e.target.value })}
                         onKeyDown={(e) => handleTextAreaKeyDown(e, node.type)}
-                        className={`w-full h-20 p-1 bg-gray-900 border border-gray-600 rounded-md text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none ${isInputConnected ? 'bg-gray-700 text-gray-400' : ''}`}
+                        className={textAreaClassName(isInputConnected)}
                         placeholder={isInputConnected ? "Controlled by connection" : "e.g., A brave knight..."}
                         disabled={isInputConnected}
                     />
                 </div>
-                <div className="w-full h-[256px] bg-gray-900/50 rounded-md flex items-center justify-center border border-dashed border-gray-600 relative">
+                <div className={`${imagePreviewClassName(256)} relative`}>
                     {node.data.isLoading && <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>}
                     {node.data.error && <p className="text-xs text-red-400 p-2 text-center">{node.data.error}</p>}
                     {node.data.imageUrl && !node.data.isLoading && (
@@ -175,7 +182,7 @@ const Node: React.FC<NodeProps> = ({
                           />
                         </>
                     )}
-                    {!node.data.imageUrl && !node.data.isLoading && !node.data.error && <ImageIcon className="w-10 h-10 text-gray-600" />}
+                    {!node.data.imageUrl && !node.data.isLoading && !node.data.error && <ImageIcon className={`w-10 h-10 ${styles.node.imagePlaceholderIcon}`} />}
                 </div>
                 <button onClick={() => onGenerateImage(node.id)} disabled={node.data.isLoading} className="w-full flex items-center justify-center space-x-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-md transition-colors text-sm">
                     <SparklesIcon className="w-4 h-4" />
@@ -201,12 +208,12 @@ const Node: React.FC<NodeProps> = ({
             <div className="flex-grow p-2 space-y-2 overflow-y-auto">
                 <div>
                     <label className={labelClassName}>Input Image</label>
-                    <div className={imagePreviewClassName}>
+                    <div className={imagePreviewClassName()}>
                         {node.data.inputImageUrl ? (
                              <img src={node.data.inputImageUrl} alt="Input" className="object-contain w-full h-full rounded-md" />
                         ) : (
-                            <div className="text-center text-gray-500 text-xs">
-                                <ImageIcon className="w-8 h-8 mx-auto mb-1" />
+                            <div className={`text-center ${styles.node.labelText} text-xs`}>
+                                <ImageIcon className={`w-8 h-8 mx-auto mb-1 ${styles.node.imagePlaceholderIcon}`} />
                                 <p>Connect an image output</p>
                             </div>
                         )}
@@ -218,17 +225,17 @@ const Node: React.FC<NodeProps> = ({
                         value={node.data.editDescription || ''}
                         onChange={(e) => onUpdateData(node.id, { editDescription: e.target.value })}
                         onKeyDown={(e) => handleTextAreaKeyDown(e, node.type)}
-                        className={`w-full h-20 p-1 bg-gray-900 border border-gray-600 rounded-md text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none`}
+                        className={textAreaClassName()}
                         placeholder={"e.g., Add a futuristic helmet..."}
                     />
                 </div>
-                 <div className="w-full h-[256px] bg-gray-900/50 rounded-md flex items-center justify-center border border-dashed border-gray-600">
+                 <div className={imagePreviewClassName(256)}>
                     {node.data.isLoading && <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>}
                     {node.data.error && <p className="text-xs text-red-400 p-2 text-center">{node.data.error}</p>}
                     {node.data.imageUrl && !node.data.isLoading && (
                         <img src={node.data.imageUrl} alt="Edited" className="object-contain w-full h-full rounded-md cursor-pointer hover:opacity-80 transition-opacity" onClick={() => onImageClick(node.data.imageUrl!)} />
                     )}
-                    {!node.data.imageUrl && !node.data.isLoading && !node.data.error && <ImageIcon className="w-10 h-10 text-gray-600" />}
+                    {!node.data.imageUrl && !node.data.isLoading && !node.data.error && <ImageIcon className={`w-10 h-10 ${styles.node.imagePlaceholderIcon}`} />}
                 </div>
                 <button onClick={() => onEditImage(node.id)} disabled={node.data.isLoading || !node.data.inputImageUrl} className="w-full flex items-center justify-center space-x-2 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-md transition-colors text-sm">
                     <SparklesIcon className="w-4 h-4" />
