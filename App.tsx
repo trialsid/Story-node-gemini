@@ -9,10 +9,10 @@ import { generateImageFromPrompt, editImageWithPrompt } from './services/geminiS
 import { useTheme } from './contexts/ThemeContext';
 import ThemeSwitcher from './components/ThemeSwitcher';
 
-const NODE_DIMENSIONS = {
-  [NodeType.CharacterGenerator]: { width: 256, height: 580 },
-  [NodeType.Text]: { width: 256, height: 180 },
-  [NodeType.ImageEditor]: { width: 256, height: 650 },
+const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } } = {
+  [NodeType.CharacterGenerator]: { width: 256 },
+  [NodeType.Text]: { width: 256 },
+  [NodeType.ImageEditor]: { width: 256 },
 };
 
 const initialNodes: NodeData[] = [
@@ -98,6 +98,16 @@ const App: React.FC = () => {
     setNodes((prevNodes) => [...prevNodes, newNode]);
   }, [canvasOffset, zoom]);
   
+  const toggleNodeMinimization = useCallback((nodeId: string) => {
+    setNodes(prevNodes =>
+      prevNodes.map(node =>
+        node.id === nodeId
+          ? { ...node, data: { ...node.data, isMinimized: !node.data.isMinimized } }
+          : node
+      )
+    );
+  }, []);
+
   const updateNodeData = useCallback((nodeId: string, data: Partial<NodeData['data']>) => {
     setNodes((currentNodes) => {
         let newNodes = [...currentNodes];
@@ -119,8 +129,8 @@ const App: React.FC = () => {
                     newNodes[toNodeIndex] = { ...toNode, data: { ...toNode.data, characterDescription: data.text } };
                 }
                 
-                // Propagate image from Character Generator to Image Editor
-                if (updatedNode.type === NodeType.CharacterGenerator && 'imageUrl' in data && toNode.type === NodeType.ImageEditor) {
+                // Propagate image from Character Generator or Image Editor to Image Editor
+                if ((updatedNode.type === NodeType.CharacterGenerator || updatedNode.type === NodeType.ImageEditor) && 'imageUrl' in data && toNode.type === NodeType.ImageEditor) {
                     newNodes[toNodeIndex] = { ...toNode, data: { ...toNode.data, inputImageUrl: data.imageUrl } };
                 }
             }
@@ -178,6 +188,18 @@ const App: React.FC = () => {
   }, []);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
+    const target = e.target as HTMLElement;
+    // Check if the scroll event is happening inside a textarea with a scrollbar
+    if (target.tagName.toLowerCase() === 'textarea') {
+      const textarea = target as HTMLTextAreaElement;
+      if (textarea.scrollHeight > textarea.clientHeight) {
+        // If the textarea is scrollable, let the browser handle the scroll
+        // and don't zoom the canvas.
+        return;
+      }
+    }
+    
+    // If not scrolling in a scrollable textarea, zoom the canvas.
     e.preventDefault();
     const zoomSpeed = 0.1;
     const direction = e.deltaY > 0 ? -1 : 1;
@@ -219,8 +241,9 @@ const App: React.FC = () => {
     // Connection validation
     const isTextToCharGen = fromNode.type === NodeType.Text && toNode.type === NodeType.CharacterGenerator;
     const isCharGenToImageEditor = fromNode.type === NodeType.CharacterGenerator && toNode.type === NodeType.ImageEditor;
+    const isImageEditorToImageEditor = fromNode.type === NodeType.ImageEditor && toNode.type === NodeType.ImageEditor;
 
-    if (!isTextToCharGen && !isCharGenToImageEditor) {
+    if (!isTextToCharGen && !isCharGenToImageEditor && !isImageEditorToImageEditor) {
         setTempConnectionStartNodeId(null);
         return;
     }
@@ -241,7 +264,7 @@ const App: React.FC = () => {
     // Update target node's data immediately based on connection type
     if (isTextToCharGen) {
         updateNodeData(toNodeId, { characterDescription: fromNode.data.text });
-    } else if (isCharGenToImageEditor) {
+    } else if (isCharGenToImageEditor || isImageEditorToImageEditor) {
         updateNodeData(toNodeId, { inputImageUrl: fromNode.data.imageUrl });
     }
     
@@ -336,6 +359,7 @@ const App: React.FC = () => {
         onInputMouseDown={handleInputMouseDown}
         onInputMouseUp={handleInputMouseUp}
         onDeleteNode={requestDeleteNode}
+        onToggleNodeMinimization={toggleNodeMinimization}
         nodeDimensions={NODE_DIMENSIONS}
         canvasOffset={canvasOffset}
         zoom={zoom}

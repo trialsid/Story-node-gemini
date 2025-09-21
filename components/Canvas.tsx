@@ -21,7 +21,8 @@ interface CanvasProps {
   onInputMouseDown: (nodeId: string) => void;
   onInputMouseUp: (nodeId: string) => void;
   onDeleteNode: (nodeId: string) => void;
-  nodeDimensions: { [key in NodeType]: { width: number; height: number } };
+  onToggleNodeMinimization: (nodeId: string) => void;
+  nodeDimensions: { [key in NodeType]: { width: number; height?: number } };
   canvasOffset: { x: number; y: number };
   zoom: number;
   tempConnectionStartNodeId: string | null;
@@ -44,6 +45,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
   onInputMouseDown,
   onInputMouseUp,
   onDeleteNode,
+  onToggleNodeMinimization,
   nodeDimensions,
   canvasOffset,
   zoom,
@@ -57,22 +59,28 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
     const dims = nodeDimensions[node.type];
     if (handleType === 'output') {
         if (node.type === NodeType.Text) {
-            return { x: node.position.x + dims.width, y: node.position.y + dims.height / 2 };
+            // Text node height is now dynamic, use calculated offset
+            const yOffset = node.data.outputHandleYOffset || 90; // Fallback for initial render
+            return { x: node.position.x + dims.width, y: node.position.y + yOffset };
         }
-        if (node.type === NodeType.CharacterGenerator) {
-            // Vertically centered on the output image preview
-            return { x: node.position.x + dims.width, y: node.position.y + 434 + 8 };
+        if (node.type === NodeType.CharacterGenerator || node.type === NodeType.ImageEditor) {
+            // The vertical offset is calculated dynamically in Node.tsx.
+            // A fallback is provided for the initial render before the effect runs.
+            const yOffset = node.data.outputHandleYOffset || (node.type === NodeType.CharacterGenerator ? 368 : 428);
+            return { x: node.position.x + dims.width, y: node.position.y + yOffset };
         }
     }
     
     if (handleType === 'input') {
         if (node.type === NodeType.CharacterGenerator) {
-            // Aligned with the "Character Description" textarea
-            return { x: node.position.x, y: node.position.y + 220 + 8 };
+            // Fallback aligns with the "Character Description" textarea
+            const yOffset = node.data.inputHandleYOffset || 228;
+            return { x: node.position.x, y: node.position.y + yOffset };
         }
         if (node.type === NodeType.ImageEditor) {
-            // Aligned with the "Input Image" preview
-            return { x: node.position.x, y: node.position.y + 70 + 8 };
+             // Fallback aligns with the "Input Image" preview
+            const yOffset = node.data.inputHandleYOffset || 78;
+            return { x: node.position.x, y: node.position.y + yOffset };
         }
     }
     return node.position;
@@ -124,6 +132,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
             onInputMouseDown={onInputMouseDown}
             onInputMouseUp={onInputMouseUp}
             onDelete={onDeleteNode}
+            onToggleMinimize={onToggleNodeMinimization}
             dimensions={nodeDimensions[node.type]}
           />
         ))}

@@ -1,3 +1,4 @@
+
 export enum NodeType {
   CharacterGenerator = 'CHARACTER_GENERATOR',
   Text = 'TEXT_NODE',
@@ -23,6 +24,9 @@ export interface NodeData {
     imageUrl?: string;
     isLoading?: boolean;
     error?: string;
+    inputHandleYOffset?: number;
+    outputHandleYOffset?: number;
+    isMinimized?: boolean;
 
     // For Text Node
     text?: string;

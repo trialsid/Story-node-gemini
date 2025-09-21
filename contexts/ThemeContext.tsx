@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useMemo, ReactNode } from 'react';
 
 export type Theme = 'dark' | 'modern' | 'elegant';
@@ -55,6 +54,11 @@ export const themes = {
       connectedBg: 'bg-cyan-500',
       connectedBorder: 'border-cyan-400',
     },
+    scrollbar: {
+      thumb: '#718096',
+      thumbHover: '#A0AEC0',
+      track: 'transparent',
+    },
   },
   modern: {
     name: 'Modern',
@@ -106,6 +110,11 @@ export const themes = {
       hoverBorder: 'hover:border-blue-400',
       connectedBg: 'bg-blue-500',
       connectedBorder: 'border-blue-400',
+    },
+    scrollbar: {
+      thumb: '#CBD5E0',
+      thumbHover: '#A0AEC0',
+      track: 'transparent',
     },
   },
   elegant: {
@@ -159,6 +168,11 @@ export const themes = {
       connectedBg: 'bg-amber-500',
       connectedBorder: 'border-amber-400',
     },
+    scrollbar: {
+      thumb: '#b45309',
+      thumbHover: '#d97706',
+      track: 'transparent',
+    },
   },
 };
 
@@ -175,6 +189,13 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [theme, setTheme] = useState<Theme>('dark');
     const styles = useMemo(() => themes[theme], [theme]);
+
+    React.useEffect(() => {
+        const root = window.document.documentElement;
+        root.style.setProperty('--scrollbar-thumb-color', styles.scrollbar.thumb);
+        root.style.setProperty('--scrollbar-thumb-hover-color', styles.scrollbar.thumbHover);
+        root.style.setProperty('--scrollbar-track-color', styles.scrollbar.track);
+    }, [styles]);
 
     return (
         <ThemeContext.Provider value={{ theme, setTheme, styles }}>

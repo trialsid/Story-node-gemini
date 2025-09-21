@@ -15,6 +15,35 @@
   }
 }
 </script>
+<style>
+    /* Custom scrollbar for textareas */
+    textarea {
+        /* For Firefox */
+        scrollbar-width: thin;
+        scrollbar-color: var(--scrollbar-thumb-color, #a0aec0) var(--scrollbar-track-color, transparent);
+    }
+
+    /* For Webkit-based browsers (Chrome, Safari, Edge) */
+    textarea::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    textarea::-webkit-scrollbar-track {
+        background: var(--scrollbar-track-color, transparent);
+    }
+
+    textarea::-webkit-scrollbar-thumb {
+        background-color: var(--scrollbar-thumb-color, #a0aec0);
+        border-radius: 4px;
+        /* Create padding around thumb */
+        border: 2px solid var(--scrollbar-track-color, transparent);
+        background-clip: content-box;
+    }
+    
+    textarea::-webkit-scrollbar-thumb:hover {
+        background-color: var(--scrollbar-thumb-hover-color, #718096);
+    }
+</style>
 </head>
   <body class="bg-gray-900">
     <div id="root"></div>
