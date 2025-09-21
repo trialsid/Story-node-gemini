@@ -5,7 +5,7 @@ import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
 import ImageModal from './components/ImageModal';
 import ConfirmationModal from './components/ConfirmationModal';
-import { generateImageFromPrompt, editImageWithPrompt } from './services/geminiService';
+import { generateImageFromPrompt, editImageWithPrompt, generateVideoFromPrompt } from './services/geminiService';
 import { useTheme } from './contexts/ThemeContext';
 import ThemeSwitcher from './components/ThemeSwitcher';
 
@@ -13,6 +13,7 @@ const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } }
   [NodeType.CharacterGenerator]: { width: 256 },
   [NodeType.Text]: { width: 256 },
   [NodeType.ImageEditor]: { width: 256 },
+  [NodeType.VideoGenerator]: { width: 256 },
 };
 
 const initialNodes: NodeData[] = [
@@ -97,6 +98,19 @@ const App: React.FC = () => {
     };
     setNodes((prevNodes) => [...prevNodes, newNode]);
   }, [canvasOffset, zoom]);
+
+  const addVideoGeneratorNode = useCallback(() => {
+    const newNode: NodeData = {
+      id: `node_${Date.now()}_${Math.random()}`,
+      type: NodeType.VideoGenerator,
+      position: { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
+      data: {
+        editDescription: 'A majestic eagle soaring over mountains',
+        videoModel: 'veo-2.0-generate-001',
+      },
+    };
+    setNodes((prevNodes) => [...prevNodes, newNode]);
+  }, [canvasOffset, zoom]);
   
   const toggleNodeMinimization = useCallback((nodeId: string) => {
     setNodes(prevNodes =>
@@ -124,14 +138,20 @@ const App: React.FC = () => {
 
                 const toNode = newNodes[toNodeIndex];
                 
-                // Propagate text from Text Node to Character Generator
-                if (updatedNode.type === NodeType.Text && 'text' in data && toNode.type === NodeType.CharacterGenerator) {
-                    newNodes[toNodeIndex] = { ...toNode, data: { ...toNode.data, characterDescription: data.text } };
+                // Propagate text
+                if (updatedNode.type === NodeType.Text && 'text' in data) {
+                  if (toNode.type === NodeType.CharacterGenerator) {
+                      newNodes[toNodeIndex] = { ...toNode, data: { ...toNode.data, characterDescription: data.text } };
+                  } else if (toNode.type === NodeType.VideoGenerator) {
+                      newNodes[toNodeIndex] = { ...toNode, data: { ...toNode.data, editDescription: data.text } };
+                  }
                 }
                 
-                // Propagate image from Character Generator or Image Editor to Image Editor
-                if ((updatedNode.type === NodeType.CharacterGenerator || updatedNode.type === NodeType.ImageEditor) && 'imageUrl' in data && toNode.type === NodeType.ImageEditor) {
-                    newNodes[toNodeIndex] = { ...toNode, data: { ...toNode.data, inputImageUrl: data.imageUrl } };
+                // Propagate image
+                if ((updatedNode.type === NodeType.CharacterGenerator || updatedNode.type === NodeType.ImageEditor) && 'imageUrl' in data) {
+                  if (toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) {
+                      newNodes[toNodeIndex] = { ...toNode, data: { ...toNode.data, inputImageUrl: data.imageUrl } };
+                  }
                 }
             }
         });
@@ -242,8 +262,10 @@ const App: React.FC = () => {
     const isTextToCharGen = fromNode.type === NodeType.Text && toNode.type === NodeType.CharacterGenerator;
     const isCharGenToImageEditor = fromNode.type === NodeType.CharacterGenerator && toNode.type === NodeType.ImageEditor;
     const isImageEditorToImageEditor = fromNode.type === NodeType.ImageEditor && toNode.type === NodeType.ImageEditor;
+    const isImageToVideoGen = (fromNode.type === NodeType.CharacterGenerator || fromNode.type === NodeType.ImageEditor) && toNode.type === NodeType.VideoGenerator;
+    const isTextToVideoGen = fromNode.type === NodeType.Text && toNode.type === NodeType.VideoGenerator;
 
-    if (!isTextToCharGen && !isCharGenToImageEditor && !isImageEditorToImageEditor) {
+    if (!isTextToCharGen && !isCharGenToImageEditor && !isImageEditorToImageEditor && !isImageToVideoGen && !isTextToVideoGen) {
         setTempConnectionStartNodeId(null);
         return;
     }
@@ -263,9 +285,11 @@ const App: React.FC = () => {
     
     // Update target node's data immediately based on connection type
     if (isTextToCharGen) {
-        updateNodeData(toNodeId, { characterDescription: fromNode.data.text });
-    } else if (isCharGenToImageEditor || isImageEditorToImageEditor) {
+      updateNodeData(toNodeId, { characterDescription: fromNode.data.text });
+    } else if (isImageToVideoGen || isCharGenToImageEditor || isImageEditorToImageEditor) {
         updateNodeData(toNodeId, { inputImageUrl: fromNode.data.imageUrl });
+    } else if (isTextToVideoGen) {
+        updateNodeData(toNodeId, { editDescription: fromNode.data.text });
     }
     
     setTempConnectionStartNodeId(null);
@@ -316,6 +340,32 @@ const App: React.FC = () => {
     }
   }, [nodes, updateNodeData]);
 
+  const handleGenerateVideo = useCallback(async (nodeId: string) => {
+    const sourceNode = nodes.find(n => n.id === nodeId);
+    if (!sourceNode || sourceNode.type !== NodeType.VideoGenerator) return;
+  
+    const { inputImageUrl, editDescription, videoModel } = sourceNode.data;
+    
+    if (!editDescription) {
+        updateNodeData(nodeId, { error: 'Please provide a video prompt.' });
+        return;
+    }
+  
+    updateNodeData(nodeId, { isLoading: true, error: undefined, videoUrl: undefined, generationProgressMessage: 'Initializing...'});
+  
+    try {
+        const onProgress = (message: string) => {
+            updateNodeData(nodeId, { generationProgressMessage: message });
+        };
+        const videoUrl = await generateVideoFromPrompt(editDescription, inputImageUrl, videoModel || 'veo-2.0-generate-001', onProgress);
+        updateNodeData(nodeId, { videoUrl, isLoading: false, generationProgressMessage: undefined });
+    } catch (error) {
+        console.error(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        updateNodeData(nodeId, { error: errorMessage, isLoading: false, generationProgressMessage: undefined });
+    }
+  }, [nodes, updateNodeData]);
+
   const requestDeleteNode = (nodeId: string) => {
     setNodeToDelete(nodeId);
   };
@@ -340,7 +390,7 @@ const App: React.FC = () => {
 
   return (
     <div className={`w-screen h-screen ${styles.app.bg} ${styles.app.text} overflow-hidden flex flex-col font-sans ${isDragging ? 'select-none' : ''}`}>
-      <Toolbar onAddNode={addNode} onAddTextNode={addTextNode} onAddImageEditorNode={addImageEditorNode} />
+      <Toolbar onAddNode={addNode} onAddTextNode={addTextNode} onAddImageEditorNode={addImageEditorNode} onAddVideoGeneratorNode={addVideoGeneratorNode} />
       <ThemeSwitcher />
       <Canvas
         ref={canvasRef}
@@ -354,6 +404,7 @@ const App: React.FC = () => {
         onUpdateNodeData={updateNodeData}
         onGenerateImage={handleGenerateImage}
         onEditImage={handleEditImage}
+        onGenerateVideo={handleGenerateVideo}
         onImageClick={handleImageClick}
         onOutputMouseDown={handleOutputMouseDown}
         onInputMouseDown={handleInputMouseDown}

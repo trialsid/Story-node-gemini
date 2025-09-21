@@ -3,6 +3,7 @@ export enum NodeType {
   CharacterGenerator = 'CHARACTER_GENERATOR',
   Text = 'TEXT_NODE',
   ImageEditor = 'IMAGE_EDITOR',
+  VideoGenerator = 'VIDEO_GENERATOR',
 }
 
 export interface Connection {
@@ -35,5 +36,12 @@ export interface NodeData {
     editDescription?: string;
     inputImageUrl?: string;
     // `imageUrl` from CharacterGenerator is used for the output image
+    
+    // For Video Generator
+    videoModel?: string;
+    videoUrl?: string;
+    generationProgressMessage?: string;
+    // `inputImageUrl` is shared
+    // `editDescription` is used for the video prompt
   };
 }

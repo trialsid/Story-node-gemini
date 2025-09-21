@@ -10,14 +10,17 @@ import NodeHandle from './NodeHandle';
 import { useTheme } from '../contexts/ThemeContext';
 import ChevronDownIcon from './icons/ChevronDownIcon';
 import ChevronUpIcon from './icons/ChevronUpIcon';
+import VideoIcon from './icons/VideoIcon';
 
 interface NodeProps {
   node: NodeData;
   connections: Connection[];
+  nodes: NodeData[]; // All nodes for checking connection sources
   onDragStart: (nodeId: string, e: React.MouseEvent) => void;
   onUpdateData: (nodeId: string, data: Partial<NodeData['data']>) => void;
   onGenerateImage: (nodeId: string) => void;
   onEditImage: (nodeId: string) => void;
+  onGenerateVideo: (nodeId: string) => void;
   onImageClick: (imageUrl: string) => void;
   onOutputMouseDown: (nodeId: string) => void;
   onInputMouseDown: (nodeId: string) => void;
@@ -68,10 +71,12 @@ const NodeHeader: React.FC<NodeHeaderProps> = ({ title, icon, isMinimized, onTog
 const Node: React.FC<NodeProps> = ({
   node,
   connections,
+  nodes,
   onDragStart,
   onUpdateData,
   onGenerateImage,
   onEditImage,
+  onGenerateVideo,
   onImageClick,
   onOutputMouseDown,
   onInputMouseDown,
@@ -100,6 +105,8 @@ const Node: React.FC<NodeProps> = ({
         onGenerateImage(node.id);
       } else if (nodeType === NodeType.ImageEditor) {
         onEditImage(node.id);
+      } else if (nodeType === NodeType.VideoGenerator) {
+        onGenerateVideo(node.id);
       }
     }
   };
@@ -109,57 +116,55 @@ const Node: React.FC<NodeProps> = ({
   
   const nodeRef = useRef<HTMLDivElement>(null);
   const charGenInputRef = useRef<HTMLDivElement>(null);
-  const charGenStyleRef = useRef<HTMLDivElement>(null);
   const imgEditorInputRef = useRef<HTMLDivElement>(null);
+  const videoGenInputRef = useRef<HTMLDivElement>(null);
   const charGenOutputRef = useRef<HTMLDivElement>(null);
   const imgEditorOutputRef = useRef<HTMLDivElement>(null);
+  const videoGenOutputRef = useRef<HTMLDivElement>(null);
 
+  // Effect for calculating INPUT handle positions
   useEffect(() => {
-    if (node.type === NodeType.Text && nodeRef.current) {
-        const totalHeight = nodeRef.current.offsetHeight;
-        const yPosition = totalHeight / 2;
-        if (Math.abs((node.data.outputHandleYOffset || 0) - yPosition) > 1) {
-            onUpdateData(node.id, { outputHandleYOffset: yPosition });
-        }
-    }
-  }, [node.type, node.data.isMinimized, onUpdateData, node.id]);
-
-  useEffect(() => {
-    const isCharGen = node.type === NodeType.CharacterGenerator;
-    const inputRef = isCharGen
-      ? (node.data.isMinimized ? charGenStyleRef : charGenInputRef)
-      : imgEditorInputRef;
-
-    if (inputRef.current?.parentElement?.parentElement) {
-      const header = inputRef.current.parentElement.parentElement.querySelector(':scope > div:first-child');
-      if (header) {
-        const headerHeight = header.clientHeight;
-        const contentPaddingTop = 8; // p-2
-        const yPosition = headerHeight + contentPaddingTop + inputRef.current.offsetTop + (inputRef.current.offsetHeight * 0.25);
+    if (!nodeRef.current) return;
+    const nodeElement = nodeRef.current;
+  
+    let targetRef: React.RefObject<HTMLElement> | null = null;
+    if (node.type === NodeType.CharacterGenerator) targetRef = charGenInputRef;
+    if (node.type === NodeType.ImageEditor) targetRef = imgEditorInputRef;
+    if (node.type === NodeType.VideoGenerator) targetRef = videoGenInputRef;
+    
+    if (targetRef?.current) {
+        const targetElement = targetRef.current;
+        const nodeRect = nodeElement.getBoundingClientRect();
+        const targetRect = targetElement.getBoundingClientRect();
+        const yPosition = (targetRect.top - nodeRect.top) + (targetRect.height / 2);
 
         if (Math.abs((node.data.inputHandleYOffset || 0) - yPosition) > 1) {
             onUpdateData(node.id, { inputHandleYOffset: yPosition });
         }
-      }
     }
-  }, [node.type, onUpdateData, node.id, node.data.inputHandleYOffset, node.data.isMinimized]);
+  }, [node.id, node.type, onUpdateData, node.data.isMinimized]);
 
+  // Effect for calculating OUTPUT handle positions
   useEffect(() => {
-    const outputRef = node.type === NodeType.CharacterGenerator ? charGenOutputRef : imgEditorOutputRef;
-    if (outputRef.current?.parentElement?.parentElement) {
-      const header = outputRef.current.parentElement.parentElement.querySelector(':scope > div:first-child');
-      if (header) {
-        const headerHeight = header.clientHeight;
-        // The content div has p-2 (8px top padding)
-        const contentPaddingTop = 8;
-        const yPosition = headerHeight + contentPaddingTop + outputRef.current.offsetTop + outputRef.current.offsetHeight * 0.25;
+    if (!nodeRef.current) return;
+    const nodeElement = nodeRef.current;
+
+    let targetRef: React.RefObject<HTMLElement> | null = null;
+    if (node.type === NodeType.Text) targetRef = nodeRef; // For text node, use the node itself
+    if (node.type === NodeType.CharacterGenerator) targetRef = charGenOutputRef;
+    if (node.type === NodeType.ImageEditor) targetRef = imgEditorOutputRef;
+    
+    if (targetRef?.current) {
+        const targetElement = targetRef.current;
+        const nodeRect = nodeElement.getBoundingClientRect();
+        const targetRect = targetElement.getBoundingClientRect();
+        const yPosition = (targetRect.top - nodeRect.top) + (targetRect.height / 2);
         
         if (Math.abs((node.data.outputHandleYOffset || 0) - yPosition) > 1) {
             onUpdateData(node.id, { outputHandleYOffset: yPosition });
         }
-      }
     }
-  }, [node.type, node.data.imageUrl, node.data.isLoading, node.data.error, onUpdateData, node.id, node.data.outputHandleYOffset, node.data.isMinimized]);
+  }, [node.id, node.type, node.data.imageUrl, node.data.isLoading, node.data.error, node.data.text, onUpdateData, node.data.isMinimized]);
 
 
   return (
@@ -183,114 +188,158 @@ const Node: React.FC<NodeProps> = ({
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={() => onDelete(node.id)}
             />
-            <div className="flex-grow p-2 space-y-2">
-                {!node.data.isMinimized && <label className={labelClassName}>Text Output</label>}
-                <textarea
-                    value={node.data.text || ''}
-                    onChange={(e) => onUpdateData(node.id, { text: e.target.value })}
-                    className={`w-full h-24 p-1 ${styles.node.inputBg} border ${styles.node.inputBorder} rounded-md text-sm ${styles.node.text} focus:outline-none focus:ring-2 ${styles.node.inputFocusRing} resize-none`}
-                    placeholder="Type your text here..."
-                />
-            </div>
-            {!!node.data.outputHandleYOffset && (
-                <NodeHandle
-                    onMouseDown={() => onOutputMouseDown(node.id)}
-                    isConnected={isOutputConnected}
-                    style={{ right: -8, top: node.data.outputHandleYOffset - 8 }}
-                />
+            {!node.data.isMinimized && (
+              <div className="p-2">
+                  <textarea
+                      value={node.data.text || ''}
+                      onChange={(e) => onUpdateData(node.id, { text: e.target.value })}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      className={textAreaClassName()}
+                      placeholder="Enter text..."
+                  />
+              </div>
             )}
+            <NodeHandle
+                onMouseDown={() => onOutputMouseDown(node.id)}
+                isConnected={isOutputConnected}
+                style={{
+                    right: '-8px',
+                    top: `${node.data.outputHandleYOffset || '50%'}`,
+                    transform: 'translateY(-50%)',
+                }}
+            />
         </>
       )}
 
       {node.type === NodeType.CharacterGenerator && (
         <>
-            <NodeHandle
-                onMouseDown={() => onInputMouseDown(node.id)}
-                onMouseUp={() => onInputMouseUp(node.id)}
-                isConnected={isInputConnected}
-                style={{ left: -8, top: (node.data.inputHandleYOffset || 228) - 8 }}
-            />
-            {node.data.imageUrl && !node.data.isLoading && !!node.data.outputHandleYOffset && (
-                <NodeHandle
-                    onMouseDown={() => onOutputMouseDown(node.id)}
-                    isConnected={isOutputConnected}
-                    style={{ right: -8, top: node.data.outputHandleYOffset - 8 }}
+          <NodeHeader 
+            title='Character Generator'
+            icon={<ImageIcon className="w-4 h-4 text-cyan-400" />}
+            isMinimized={!!node.data.isMinimized}
+            onToggleMinimize={() => onToggleMinimize(node.id)}
+            onDelete={() => onDelete(node.id)}
+          />
+          {!node.data.isMinimized && (
+            <div className="p-2 space-y-2">
+              <div ref={charGenInputRef}>
+                <label htmlFor={`desc-${node.id}`} className={labelClassName}>Character Description</label>
+                <textarea
+                  id={`desc-${node.id}`}
+                  value={node.data.characterDescription || ''}
+                  onChange={(e) => onUpdateData(node.id, { characterDescription: e.target.value })}
+                  onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.CharacterGenerator)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className={textAreaClassName(isInputConnected)}
+                  disabled={isInputConnected}
+                  placeholder="e.g., A cat astronaut on Mars"
                 />
-            )}
-            <NodeHeader 
-                title='Character Generator'
-                icon={<ImageIcon className="w-4 h-4 text-cyan-400" />}
-                isMinimized={!!node.data.isMinimized}
-                onToggleMinimize={() => onToggleMinimize(node.id)}
-                onDelete={() => onDelete(node.id)}
-            />
-            <div className="flex-grow p-2 space-y-2 overflow-y-auto">
-                <div ref={charGenStyleRef}>
-                    <label className={labelClassName}>Style</label>
-                    <select value={node.data.style || 'Studio Portrait Photo'} onChange={(e) => onUpdateData(node.id, { style: e.target.value })} className={selectClassName}>
-                        <option>Studio Portrait Photo</option><option>Cinematic Film Still</option><option>Action Shot Photo</option><option>Golden Hour Portrait</option><option>Fashion Magazine Shot</option><option>Candid Photo</option><option>Black and White Photo</option><option>Documentary Style Photo</option>
-                    </select>
+              </div>
+              <div>
+                <label htmlFor={`style-${node.id}`} className={labelClassName}>Style</label>
+                <select
+                  id={`style-${node.id}`}
+                  className={selectClassName}
+                  value={node.data.style}
+                  onChange={(e) => onUpdateData(node.id, { style: e.target.value })}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <option>Studio Portrait Photo</option>
+                  <option>Cinematic Film Still</option>
+                  <option>Action Shot Photo</option>
+                  <option>Golden Hour Portrait</option>
+                  <option>Fashion Magazine Shot</option>
+                  <option>Candid Photo</option>
+                  <option>Black and White Photo</option>
+                  <option>Documentary Style Photo</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor={`layout-${node.id}`} className={labelClassName}>Layout</label>
+                <select
+                  id={`layout-${node.id}`}
+                  className={selectClassName}
+                  value={node.data.layout}
+                  onChange={(e) => onUpdateData(node.id, { layout: e.target.value })}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <option>4-panel grid</option>
+                  <option>6-panel grid</option>
+                  <option>T-pose reference sheet</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor={`aspect-${node.id}`} className={labelClassName}>Aspect Ratio</label>
+                <select
+                  id={`aspect-${node.id}`}
+                  className={selectClassName}
+                  value={node.data.aspectRatio}
+                  onChange={(e) => onUpdateData(node.id, { aspectRatio: e.target.value })}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <option value="1:1">1:1 (Square)</option>
+                  <option value="16:9">16:9 (Widescreen)</option>
+                  <option value="9:16">9:16 (Portrait)</option>
+                  <option value="4:3">4:3 (Standard)</option>
+                  <option value="3:4">3:4 (Standard Portrait)</option>
+                </select>
+              </div>
+              <div ref={charGenOutputRef}>
+                <label className={labelClassName}>Output Image</label>
+                <div className={`${imagePreviewBaseClassName} h-40`}>
+                  {node.data.isLoading ? (
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
+                  ) : node.data.error ? (
+                    <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
+                  ) : node.data.imageUrl ? (
+                    <img
+                      src={node.data.imageUrl}
+                      alt="Generated character"
+                      className="w-full h-full object-cover rounded-md cursor-zoom-in"
+                      onClick={() => onImageClick(node.data.imageUrl!)}
+                    />
+                  ) : (
+                    <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
+                  )}
                 </div>
-                {!node.data.isMinimized && (
-                    <>
-                        <div>
-                            <label className={labelClassName}>Layout</label>
-                            <select value={node.data.layout || '4-panel grid'} onChange={(e) => onUpdateData(node.id, { layout: e.target.value })} className={selectClassName}>
-                                <option value="4-panel grid">4-Panel Grid</option><option value="6-panel grid">6-Panel Grid</option><option value="T-pose reference sheet">T-Pose Sheet</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className={labelClassName}>Aspect Ratio</label>
-                            <select value={node.data.aspectRatio || '1:1'} onChange={(e) => onUpdateData(node.id, { aspectRatio: e.target.value })} className={selectClassName}>
-                                <option value="1:1">1:1 (Square)</option><option value="4:3">4:3 (Landscape)</option><option value="3:4">3:4 (Portrait)</option><option value="16:9">16:9 (Widescreen)</option><option value="9:16">9:16 (Portrait)</option>
-                            </select>
-                        </div>
-                        <div ref={charGenInputRef}>
-                            <label className={labelClassName}>Character Description</label>
-                            <textarea
-                                value={node.data.characterDescription || ''}
-                                onChange={(e) => onUpdateData(node.id, { characterDescription: e.target.value })}
-                                onKeyDown={(e) => handleTextAreaKeyDown(e, node.type)}
-                                className={textAreaClassName(isInputConnected)}
-                                placeholder={isInputConnected ? "Controlled by connection" : "e.g., A brave knight..."}
-                                disabled={isInputConnected}
-                            />
-                        </div>
-                    </>
-                )}
-                <div ref={charGenOutputRef} className={`${imagePreviewBaseClassName}`}>
-                    {node.data.isLoading && <div className="w-full h-[128px] flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div></div>}
-                    {node.data.error && <div className="w-full h-[128px] flex items-center justify-center p-2"><p className="text-xs text-red-400 text-center">{node.data.error}</p></div>}
-                    {node.data.imageUrl && !node.data.isLoading && (
-                        <img src={node.data.imageUrl} alt="Generated" className="object-contain w-full rounded-md cursor-pointer hover:opacity-80 transition-opacity" onClick={() => onImageClick(node.data.imageUrl!)} />
-                    )}
-                    {!node.data.imageUrl && !node.data.isLoading && !node.data.error && <div className="w-full h-[128px] flex items-center justify-center"><ImageIcon className={`w-10 h-10 ${styles.node.imagePlaceholderIcon}`} /></div>}
-                </div>
-                {!node.data.isMinimized && (
-                    <button onClick={() => onGenerateImage(node.id)} disabled={node.data.isLoading} className="w-full flex items-center justify-center space-x-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-md transition-colors text-sm">
-                        <SparklesIcon className="w-4 h-4" />
-                        <span>{node.data.isLoading ? 'Generating...' : 'Generate (Ctrl+Enter)'}</span>
-                    </button>
-                )}
+              </div>
+              <button
+                onClick={() => onGenerateImage(node.id)}
+                disabled={node.data.isLoading}
+                className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-cyan-600 hover:bg-cyan-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`}
+              >
+                <SparklesIcon className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                {node.data.isLoading ? 'Generating...' : 'Generate Image'}
+              </button>
             </div>
+          )}
+          
+          <NodeHandle
+            onMouseDown={(e) => onInputMouseDown(node.id)}
+            onMouseUp={() => onInputMouseUp(node.id)}
+            isConnected={isInputConnected}
+            style={{
+              left: '-8px',
+              top: `${node.data.inputHandleYOffset || 228}px`,
+              transform: 'translateY(-50%)',
+            }}
+          />
+          {node.data.imageUrl && !node.data.isLoading && (
+            <NodeHandle
+              onMouseDown={() => onOutputMouseDown(node.id)}
+              isConnected={isOutputConnected}
+              style={{
+                right: '-8px',
+                top: `${node.data.outputHandleYOffset || 368}px`,
+                transform: 'translateY(-50%)',
+              }}
+            />
+          )}
         </>
       )}
       
       {node.type === NodeType.ImageEditor && (
         <>
-            <NodeHandle
-                onMouseDown={() => onInputMouseDown(node.id)}
-                onMouseUp={() => onInputMouseUp(node.id)}
-                isConnected={isInputConnected}
-                style={{ left: -8, top: (node.data.inputHandleYOffset || 78) - 8 }}
-            />
-            {node.data.imageUrl && !node.data.isLoading && !!node.data.outputHandleYOffset && (
-                <NodeHandle
-                    onMouseDown={() => onOutputMouseDown(node.id)}
-                    isConnected={isOutputConnected}
-                    style={{ right: -8, top: node.data.outputHandleYOffset - 8 }}
-                />
-            )}
             <NodeHeader 
                 title='Image Editor'
                 icon={<EditIcon className="w-4 h-4 text-purple-400" />}
@@ -298,47 +347,168 @@ const Node: React.FC<NodeProps> = ({
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={() => onDelete(node.id)}
             />
-            <div className="flex-grow p-2 space-y-2 overflow-y-auto">
+            {!node.data.isMinimized && (
+              <div className="p-2 space-y-2">
                 <div ref={imgEditorInputRef}>
                     <label className={labelClassName}>Input Image</label>
-                    <div className={imagePreviewBaseClassName}>
+                    <div className={`${imagePreviewBaseClassName} h-32`}>
                         {node.data.inputImageUrl ? (
-                             <img src={node.data.inputImageUrl} alt="Input" className="object-contain w-full rounded-md" />
+                            <img src={node.data.inputImageUrl} alt="Input for editing" className="w-full h-full object-cover rounded-md" />
                         ) : (
-                            <div className={`text-center ${styles.node.labelText} text-xs w-full h-[128px] flex flex-col items-center justify-center`}>
-                                <ImageIcon className={`w-8 h-8 mx-auto mb-1 ${styles.node.imagePlaceholderIcon}`} />
-                                <p>Connect an image output</p>
-                            </div>
+                            <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
                         )}
                     </div>
                 </div>
-                 {!node.data.isMinimized && (
-                    <div>
-                        <label className={labelClassName}>Edit Description</label>
-                        <textarea
-                            value={node.data.editDescription || ''}
-                            onChange={(e) => onUpdateData(node.id, { editDescription: e.target.value })}
-                            onKeyDown={(e) => handleTextAreaKeyDown(e, node.type)}
-                            className={textAreaClassName()}
-                            placeholder={"e.g., Add a futuristic helmet..."}
-                        />
-                    </div>
-                 )}
-                 <div ref={imgEditorOutputRef} className={`${imagePreviewBaseClassName}`}>
-                    {node.data.isLoading && <div className="w-full h-[128px] flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div></div>}
-                    {node.data.error && <div className="w-full h-[128px] flex items-center justify-center p-2"><p className="text-xs text-red-400 text-center">{node.data.error}</p></div>}
-                    {node.data.imageUrl && !node.data.isLoading && (
-                        <img src={node.data.imageUrl} alt="Edited" className="object-contain w-full rounded-md cursor-pointer hover:opacity-80 transition-opacity" onClick={() => onImageClick(node.data.imageUrl!)} />
-                    )}
-                    {!node.data.imageUrl && !node.data.isLoading && !node.data.error && <div className="w-full h-[128px] flex items-center justify-center"><ImageIcon className={`w-10 h-10 ${styles.node.imagePlaceholderIcon}`} /></div>}
+                <div>
+                    <label htmlFor={`edit-desc-${node.id}`} className={labelClassName}>Edit Description</label>
+                    <textarea
+                        id={`edit-desc-${node.id}`}
+                        value={node.data.editDescription || ''}
+                        onChange={(e) => onUpdateData(node.id, { editDescription: e.target.value })}
+                        onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.ImageEditor)}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className={textAreaClassName()}
+                        placeholder="e.g., Add a golden crown to the subject"
+                    />
                 </div>
-                {!node.data.isMinimized && (
-                    <button onClick={() => onEditImage(node.id)} disabled={node.data.isLoading || !node.data.inputImageUrl} className="w-full flex items-center justify-center space-x-2 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-md transition-colors text-sm">
-                        <SparklesIcon className="w-4 h-4" />
-                        <span>{node.data.isLoading ? 'Generating...' : 'Generate (Ctrl+Enter)'}</span>
-                    </button>
-                )}
-            </div>
+                <div ref={imgEditorOutputRef}>
+                    <label className={labelClassName}>Output Image</label>
+                    <div className={`${imagePreviewBaseClassName} h-40`}>
+                        {node.data.isLoading ? (
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
+                        ) : node.data.error ? (
+                            <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
+                        ) : node.data.imageUrl ? (
+                            <img
+                                src={node.data.imageUrl}
+                                alt="Edited image"
+                                className="w-full h-full object-cover rounded-md cursor-zoom-in"
+                                onClick={() => onImageClick(node.data.imageUrl!)}
+                            />
+                        ) : (
+                            <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
+                        )}
+                    </div>
+                </div>
+                <button
+                    onClick={() => onEditImage(node.id)}
+                    disabled={node.data.isLoading}
+                    className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-purple-600 hover:bg-purple-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`}
+                >
+                    <SparklesIcon className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                    {node.data.isLoading ? 'Editing...' : 'Edit Image'}
+                </button>
+              </div>
+            )}
+            
+            <NodeHandle
+                onMouseDown={(e) => onInputMouseDown(node.id)}
+                onMouseUp={() => onInputMouseUp(node.id)}
+                isConnected={isInputConnected}
+                style={{
+                    left: '-8px',
+                    top: `${node.data.inputHandleYOffset || 78}px`,
+                    transform: 'translateY(-50%)',
+                }}
+            />
+            {node.data.imageUrl && !node.data.isLoading && (
+                <NodeHandle
+                    onMouseDown={() => onOutputMouseDown(node.id)}
+                    isConnected={isOutputConnected}
+                    style={{
+                        right: '-8px',
+                        top: `${node.data.outputHandleYOffset || 428}px`,
+                        transform: 'translateY(-50%)',
+                    }}
+                />
+            )}
+        </>
+      )}
+
+      {node.type === NodeType.VideoGenerator && (
+        <>
+            <NodeHeader 
+                title='Video Generator'
+                icon={<VideoIcon className="w-4 h-4 text-green-400" />}
+                isMinimized={!!node.data.isMinimized}
+                onToggleMinimize={() => onToggleMinimize(node.id)}
+                onDelete={() => onDelete(node.id)}
+            />
+            {!node.data.isMinimized && (
+              <div className="p-2 space-y-2">
+                <div ref={videoGenInputRef}>
+                    <label className={labelClassName}>Input Image (Optional)</label>
+                    <div className={`${imagePreviewBaseClassName} h-32`}>
+                        {node.data.inputImageUrl ? (
+                            <img src={node.data.inputImageUrl} alt="Input for video" className="w-full h-full object-cover rounded-md" />
+                        ) : (
+                            <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
+                        )}
+                    </div>
+                </div>
+                <div>
+                    <label htmlFor={`video-model-${node.id}`} className={labelClassName}>Video Model</label>
+                    <select
+                        id={`video-model-${node.id}`}
+                        className={selectClassName}
+                        value={node.data.videoModel || 'veo-2.0-generate-001'}
+                        onChange={(e) => onUpdateData(node.id, { videoModel: e.target.value })}
+                        onMouseDown={(e) => e.stopPropagation()}
+                    >
+                        <option value="veo-2.0-generate-001">Veo 2 (Standard)</option>
+                        <option value="veo-3.0-fast-generate-001">Veo 3 (Fast)</option>
+                    </select>
+                </div>
+                <div>
+                    <label htmlFor={`prompt-${node.id}`} className={labelClassName}>Video Prompt</label>
+                    <textarea
+                        id={`prompt-${node.id}`}
+                        value={node.data.editDescription || ''}
+                        onChange={(e) => onUpdateData(node.id, { editDescription: e.target.value })}
+                        onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.VideoGenerator)}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className={textAreaClassName()}
+                        placeholder="e.g., A majestic eagle soaring over mountains"
+                    />
+                </div>
+                <div ref={videoGenOutputRef}>
+                    <label className={labelClassName}>Output Video</label>
+                    <div className={`${imagePreviewBaseClassName} h-40`}>
+                        {node.data.isLoading ? (
+                            <div className="flex flex-col items-center justify-center text-center p-2">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400 mb-2"></div>
+                                <span className="text-xs text-gray-400">{node.data.generationProgressMessage || 'Generating...'}</span>
+                            </div>
+                        ) : node.data.error ? (
+                            <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
+                        ) : node.data.videoUrl ? (
+                            <video src={node.data.videoUrl} controls className="w-full h-full object-cover rounded-md" />
+                        ) : (
+                            <VideoIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
+                        )}
+                    </div>
+                </div>
+                <button
+                    onClick={() => onGenerateVideo(node.id)}
+                    disabled={node.data.isLoading}
+                    className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-green-600 hover:bg-green-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`}
+                >
+                    <SparklesIcon className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                    {node.data.isLoading ? 'Generating...' : 'Generate Video'}
+                </button>
+              </div>
+            )}
+            
+            <NodeHandle
+                onMouseDown={(e) => onInputMouseDown(node.id)}
+                onMouseUp={() => onInputMouseUp(node.id)}
+                isConnected={isInputConnected}
+                style={{
+                    left: '-8px',
+                    top: `${node.data.inputHandleYOffset || 78}px`,
+                    transform: 'translateY(-50%)',
+                }}
+            />
         </>
       )}
     </div>

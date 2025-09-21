@@ -16,6 +16,7 @@ interface CanvasProps {
   onUpdateNodeData: (nodeId: string, data: Partial<NodeData['data']>) => void;
   onGenerateImage: (nodeId: string) => void;
   onEditImage: (nodeId: string) => void;
+  onGenerateVideo: (nodeId: string) => void;
   onImageClick: (imageUrl: string) => void;
   onOutputMouseDown: (nodeId: string) => void;
   onInputMouseDown: (nodeId: string) => void;
@@ -40,6 +41,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
   onUpdateNodeData,
   onGenerateImage,
   onEditImage,
+  onGenerateVideo,
   onImageClick,
   onOutputMouseDown,
   onInputMouseDown,
@@ -77,7 +79,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
             const yOffset = node.data.inputHandleYOffset || 228;
             return { x: node.position.x, y: node.position.y + yOffset };
         }
-        if (node.type === NodeType.ImageEditor) {
+        if (node.type === NodeType.ImageEditor || node.type === NodeType.VideoGenerator) {
              // Fallback aligns with the "Input Image" preview
             const yOffset = node.data.inputHandleYOffset || 78;
             return { x: node.position.x, y: node.position.y + yOffset };
@@ -123,10 +125,12 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
             key={node.id}
             node={node}
             connections={connections}
+            nodes={nodes}
             onDragStart={onNodeDragStart}
             onUpdateData={onUpdateNodeData}
             onGenerateImage={onGenerateImage}
             onEditImage={onEditImage}
+            onGenerateVideo={onGenerateVideo}
             onImageClick={onImageClick}
             onOutputMouseDown={onOutputMouseDown}
             onInputMouseDown={onInputMouseDown}
