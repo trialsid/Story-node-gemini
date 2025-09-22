@@ -30,6 +30,10 @@ interface CanvasProps {
   mousePosition: { x: number; y: number };
 }
 
+// Define minimized node heights for consistent handle positioning
+const MINIMIZED_NODE_HEADER_HEIGHT = 40; // Corresponds to p-2 padding and text size in NodeHeader
+
+
 const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
   nodes,
   connections,
@@ -59,6 +63,25 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
 
   const getNodeHandlePosition = (node: NodeData, handleType: 'input' | 'output'): { x: number; y: number } => {
     const dims = nodeDimensions[node.type];
+    const isMinimized = node.data.isMinimized;
+
+    // Handle minimized nodes first
+    if (isMinimized) {
+        const previewHeight = node.data.minimizedHeight || 64; // Fallback to old h-16
+        const yCenter = MINIMIZED_NODE_HEADER_HEIGHT + (previewHeight / 2);
+
+        if (handleType === 'output') {
+             // For text nodes, the handle is on the header itself
+            const yOffset = node.type === NodeType.Text ? MINIMIZED_NODE_HEADER_HEIGHT / 2 : yCenter;
+            return { x: node.position.x + dims.width, y: node.position.y + yOffset };
+        }
+        if (handleType === 'input') {
+            return { x: node.position.x, y: node.position.y + yCenter };
+        }
+    }
+
+
+    // Logic for expanded nodes
     if (handleType === 'output') {
         if (node.type === NodeType.Text) {
             // Text node height is now dynamic, use calculated offset
@@ -69,6 +92,10 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
             // The vertical offset is calculated dynamically in Node.tsx.
             // A fallback is provided for the initial render before the effect runs.
             const yOffset = node.data.outputHandleYOffset || (node.type === NodeType.CharacterGenerator ? 368 : 428);
+            return { x: node.position.x + dims.width, y: node.position.y + yOffset };
+        }
+        if (node.type === NodeType.Image) {
+            const yOffset = node.data.outputHandleYOffset || 108; // Fallback
             return { x: node.position.x + dims.width, y: node.position.y + yOffset };
         }
     }

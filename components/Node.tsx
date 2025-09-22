@@ -1,5 +1,5 @@
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { NodeData, NodeType, Connection } from '../types';
 import ImageIcon from './icons/ImageIcon';
 import SparklesIcon from './icons/SparklesIcon';
@@ -11,6 +11,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import ChevronDownIcon from './icons/ChevronDownIcon';
 import ChevronUpIcon from './icons/ChevronUpIcon';
 import VideoIcon from './icons/VideoIcon';
+import UploadIcon from './icons/UploadIcon';
 
 interface NodeProps {
   node: NodeData;
@@ -86,6 +87,8 @@ const Node: React.FC<NodeProps> = ({
   dimensions
 }) => {
   const { styles } = useTheme();
+  const isMinimized = !!node.data.isMinimized;
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   const selectClassName = `w-full p-1 ${styles.node.inputBg} border ${styles.node.inputBorder} rounded-md text-sm ${styles.node.text} focus:outline-none focus:ring-2 ${styles.node.inputFocusRing}`;
   const labelClassName = `text-xs font-semibold ${styles.node.labelText}`;
@@ -115,16 +118,95 @@ const Node: React.FC<NodeProps> = ({
   const isOutputConnected = connections.some(c => c.fromNodeId === node.id);
   
   const nodeRef = useRef<HTMLDivElement>(null);
+  const imageUploadRef = useRef<HTMLInputElement>(null);
   const charGenInputRef = useRef<HTMLDivElement>(null);
   const imgEditorInputRef = useRef<HTMLDivElement>(null);
   const videoGenInputRef = useRef<HTMLDivElement>(null);
+  const imgNodeOutputRef = useRef<HTMLDivElement>(null);
   const charGenOutputRef = useRef<HTMLDivElement>(null);
   const imgEditorOutputRef = useRef<HTMLDivElement>(null);
   const videoGenOutputRef = useRef<HTMLDivElement>(null);
+  const minimizedImageRef = useRef<HTMLImageElement>(null);
+  const minimizedVideoRef = useRef<HTMLVideoElement>(null);
+
+  const previewImage = node.data.imageUrl || node.data.inputImageUrl;
+  const previewVideo = node.data.videoUrl;
+  const hasVisuals = !!(previewImage || previewVideo);
+
+  // Effect for calculating minimized node's preview height
+  useEffect(() => {
+    if (!isMinimized) {
+        if (node.data.minimizedHeight !== undefined) {
+            onUpdateData(node.id, { minimizedHeight: undefined });
+        }
+        return;
+    }
+
+    let isMounted = true;
+    let element: HTMLImageElement | HTMLVideoElement | null = null;
+    let eventName: 'load' | 'loadedmetadata' = 'load';
+
+    const setHeightFromElement = () => {
+        if (!isMounted || !element) return;
+        const naturalWidth = (element as HTMLImageElement).naturalWidth || (element as HTMLVideoElement).videoWidth;
+        const naturalHeight = (element as HTMLImageElement).naturalHeight || (element as HTMLVideoElement).videoHeight;
+        if (naturalWidth > 0) {
+            const newHeight = (dimensions.width * naturalHeight) / naturalWidth;
+            if (node.data.minimizedHeight !== newHeight) {
+                onUpdateData(node.id, { minimizedHeight: newHeight });
+            }
+        }
+    };
+
+    const calculateHeight = () => {
+      if (hasVisuals) {
+        // Priority 1: Use explicit aspect ratio from CharacterGenerator
+        if (node.type === NodeType.CharacterGenerator && node.data.aspectRatio) {
+            const [w, h] = node.data.aspectRatio.split(':').map(Number);
+            if (w && h) {
+                const newHeight = (dimensions.width * h) / w;
+                if (node.data.minimizedHeight !== newHeight) {
+                    onUpdateData(node.id, { minimizedHeight: newHeight });
+                }
+                return;
+            }
+        }
+        
+        // Priority 2: Calculate from media element ref
+        element = previewVideo ? minimizedVideoRef.current : minimizedImageRef.current;
+        eventName = previewVideo ? 'loadedmetadata' : 'load';
+
+        if (element) {
+            const isReady = (element as HTMLImageElement).complete || (element as HTMLVideoElement).readyState >= 1;
+            if (isReady) {
+                setHeightFromElement();
+            } else {
+                element.addEventListener(eventName, setHeightFromElement, { once: true });
+            }
+        }
+      } else {
+          // No visuals, use default height for text/placeholder
+          if (node.data.minimizedHeight !== 64) {
+              onUpdateData(node.id, { minimizedHeight: 64 });
+          }
+      }
+    };
+
+    // Run after a delay to ensure refs are populated
+    const timeoutId = setTimeout(calculateHeight, 0);
+
+    return () => {
+        isMounted = false;
+        clearTimeout(timeoutId);
+        if (element) {
+            element.removeEventListener(eventName, setHeightFromElement);
+        }
+    };
+  }, [isMinimized, hasVisuals, previewImage, previewVideo, node.type, node.data.aspectRatio, dimensions.width, node.id, onUpdateData, node.data.minimizedHeight]);
 
   // Effect for calculating INPUT handle positions
   useEffect(() => {
-    if (!nodeRef.current) return;
+    if (!nodeRef.current || isMinimized) return;
     const nodeElement = nodeRef.current;
   
     let targetRef: React.RefObject<HTMLElement> | null = null;
@@ -146,11 +228,12 @@ const Node: React.FC<NodeProps> = ({
 
   // Effect for calculating OUTPUT handle positions
   useEffect(() => {
-    if (!nodeRef.current) return;
+    if (!nodeRef.current || isMinimized) return;
     const nodeElement = nodeRef.current;
 
     let targetRef: React.RefObject<HTMLElement> | null = null;
     if (node.type === NodeType.Text) targetRef = nodeRef; // For text node, use the node itself
+    if (node.type === NodeType.Image) targetRef = imgNodeOutputRef;
     if (node.type === NodeType.CharacterGenerator) targetRef = charGenOutputRef;
     if (node.type === NodeType.ImageEditor) targetRef = imgEditorOutputRef;
     
@@ -166,16 +249,64 @@ const Node: React.FC<NodeProps> = ({
     }
   }, [node.id, node.type, node.data.imageUrl, node.data.isLoading, node.data.error, node.data.text, onUpdateData, node.data.isMinimized]);
 
+  const handleTextNodeTransitionEnd = () => {
+    // This fires after the collapse/expand animation. We only want to act after an expansion.
+    if (node.type === NodeType.Text && !isMinimized && nodeRef.current) {
+        const nodeRect = nodeRef.current.getBoundingClientRect();
+        const yPosition = nodeRect.height / 2;
+        
+        // Only update if the position has meaningfully changed to avoid re-renders.
+        if (Math.abs((node.data.outputHandleYOffset || 0) - yPosition) > 1) {
+            onUpdateData(node.id, { outputHandleYOffset: yPosition });
+        }
+    }
+  };
+  
+    const handleFileChange = (file: File | null) => {
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                if (e.target?.result) {
+                    onUpdateData(node.id, { imageUrl: e.target.result as string });
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDraggingOver(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDraggingOver(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDraggingOver(false);
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            handleFileChange(e.dataTransfer.files[0]);
+        }
+    };
+    
+  const getMinimizedHandleTop = () => {
+    const headerHeight = 40; // from Canvas.tsx MINIMIZED_NODE_HEADER_HEIGHT
+    const previewHeight = node.data.minimizedHeight || 64;
+    return headerHeight + (previewHeight / 2);
+  };
 
   return (
     <div
       ref={nodeRef}
-      className={`absolute ${styles.node.bg} border ${styles.node.border} rounded-lg flex flex-col`}
+      className={`absolute ${styles.node.bg} border ${styles.node.border} rounded-lg flex flex-col transition-all duration-300 ease-in-out`}
       style={{
         left: node.position.x,
         top: node.position.y,
         width: `${dimensions.width}px`,
-        height: dimensions.height ? `${dimensions.height}px` : undefined,
+        height: dimensions.height && !isMinimized ? `${dimensions.height}px` : undefined,
       }}
       onMouseDownCapture={handleMouseDown}
     >
@@ -184,30 +315,111 @@ const Node: React.FC<NodeProps> = ({
             <NodeHeader 
                 title='Text Node'
                 icon={<TextIcon className="w-4 h-4 text-yellow-400" />}
-                isMinimized={!!node.data.isMinimized}
+                isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={() => onDelete(node.id)}
             />
-            {!node.data.isMinimized && (
-              <div className="p-2">
-                  <textarea
-                      value={node.data.text || ''}
-                      onChange={(e) => onUpdateData(node.id, { text: e.target.value })}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      className={textAreaClassName()}
-                      placeholder="Enter text..."
-                  />
+            <div
+                onTransitionEnd={handleTextNodeTransitionEnd}
+                className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0' : 'max-h-96'}`}>
+                <div className="p-2">
+                    <textarea
+                        value={node.data.text || ''}
+                        onChange={(e) => onUpdateData(node.id, { text: e.target.value })}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className={textAreaClassName()}
+                        placeholder="Enter text..."
+                    />
+                </div>
+            </div>
+            
+            {isMinimized && (
+              <div className={`p-2 h-16 text-xs italic ${styles.node.labelText} truncate rounded-b-md flex items-center border-t ${styles.node.border}`}>
+                  {node.data.text || "Empty text..."}
               </div>
             )}
+
             <NodeHandle
                 onMouseDown={() => onOutputMouseDown(node.id)}
                 isConnected={isOutputConnected}
                 style={{
                     right: '-8px',
-                    top: `${node.data.outputHandleYOffset || '50%'}`,
+                    top: isMinimized ? '20px' : `${node.data.outputHandleYOffset || '50%'}`,
                     transform: 'translateY(-50%)',
+                    transition: 'none',
                 }}
             />
+        </>
+      )}
+      
+      {node.type === NodeType.Image && (
+        <>
+            <NodeHeader 
+                title='Image Node'
+                icon={<UploadIcon className="w-4 h-4 text-orange-400" />}
+                isMinimized={isMinimized}
+                onToggleMinimize={() => onToggleMinimize(node.id)}
+                onDelete={() => onDelete(node.id)}
+            />
+            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
+                <div className="p-2">
+                    <div ref={imgNodeOutputRef}>
+                        <label className={labelClassName}>Source Image</label>
+                        <div 
+                            className={`${imagePreviewBaseClassName} h-40 cursor-pointer ${isDraggingOver ? `ring-2 ring-offset-2 ${styles.node.inputFocusRing}` : ''}`}
+                            onClick={() => imageUploadRef.current?.click()}
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleDrop}
+                        >
+                            <input
+                                ref={imageUploadRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => handleFileChange(e.target.files ? e.target.files[0] : null)}
+                            />
+                            {node.data.imageUrl ? (
+                                <img
+                                    src={node.data.imageUrl}
+                                    alt="Uploaded"
+                                    className="w-full h-full object-cover rounded-md"
+                                />
+                            ) : (
+                                <div className="text-center">
+                                    <UploadIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon} mx-auto mb-1`} />
+                                    <span className="text-xs">Click or drag & drop</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {isMinimized && (
+              <div 
+                  className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md flex items-center justify-center border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`}
+                  style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }}
+              >
+                  {node.data.imageUrl ? 
+                      <img key={node.data.imageUrl} ref={minimizedImageRef} src={node.data.imageUrl} alt="Preview" className="w-full h-full object-contain" />
+                      : <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
+                  }
+              </div>
+            )}
+
+            {node.data.imageUrl && (
+                <NodeHandle
+                    onMouseDown={() => onOutputMouseDown(node.id)}
+                    isConnected={isOutputConnected}
+                    style={{
+                        right: '-8px',
+                        top: isMinimized ? `${getMinimizedHandleTop()}px` : `${node.data.outputHandleYOffset || 108}px`,
+                        transform: 'translateY(-50%)',
+                        transition: 'none',
+                    }}
+                />
+            )}
         </>
       )}
 
@@ -216,11 +428,11 @@ const Node: React.FC<NodeProps> = ({
           <NodeHeader 
             title='Character Generator'
             icon={<ImageIcon className="w-4 h-4 text-cyan-400" />}
-            isMinimized={!!node.data.isMinimized}
+            isMinimized={isMinimized}
             onToggleMinimize={() => onToggleMinimize(node.id)}
             onDelete={() => onDelete(node.id)}
           />
-          {!node.data.isMinimized && (
+          <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
             <div className="p-2 space-y-2">
               <div ref={charGenInputRef}>
                 <label htmlFor={`desc-${node.id}`} className={labelClassName}>Character Description</label>
@@ -312,6 +524,17 @@ const Node: React.FC<NodeProps> = ({
                 {node.data.isLoading ? 'Generating...' : 'Generate Image'}
               </button>
             </div>
+          </div>
+          {isMinimized && (
+              <div 
+                  className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md flex items-center justify-center border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`}
+                  style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }}
+              >
+                  {hasVisuals ? 
+                      <img key={previewImage} ref={minimizedImageRef} src={previewImage!} alt="Preview" className="w-full h-full object-contain" />
+                      : <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
+                  }
+              </div>
           )}
           
           <NodeHandle
@@ -320,8 +543,9 @@ const Node: React.FC<NodeProps> = ({
             isConnected={isInputConnected}
             style={{
               left: '-8px',
-              top: `${node.data.inputHandleYOffset || 228}px`,
+              top: isMinimized ? `${getMinimizedHandleTop()}px` : `${node.data.inputHandleYOffset || 228}px`,
               transform: 'translateY(-50%)',
+              transition: 'none',
             }}
           />
           {node.data.imageUrl && !node.data.isLoading && (
@@ -330,8 +554,9 @@ const Node: React.FC<NodeProps> = ({
               isConnected={isOutputConnected}
               style={{
                 right: '-8px',
-                top: `${node.data.outputHandleYOffset || 368}px`,
+                top: isMinimized ? `${getMinimizedHandleTop()}px` : `${node.data.outputHandleYOffset || 368}px`,
                 transform: 'translateY(-50%)',
+                transition: 'none',
               }}
             />
           )}
@@ -343,11 +568,11 @@ const Node: React.FC<NodeProps> = ({
             <NodeHeader 
                 title='Image Editor'
                 icon={<EditIcon className="w-4 h-4 text-purple-400" />}
-                isMinimized={!!node.data.isMinimized}
+                isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={() => onDelete(node.id)}
             />
-            {!node.data.isMinimized && (
+            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
               <div className="p-2 space-y-2">
                 <div ref={imgEditorInputRef}>
                     <label className={labelClassName}>Input Image</label>
@@ -399,6 +624,17 @@ const Node: React.FC<NodeProps> = ({
                     {node.data.isLoading ? 'Editing...' : 'Edit Image'}
                 </button>
               </div>
+            </div>
+            {isMinimized && (
+                <div 
+                    className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md flex items-center justify-center border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`}
+                    style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }}
+                >
+                    {hasVisuals ? 
+                        <img key={previewImage} ref={minimizedImageRef} src={previewImage!} alt="Preview" className="w-full h-full object-contain" />
+                        : <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
+                    }
+                </div>
             )}
             
             <NodeHandle
@@ -407,8 +643,9 @@ const Node: React.FC<NodeProps> = ({
                 isConnected={isInputConnected}
                 style={{
                     left: '-8px',
-                    top: `${node.data.inputHandleYOffset || 78}px`,
+                    top: isMinimized ? `${getMinimizedHandleTop()}px` : `${node.data.inputHandleYOffset || 78}px`,
                     transform: 'translateY(-50%)',
+                    transition: 'none',
                 }}
             />
             {node.data.imageUrl && !node.data.isLoading && (
@@ -417,8 +654,9 @@ const Node: React.FC<NodeProps> = ({
                     isConnected={isOutputConnected}
                     style={{
                         right: '-8px',
-                        top: `${node.data.outputHandleYOffset || 428}px`,
+                        top: isMinimized ? `${getMinimizedHandleTop()}px` : `${node.data.outputHandleYOffset || 428}px`,
                         transform: 'translateY(-50%)',
+                        transition: 'none',
                     }}
                 />
             )}
@@ -430,11 +668,11 @@ const Node: React.FC<NodeProps> = ({
             <NodeHeader 
                 title='Video Generator'
                 icon={<VideoIcon className="w-4 h-4 text-green-400" />}
-                isMinimized={!!node.data.isMinimized}
+                isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={() => onDelete(node.id)}
             />
-            {!node.data.isMinimized && (
+            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
               <div className="p-2 space-y-2">
                 <div ref={videoGenInputRef}>
                     <label className={labelClassName}>Input Image (Optional)</label>
@@ -497,6 +735,21 @@ const Node: React.FC<NodeProps> = ({
                     {node.data.isLoading ? 'Generating...' : 'Generate Video'}
                 </button>
               </div>
+            </div>
+            {isMinimized && (
+              <div 
+                  className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md flex items-center justify-center border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`}
+                  style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }}
+              >
+                  {!hasVisuals ? 
+                      <VideoIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} /> :
+                      previewVideo ? (
+                          <video key={previewVideo} ref={minimizedVideoRef} src={previewVideo} controls className="w-full h-full object-contain" />
+                      ) : (
+                          <img key={previewImage} ref={minimizedImageRef} src={previewImage!} alt="Preview" className="w-full h-full object-contain" />
+                      )
+                  }
+              </div>
             )}
             
             <NodeHandle
@@ -505,8 +758,9 @@ const Node: React.FC<NodeProps> = ({
                 isConnected={isInputConnected}
                 style={{
                     left: '-8px',
-                    top: `${node.data.inputHandleYOffset || 78}px`,
+                    top: isMinimized ? `${getMinimizedHandleTop()}px` : `${node.data.inputHandleYOffset || 78}px`,
                     transform: 'translateY(-50%)',
+                    transition: 'none',
                 }}
             />
         </>

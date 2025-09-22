@@ -14,6 +14,7 @@ const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } }
   [NodeType.Text]: { width: 256 },
   [NodeType.ImageEditor]: { width: 256 },
   [NodeType.VideoGenerator]: { width: 256 },
+  [NodeType.Image]: { width: 256 },
 };
 
 const initialNodes: NodeData[] = [
@@ -35,6 +36,12 @@ const initialNodes: NodeData[] = [
     data: {
       text: 'A majestic lion with a crown of stars, photorealistic, cinematic lighting',
     },
+  },
+   {
+    id: 'initial_node_3',
+    type: NodeType.Image,
+    position: { x: 50, y: 350 },
+    data: {},
   },
 ];
 
@@ -85,6 +92,16 @@ const App: React.FC = () => {
       type: NodeType.Text,
       position: { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
       data: { text: 'A futuristic cityscape at dusk.' },
+    };
+    setNodes((prevNodes) => [...prevNodes, newNode]);
+  }, [canvasOffset, zoom]);
+  
+  const addImageNode = useCallback(() => {
+    const newNode: NodeData = {
+      id: `node_${Date.now()}_${Math.random()}`,
+      type: NodeType.Image,
+      position: { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
+      data: { },
     };
     setNodes((prevNodes) => [...prevNodes, newNode]);
   }, [canvasOffset, zoom]);
@@ -148,7 +165,7 @@ const App: React.FC = () => {
                 }
                 
                 // Propagate image
-                if ((updatedNode.type === NodeType.CharacterGenerator || updatedNode.type === NodeType.ImageEditor) && 'imageUrl' in data) {
+                if ((updatedNode.type === NodeType.CharacterGenerator || updatedNode.type === NodeType.ImageEditor || updatedNode.type === NodeType.Image) && 'imageUrl' in data) {
                   if (toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) {
                       newNodes[toNodeIndex] = { ...toNode, data: { ...toNode.data, inputImageUrl: data.imageUrl } };
                   }
@@ -262,10 +279,11 @@ const App: React.FC = () => {
     const isTextToCharGen = fromNode.type === NodeType.Text && toNode.type === NodeType.CharacterGenerator;
     const isCharGenToImageEditor = fromNode.type === NodeType.CharacterGenerator && toNode.type === NodeType.ImageEditor;
     const isImageEditorToImageEditor = fromNode.type === NodeType.ImageEditor && toNode.type === NodeType.ImageEditor;
-    const isImageToVideoGen = (fromNode.type === NodeType.CharacterGenerator || fromNode.type === NodeType.ImageEditor) && toNode.type === NodeType.VideoGenerator;
+    const isImageToVideoGen = (fromNode.type === NodeType.CharacterGenerator || fromNode.type === NodeType.ImageEditor || fromNode.type === NodeType.Image) && toNode.type === NodeType.VideoGenerator;
+    const isImageToImageEditor = fromNode.type === NodeType.Image && toNode.type === NodeType.ImageEditor;
     const isTextToVideoGen = fromNode.type === NodeType.Text && toNode.type === NodeType.VideoGenerator;
 
-    if (!isTextToCharGen && !isCharGenToImageEditor && !isImageEditorToImageEditor && !isImageToVideoGen && !isTextToVideoGen) {
+    if (!isTextToCharGen && !isCharGenToImageEditor && !isImageEditorToImageEditor && !isImageToVideoGen && !isTextToVideoGen && !isImageToImageEditor) {
         setTempConnectionStartNodeId(null);
         return;
     }
@@ -286,7 +304,7 @@ const App: React.FC = () => {
     // Update target node's data immediately based on connection type
     if (isTextToCharGen) {
       updateNodeData(toNodeId, { characterDescription: fromNode.data.text });
-    } else if (isImageToVideoGen || isCharGenToImageEditor || isImageEditorToImageEditor) {
+    } else if (isImageToVideoGen || isCharGenToImageEditor || isImageEditorToImageEditor || isImageToImageEditor) {
         updateNodeData(toNodeId, { inputImageUrl: fromNode.data.imageUrl });
     } else if (isTextToVideoGen) {
         updateNodeData(toNodeId, { editDescription: fromNode.data.text });
@@ -390,7 +408,7 @@ const App: React.FC = () => {
 
   return (
     <div className={`w-screen h-screen ${styles.app.bg} ${styles.app.text} overflow-hidden flex flex-col font-sans ${isDragging ? 'select-none' : ''}`}>
-      <Toolbar onAddNode={addNode} onAddTextNode={addTextNode} onAddImageEditorNode={addImageEditorNode} onAddVideoGeneratorNode={addVideoGeneratorNode} />
+      <Toolbar onAddNode={addNode} onAddTextNode={addTextNode} onAddImageNode={addImageNode} onAddImageEditorNode={addImageEditorNode} onAddVideoGeneratorNode={addVideoGeneratorNode} />
       <ThemeSwitcher />
       <Canvas
         ref={canvasRef}

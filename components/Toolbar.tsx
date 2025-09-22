@@ -5,10 +5,12 @@ import TextIcon from './icons/TextIcon';
 import EditIcon from './icons/EditIcon';
 import { useTheme } from '../contexts/ThemeContext';
 import VideoIcon from './icons/VideoIcon';
+import UploadIcon from './icons/UploadIcon';
 
 interface ToolbarProps {
   onAddNode: () => void;
   onAddTextNode: () => void;
+  onAddImageNode: () => void;
   onAddImageEditorNode: () => void;
   onAddVideoGeneratorNode: () => void;
 }
@@ -25,7 +27,7 @@ const ToolbarButton: React.FC<{ onClick: () => void; children: React.ReactNode; 
     )
 }
 
-const Toolbar: React.FC<ToolbarProps> = ({ onAddNode, onAddTextNode, onAddImageEditorNode, onAddVideoGeneratorNode }) => {
+const Toolbar: React.FC<ToolbarProps> = ({ onAddNode, onAddTextNode, onAddImageNode, onAddImageEditorNode, onAddVideoGeneratorNode }) => {
   const { styles } = useTheme();
   return (
     <div className={`absolute top-4 left-4 z-20 p-2 ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-lg shadow-lg`}>
@@ -37,6 +39,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ onAddNode, onAddTextNode, onAddImageE
         <ToolbarButton onClick={onAddTextNode}>
             <TextIcon className="w-5 h-5 text-yellow-400" />
             <span>Add Text Node</span>
+        </ToolbarButton>
+        <ToolbarButton onClick={onAddImageNode}>
+            <UploadIcon className="w-5 h-5 text-orange-400" />
+            <span>Add Image Node</span>
         </ToolbarButton>
         <ToolbarButton onClick={onAddImageEditorNode}>
             <EditIcon className="w-5 h-5 text-purple-400" />
