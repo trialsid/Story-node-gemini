@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useMemo, ReactNode } from 'react';
+import { HandleType } from '../types';
 
 export type Theme = 'dark' | 'modern' | 'elegant';
 
@@ -33,7 +34,7 @@ export const themes = {
       imagePlaceholderIcon: 'text-gray-600',
     },
     connector: {
-      color: '#2DD4BF',
+      color: '#A0AEC0',
       tempColor: '#F6E05E',
     },
     modal: {
@@ -47,12 +48,12 @@ export const themes = {
       focusRingOffset: 'focus:ring-offset-gray-800',
     },
     handle: {
-      bg: 'bg-gray-600',
       border: 'border-gray-400',
-      hoverBg: 'hover:bg-cyan-500',
-      hoverBorder: 'hover:border-cyan-400',
-      connectedBg: 'bg-cyan-500',
-      connectedBorder: 'border-cyan-400',
+      typeColors: {
+        [HandleType.Text]: 'bg-yellow-400 border-yellow-300',
+        [HandleType.Image]: 'bg-cyan-400 border-cyan-300',
+        [HandleType.Video]: 'bg-green-400 border-green-300',
+      },
     },
     scrollbar: {
       thumb: '#718096',
@@ -102,7 +103,7 @@ export const themes = {
       imagePlaceholderIcon: 'text-gray-400',
     },
     connector: {
-      color: '#3B82F6',
+      color: '#9CA3AF',
       tempColor: '#F59E0B',
     },
     modal: {
@@ -116,12 +117,12 @@ export const themes = {
       focusRingOffset: 'focus:ring-offset-white',
     },
     handle: {
-      bg: 'bg-white',
       border: 'border-gray-400',
-      hoverBg: 'hover:bg-blue-500',
-      hoverBorder: 'hover:border-blue-400',
-      connectedBg: 'bg-blue-500',
-      connectedBorder: 'border-blue-400',
+      typeColors: {
+        [HandleType.Text]: 'bg-amber-400 border-amber-300',
+        [HandleType.Image]: 'bg-blue-500 border-blue-400',
+        [HandleType.Video]: 'bg-emerald-500 border-emerald-400',
+      },
     },
     scrollbar: {
       thumb: '#CBD5E0',
@@ -171,7 +172,7 @@ export const themes = {
       imagePlaceholderIcon: 'text-stone-600',
     },
     connector: {
-      color: '#f59e0b',
+      color: '#a8a29e',
       tempColor: '#818cf8',
     },
     modal: {
@@ -185,12 +186,12 @@ export const themes = {
       focusRingOffset: 'focus:ring-offset-stone-800',
     },
     handle: {
-      bg: 'bg-stone-600',
       border: 'border-stone-400',
-      hoverBg: 'hover:bg-amber-500',
-      hoverBorder: 'hover:border-amber-400',
-      connectedBg: 'bg-amber-500',
-      connectedBorder: 'border-amber-400',
+      typeColors: {
+        [HandleType.Text]: 'bg-amber-500 border-amber-400',
+        [HandleType.Image]: 'bg-indigo-400 border-indigo-300',
+        [HandleType.Video]: 'bg-teal-400 border-teal-300',
+      },
     },
     scrollbar: {
       thumb: '#b45309',

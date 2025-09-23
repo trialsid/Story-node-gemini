@@ -1,4 +1,3 @@
-
 import { NodeData, Connection, NodeType } from '../types';
 
 export interface Template {
@@ -35,7 +34,9 @@ export const templates: { [key: string]: Template } = {
             {
                 id: 'conn_char_edit_1',
                 fromNodeId: 'char_gen_1',
+                fromHandleId: 'image_output',
                 toNodeId: 'img_edit_1',
+                toHandleId: 'image_input',
             }
         ],
     },
@@ -63,7 +64,9 @@ export const templates: { [key: string]: Template } = {
             {
                 id: 'conn_img_vid_1',
                 fromNodeId: 'img_node_1',
+                fromHandleId: 'image_output',
                 toNodeId: 'vid_gen_1',
+                toHandleId: 'image_input',
             }
         ],
     },
@@ -90,7 +93,9 @@ export const templates: { [key: string]: Template } = {
             {
                 id: 'conn_text_vid_1',
                 fromNodeId: 'text_node_1',
+                fromHandleId: 'text_output',
                 toNodeId: 'vid_gen_2',
+                toHandleId: 'prompt_input',
             }
         ],
     }

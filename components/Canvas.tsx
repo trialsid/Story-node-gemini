@@ -1,9 +1,20 @@
-
 import React, { forwardRef } from 'react';
-import { NodeData, Connection, NodeType } from '../types';
+import { NodeData, Connection, NodeType, HandleType } from '../types';
 import Node from './Node';
 import Connector from './Connector';
 import { useTheme } from '../contexts/ThemeContext';
+import { NODE_SPEC } from '../utils/node-spec';
+
+interface TempConnectionInfo {
+  startNodeId: string;
+  startHandleId: string;
+  startHandleType: HandleType;
+}
+
+interface HoveredInputInfo {
+  nodeId: string;
+  handleId: string;
+}
 
 interface CanvasProps {
   nodes: NodeData[];
@@ -19,16 +30,18 @@ interface CanvasProps {
   onEditImage: (nodeId: string) => void;
   onGenerateVideo: (nodeId: string) => void;
   onImageClick: (imageUrl: string) => void;
-  onOutputMouseDown: (nodeId: string) => void;
-  onInputMouseDown: (nodeId: string) => void;
-  onInputMouseUp: (nodeId: string) => void;
+  onOutputMouseDown: (nodeId: string, handleId: string) => void;
+  onInputMouseDown: (nodeId: string, handleId: string) => void;
+  onInputMouseUp: (nodeId: string, handleId: string) => void;
   onDeleteNode: (nodeId: string) => void;
   onToggleNodeMinimization: (nodeId: string) => void;
   nodeDimensions: { [key in NodeType]: { width: number; height?: number } };
   canvasOffset: { x: number; y: number };
   zoom: number;
-  tempConnectionStartNodeId: string | null;
+  tempConnectionInfo: TempConnectionInfo | null;
   mousePosition: { x: number; y: number };
+  hoveredInputHandle: HoveredInputInfo | null;
+  setHoveredInputHandle: (info: HoveredInputInfo | null) => void;
 }
 
 // Define minimized node heights for consistent handle positioning
@@ -57,70 +70,44 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
   nodeDimensions,
   canvasOffset,
   zoom,
-  tempConnectionStartNodeId,
+  tempConnectionInfo,
   mousePosition,
+  hoveredInputHandle,
+  setHoveredInputHandle,
 }, ref) => {
   const { styles } = useTheme();
   const baseGridSize = 24;
 
-  const getNodeHandlePosition = (node: NodeData, handleType: 'input' | 'output'): { x: number; y: number } => {
+  const getNodeHandlePosition = (node: NodeData, handleId: string, handleSide: 'input' | 'output'): { x: number; y: number } => {
     const dims = nodeDimensions[node.type];
     const isMinimized = node.data.isMinimized;
+    const yOffset = node.data.handleYOffsets?.[handleId];
 
-    // Handle minimized nodes first
+    const xPos = handleSide === 'input' ? node.position.x : node.position.x + dims.width;
+
     if (isMinimized) {
-        const previewHeight = node.data.minimizedHeight || 64; // Fallback to old h-16
+        // Simple vertical center for minimized nodes for now
+        const previewHeight = node.data.minimizedHeight || 64;
         const yCenter = MINIMIZED_NODE_HEADER_HEIGHT + (previewHeight / 2);
-
-        if (handleType === 'output') {
-             // For text nodes, the handle is on the header itself
-            const yOffset = node.type === NodeType.Text ? MINIMIZED_NODE_HEADER_HEIGHT / 2 : yCenter;
-            return { x: node.position.x + dims.width, y: node.position.y + yOffset };
+        
+        if (node.type === NodeType.Text && handleSide === 'output') {
+             return { x: xPos, y: node.position.y + MINIMIZED_NODE_HEADER_HEIGHT / 2 };
         }
-        if (handleType === 'input') {
-            return { x: node.position.x, y: node.position.y + yCenter };
-        }
+        return { x: xPos, y: node.position.y + yCenter };
     }
 
-
-    // Logic for expanded nodes
-    if (handleType === 'output') {
-        if (node.type === NodeType.Text) {
-            // Text node height is now dynamic, use calculated offset
-            const yOffset = node.data.outputHandleYOffset || 90; // Fallback for initial render
-            return { x: node.position.x + dims.width, y: node.position.y + yOffset };
-        }
-        if (node.type === NodeType.CharacterGenerator || node.type === NodeType.ImageEditor) {
-            // The vertical offset is calculated dynamically in Node.tsx.
-            // A fallback is provided for the initial render before the effect runs.
-            const yOffset = node.data.outputHandleYOffset || (node.type === NodeType.CharacterGenerator ? 368 : 428);
-            return { x: node.position.x + dims.width, y: node.position.y + yOffset };
-        }
-        if (node.type === NodeType.Image) {
-            const yOffset = node.data.outputHandleYOffset || 108; // Fallback
-            return { x: node.position.x + dims.width, y: node.position.y + yOffset };
-        }
+    if (yOffset !== undefined) {
+        return { x: xPos, y: node.position.y + yOffset };
     }
     
-    if (handleType === 'input') {
-        if (node.type === NodeType.CharacterGenerator) {
-            // Fallback aligns with the "Character Description" textarea
-            const yOffset = node.data.inputHandleYOffset || 228;
-            return { x: node.position.x, y: node.position.y + yOffset };
-        }
-        if (node.type === NodeType.ImageEditor || node.type === NodeType.VideoGenerator) {
-             // Fallback aligns with the "Input Image" preview
-            const yOffset = node.data.inputHandleYOffset || 78;
-            return { x: node.position.x, y: node.position.y + yOffset };
-        }
-    }
-    return node.position;
+    // Fallback if offset is not calculated yet
+    return { x: xPos, y: node.position.y + 100 };
   };
 
-  const tempConnectionStartNode = nodes.find(n => n.id === tempConnectionStartNodeId);
+  const tempConnectionStartNode = nodes.find(n => n.id === tempConnectionInfo?.startNodeId);
   let tempConnectionPath = null;
-  if (tempConnectionStartNode) {
-    const fromPos = getNodeHandlePosition(tempConnectionStartNode, 'output');
+  if (tempConnectionInfo && tempConnectionStartNode) {
+    const fromPos = getNodeHandlePosition(tempConnectionStartNode, tempConnectionInfo.startHandleId, 'output');
     const toPos = {
       x: (mousePosition.x - canvasOffset.x) / zoom,
       y: (mousePosition.y - canvasOffset.y) / zoom,
@@ -155,7 +142,6 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
             key={node.id}
             node={node}
             connections={connections}
-            nodes={nodes}
             onDragStart={onNodeDragStart}
             onUpdateData={onUpdateNodeData}
             onGenerateImage={onGenerateImage}
@@ -168,6 +154,9 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
             onDelete={onDeleteNode}
             onToggleMinimize={onToggleNodeMinimization}
             dimensions={nodeDimensions[node.type]}
+            tempConnectionInfo={tempConnectionInfo}
+            hoveredInputHandle={hoveredInputHandle}
+            setHoveredInputHandle={setHoveredInputHandle}
           />
         ))}
       </div>
@@ -180,9 +169,25 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
                   const fromNode = nodes.find(n => n.id === conn.fromNodeId);
                   const toNode = nodes.find(n => n.id === conn.toNodeId);
                   if (!fromNode || !toNode) return null;
-                  const fromPos = getNodeHandlePosition(fromNode, 'output');
-                  const toPos = getNodeHandlePosition(toNode, 'input');
-                  return <Connector key={conn.id} from={fromPos} to={toPos} color={styles.connector.color} />;
+
+                  const fromPos = getNodeHandlePosition(fromNode, conn.fromHandleId, 'output');
+                  const toPos = getNodeHandlePosition(toNode, conn.toHandleId, 'input');
+                  
+                  const isPendingReplacement = tempConnectionInfo !== null &&
+                    conn.toNodeId === hoveredInputHandle?.nodeId &&
+                    conn.toHandleId === hoveredInputHandle?.handleId;
+
+                  const fromHandleSpec = NODE_SPEC[fromNode.type].outputs.find(h => h.id === conn.fromHandleId);
+                  if (!fromHandleSpec) return null;
+                  const connectorColor = styles.handle.typeColors[fromHandleSpec.type].split(' ')[0].replace('bg-', 'border-');
+
+                  return <Connector 
+                            key={conn.id} 
+                            from={fromPos} 
+                            to={toPos} 
+                            color={styles.connector.color}
+                            isPendingReplacement={isPendingReplacement}
+                         />;
               })}
               {tempConnectionPath}
           </g>

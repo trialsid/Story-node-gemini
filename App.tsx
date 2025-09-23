@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { NodeData, NodeType, Connection, CanvasState } from './types';
+import { NodeData, NodeType, Connection, CanvasState, HandleType } from './types';
 import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
 import ImageModal from './components/ImageModal';
@@ -19,6 +19,8 @@ import UploadIcon from './components/icons/UploadIcon';
 import SettingsModal from './components/SettingsModal';
 import SettingsIcon from './components/icons/SettingsIcon';
 import { useHistory } from './hooks/useHistory';
+import { NODE_SPEC, areHandlesCompatible } from './utils/node-spec';
+
 
 const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } } = {
   [NodeType.CharacterGenerator]: { width: 256 },
@@ -33,6 +35,17 @@ interface DragStartInfo {
   startMouseY: number;
   startNodeX: number;
   startNodeY: number;
+}
+
+interface TempConnectionInfo {
+  startNodeId: string;
+  startHandleId: string;
+  startHandleType: HandleType;
+}
+
+interface HoveredInputInfo {
+  nodeId: string;
+  handleId: string;
 }
 
 const App: React.FC = () => {
@@ -53,8 +66,9 @@ const App: React.FC = () => {
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [dragStartInfo, setDragStartInfo] = useState<DragStartInfo | null>(null);
   const [modalImageUrl, setModalImageUrl] = useState<string | null>(null);
-  const [tempConnectionStartNodeId, setTempConnectionStartNodeId] = useState<string | null>(null);
+  const [tempConnectionInfo, setTempConnectionInfo] = useState<TempConnectionInfo | null>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [hoveredInputHandle, setHoveredInputHandle] = useState<HoveredInputInfo | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [nodeToDelete, setNodeToDelete] = useState<string | null>(null);
 
@@ -147,7 +161,7 @@ const App: React.FC = () => {
         }
         return {
             ...conn,
-            id: `conn_${newFromId}_${newToId}`,
+            id: `conn_${newFromId}_${conn.fromHandleId}_${newToId}_${conn.toHandleId}`,
             fromNodeId: newFromId,
             toNodeId: newToId,
         };
@@ -165,12 +179,17 @@ const App: React.FC = () => {
         let dataToUpdate: Partial<NodeData['data']> = {};
         
         if (fromNode.type === NodeType.Text && 'text' in fromNode.data) {
-          if (toNode.type === NodeType.CharacterGenerator) dataToUpdate = { characterDescription: fromNode.data.text };
-          else if (toNode.type === NodeType.VideoGenerator) dataToUpdate = { editDescription: fromNode.data.text };
+          if (toNode.type === NodeType.CharacterGenerator && conn.toHandleId === 'description_input') {
+              dataToUpdate = { characterDescription: fromNode.data.text };
+          } else if (toNode.type === NodeType.VideoGenerator && conn.toHandleId === 'prompt_input') {
+              dataToUpdate = { editDescription: fromNode.data.text };
+          }
         }
         
         if ((fromNode.type === NodeType.CharacterGenerator || fromNode.type === NodeType.ImageEditor || fromNode.type === NodeType.Image) && 'imageUrl' in fromNode.data) {
-          if (toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) dataToUpdate = { inputImageUrl: fromNode.data.imageUrl };
+          if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && conn.toHandleId === 'image_input') {
+              dataToUpdate = { inputImageUrl: fromNode.data.imageUrl };
+          }
         }
 
         if (Object.keys(dataToUpdate).length > 0) {
@@ -372,21 +391,24 @@ const App: React.FC = () => {
                 if (toNodeIndex === -1) return;
 
                 const toNode = newNodes[toNodeIndex];
+                let dataToUpdate: Partial<NodeData['data']> = {};
                 
-                // Propagate text
                 if (updatedNode.type === NodeType.Text && 'text' in data) {
-                  if (toNode.type === NodeType.CharacterGenerator) {
-                      newNodes[toNodeIndex] = { ...toNode, data: { ...toNode.data, characterDescription: data.text } };
-                  } else if (toNode.type === NodeType.VideoGenerator) {
-                      newNodes[toNodeIndex] = { ...toNode, data: { ...toNode.data, editDescription: data.text } };
+                    if (toNode.type === NodeType.CharacterGenerator && conn.toHandleId === 'description_input') {
+                        dataToUpdate = { characterDescription: data.text };
+                    } else if (toNode.type === NodeType.VideoGenerator && conn.toHandleId === 'prompt_input') {
+                        dataToUpdate = { editDescription: data.text };
+                    }
+                }
+                
+                if ((updatedNode.type === NodeType.CharacterGenerator || updatedNode.type === NodeType.ImageEditor || updatedNode.type === NodeType.Image) && 'imageUrl' in data) {
+                  if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && conn.toHandleId === 'image_input') {
+                      dataToUpdate = { inputImageUrl: data.imageUrl };
                   }
                 }
                 
-                // Propagate image
-                if ((updatedNode.type === NodeType.CharacterGenerator || updatedNode.type === NodeType.ImageEditor || updatedNode.type === NodeType.Image) && 'imageUrl' in data) {
-                  if (toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) {
-                      newNodes[toNodeIndex] = { ...toNode, data: { ...toNode.data, inputImageUrl: data.imageUrl } };
-                  }
+                if (Object.keys(dataToUpdate).length > 0) {
+                    newNodes[toNodeIndex] = { ...toNode, data: { ...toNode.data, ...dataToUpdate }};
                 }
             }
         });
@@ -436,7 +458,8 @@ const App: React.FC = () => {
     setDraggingNodeId(null);
     setDragStartInfo(null);
     setIsPanning(false);
-    setTempConnectionStartNodeId(null); // Cancel connection on mouse up
+    setTempConnectionInfo(null); // Cancel connection on mouse up
+    setHoveredInputHandle(null);
   }, [draggingNodeId, localNodes, setCanvasState]);
   
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
@@ -496,80 +519,96 @@ const App: React.FC = () => {
     setCanvasOffset({ x: newOffsetX, y: newOffsetY });
   }, [zoom, canvasOffset]);
 
-  const handleOutputMouseDown = useCallback((nodeId: string) => {
-    setCanvasState(prev => ({ ...prev, connections: prev.connections.filter(c => c.fromNodeId !== nodeId) }));
-    setTempConnectionStartNodeId(nodeId);
-  }, [setCanvasState]);
+  const handleOutputMouseDown = useCallback((nodeId: string, handleId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return;
+    const handleSpec = NODE_SPEC[node.type].outputs.find(h => h.id === handleId);
+    if (!handleSpec) return;
 
-  const handleInputMouseDown = useCallback((nodeId: string) => {
-    const connection = connections.find(c => c.toNodeId === nodeId);
+    setCanvasState(prev => ({ ...prev, connections: prev.connections.filter(c => !(c.fromNodeId === nodeId && c.fromHandleId === handleId)) }));
+    
+    setTempConnectionInfo({
+      startNodeId: nodeId,
+      startHandleId: handleId,
+      startHandleType: handleSpec.type,
+    });
+  }, [nodes, setCanvasState]);
+
+  const handleInputMouseDown = useCallback((nodeId: string, handleId: string) => {
+    const connection = connections.find(c => c.toNodeId === nodeId && c.toHandleId === handleId);
     if (connection) {
         setCanvasState(prev => ({ ...prev, connections: prev.connections.filter(c => c.id !== connection.id) }));
-        setTempConnectionStartNodeId(connection.fromNodeId);
+        
+        const fromNode = nodes.find(n => n.id === connection.fromNodeId);
+        if (!fromNode) return;
+        const fromHandleSpec = NODE_SPEC[fromNode.type].outputs.find(h => h.id === connection.fromHandleId);
+        if (!fromHandleSpec) return;
+
+        setTempConnectionInfo({
+            startNodeId: connection.fromNodeId,
+            startHandleId: connection.fromHandleId,
+            startHandleType: fromHandleSpec.type,
+        });
     }
-  }, [connections, setCanvasState]);
+  }, [connections, setCanvasState, nodes]);
 
-  const handleInputMouseUp = useCallback((toNodeId: string) => {
-    if (!tempConnectionStartNodeId) return;
+  const handleInputMouseUp = useCallback((toNodeId: string, toHandleId: string) => {
+    if (!tempConnectionInfo) return;
+    setHoveredInputHandle(null);
 
-    const fromNode = nodes.find(n => n.id === tempConnectionStartNodeId);
+    const { startNodeId, startHandleId, startHandleType } = tempConnectionInfo;
+
     const toNode = nodes.find(n => n.id === toNodeId);
-
-    if (!fromNode || !toNode || fromNode.id === toNode.id) {
-        setTempConnectionStartNodeId(null);
+    if (!toNode || startNodeId === toNode.id) {
+        setTempConnectionInfo(null);
         return;
     }
 
-    // Connection validation
-    const isTextToCharGen = fromNode.type === NodeType.Text && toNode.type === NodeType.CharacterGenerator;
-    const isCharGenToImageEditor = fromNode.type === NodeType.CharacterGenerator && toNode.type === NodeType.ImageEditor;
-    const isImageEditorToImageEditor = fromNode.type === NodeType.ImageEditor && toNode.type === NodeType.ImageEditor;
-    const isImageToVideoGen = (fromNode.type === NodeType.CharacterGenerator || fromNode.type === NodeType.ImageEditor || fromNode.type === NodeType.Image) && toNode.type === NodeType.VideoGenerator;
-    const isImageToImageEditor = fromNode.type === NodeType.Image && toNode.type === NodeType.ImageEditor;
-    const isTextToVideoGen = fromNode.type === NodeType.Text && toNode.type === NodeType.VideoGenerator;
-
-    if (!isTextToCharGen && !isCharGenToImageEditor && !isImageEditorToImageEditor && !isImageToVideoGen && !isTextToVideoGen && !isImageToImageEditor) {
-        setTempConnectionStartNodeId(null);
+    const toHandleSpec = NODE_SPEC[toNode.type].inputs.find(h => h.id === toHandleId);
+    if (!toHandleSpec || !areHandlesCompatible(startHandleType, toHandleSpec.type)) {
+        setTempConnectionInfo(null);
         return;
     }
     
-    if(connections.some(c => c.toNodeId === toNodeId)){
-        setTempConnectionStartNodeId(null);
-        return;
-    }
-
     const newConnection: Connection = {
-      id: `conn_${tempConnectionStartNodeId}_${toNodeId}`,
-      fromNodeId: tempConnectionStartNodeId,
+      id: `conn_${startNodeId}_${startHandleId}_${toNodeId}_${toHandleId}`,
+      fromNodeId: startNodeId,
+      fromHandleId: startHandleId,
       toNodeId: toNodeId,
+      toHandleId: toHandleId,
     };
     
     setCanvasState(prevState => {
-        const newConnections = [...prevState.connections.filter(c => c.toNodeId !== toNodeId && c.fromNodeId !== tempConnectionStartNodeId), newConnection];
+        const newConnections = [...prevState.connections.filter(c => !(c.toNodeId === toNodeId && c.toHandleId === toHandleId)), newConnection];
         let newNodes = [...prevState.nodes];
         
-        const fromNode = newNodes.find(n => n.id === tempConnectionStartNodeId);
+        const fromNode = newNodes.find(n => n.id === startNodeId);
         const toNodeIndex = newNodes.findIndex(n => n.id === toNodeId);
         
         if (fromNode && toNodeIndex !== -1) {
             let dataToUpdate: Partial<NodeData['data']> = {};
-            if (isTextToCharGen && 'text' in fromNode.data) {
-                dataToUpdate = { characterDescription: fromNode.data.text };
-            } else if ((isImageToVideoGen || isCharGenToImageEditor || isImageEditorToImageEditor || isImageToImageEditor) && 'imageUrl' in fromNode.data) {
-                dataToUpdate = { inputImageUrl: fromNode.data.imageUrl };
-            } else if (isTextToVideoGen && 'text' in fromNode.data) {
-                dataToUpdate = { editDescription: fromNode.data.text };
+            const toNode = newNodes[toNodeIndex];
+
+            if (fromNode.type === NodeType.Text && 'text' in fromNode.data) {
+                if (toNode.type === NodeType.CharacterGenerator && toHandleId === 'description_input') {
+                    dataToUpdate = { characterDescription: fromNode.data.text };
+                } else if (toNode.type === NodeType.VideoGenerator && toHandleId === 'prompt_input') {
+                    dataToUpdate = { editDescription: fromNode.data.text };
+                }
+            } else if ((fromNode.type === NodeType.CharacterGenerator || fromNode.type === NodeType.ImageEditor || fromNode.type === NodeType.Image) && 'imageUrl' in fromNode.data) {
+                 if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && toHandleId === 'image_input') {
+                    dataToUpdate = { inputImageUrl: fromNode.data.imageUrl };
+                }
             }
             if (Object.keys(dataToUpdate).length > 0) {
-                const toNode = newNodes[toNodeIndex];
                 newNodes[toNodeIndex] = { ...toNode, data: { ...toNode.data, ...dataToUpdate }};
             }
         }
         return { nodes: newNodes, connections: newConnections };
     });
     
-    setTempConnectionStartNodeId(null);
-  }, [tempConnectionStartNodeId, nodes, connections, setCanvasState]);
+    setTempConnectionInfo(null);
+  }, [tempConnectionInfo, nodes, setCanvasState]);
 
   const handleGenerateImage = useCallback(async (nodeId: string) => {
     const sourceNode = nodes.find(n => n.id === nodeId);
@@ -662,7 +701,7 @@ const App: React.FC = () => {
   const handleImageClick = useCallback((imageUrl: string) => setModalImageUrl(imageUrl), []);
   const handleCloseModal = useCallback(() => setModalImageUrl(null), []);
 
-  const isDragging = draggingNodeId !== null || tempConnectionStartNodeId !== null;
+  const isDragging = draggingNodeId !== null || tempConnectionInfo !== null;
 
   const contextMenuActions: ContextMenuAction[] = contextMenu ? [
     {
@@ -767,8 +806,10 @@ const App: React.FC = () => {
         nodeDimensions={NODE_DIMENSIONS}
         canvasOffset={canvasOffset}
         zoom={zoom}
-        tempConnectionStartNodeId={tempConnectionStartNodeId}
+        tempConnectionInfo={tempConnectionInfo}
         mousePosition={mousePosition}
+        hoveredInputHandle={hoveredInputHandle}
+        setHoveredInputHandle={setHoveredInputHandle}
       />
 
       {modalImageUrl && <ImageModal imageUrl={modalImageUrl} onClose={handleCloseModal} />}

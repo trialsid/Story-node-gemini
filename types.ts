@@ -8,10 +8,18 @@ export enum NodeType {
   VideoGenerator = 'VIDEO_GENERATOR',
 }
 
+export enum HandleType {
+  Text = 'TEXT',
+  Image = 'IMAGE',
+  Video = 'VIDEO',
+}
+
 export interface Connection {
   id: string;
   fromNodeId: string;
+  fromHandleId: string;
   toNodeId: string;
+  toHandleId: string;
 }
 
 export interface NodeData {
@@ -27,10 +35,9 @@ export interface NodeData {
     imageUrl?: string;
     isLoading?: boolean;
     error?: string;
-    inputHandleYOffset?: number;
-    outputHandleYOffset?: number;
     isMinimized?: boolean;
     minimizedHeight?: number;
+    handleYOffsets?: { [handleId: string]: number };
 
     // For Text Node
     text?: string;
