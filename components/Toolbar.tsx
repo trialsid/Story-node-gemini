@@ -6,9 +6,11 @@ import { useTheme } from '../contexts/ThemeContext';
 import VideoIcon from './icons/VideoIcon';
 import UploadIcon from './icons/UploadIcon';
 import HomeIcon from './icons/HomeIcon';
+import ClearCanvasIcon from './icons/ClearCanvasIcon';
 
 interface ToolbarProps {
   onNavigateHome: () => void;
+  onClearCanvas: () => void;
   onAddNode: () => void;
   onAddTextNode: () => void;
   onAddImageNode: () => void;
@@ -28,7 +30,7 @@ const ToolbarButton: React.FC<{ onClick: () => void; children: React.ReactNode; 
     )
 }
 
-const Toolbar: React.FC<ToolbarProps> = ({ onNavigateHome, onAddNode, onAddTextNode, onAddImageNode, onAddImageEditorNode, onAddVideoGeneratorNode }) => {
+const Toolbar: React.FC<ToolbarProps> = ({ onNavigateHome, onClearCanvas, onAddNode, onAddTextNode, onAddImageNode, onAddImageEditorNode, onAddVideoGeneratorNode }) => {
   const { styles } = useTheme();
   return (
     <div className={`absolute top-4 left-4 z-20 p-2 ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-lg shadow-lg`}>
@@ -36,6 +38,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ onNavigateHome, onAddNode, onAddTextN
         <ToolbarButton onClick={onNavigateHome} isHome>
             <HomeIcon className="w-5 h-5 text-cyan-400" />
             <span>Home</span>
+        </ToolbarButton>
+        <ToolbarButton onClick={onClearCanvas}>
+            <ClearCanvasIcon className="w-5 h-5 text-red-400" />
+            <span>Clear</span>
         </ToolbarButton>
         <div className="w-px h-6 bg-gray-500/30" />
         <ToolbarButton onClick={onAddNode}>

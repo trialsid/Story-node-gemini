@@ -50,6 +50,7 @@ const App: React.FC = () => {
   const [zoom, setZoom] = useState(1);
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [isNavigatingHome, setIsNavigatingHome] = useState(false);
+  const [isClearingCanvas, setIsClearingCanvas] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ isOpen: boolean; x: number; y: number; canvasX: number; canvasY: number; } | null>(null);
 
 
@@ -143,6 +144,22 @@ const App: React.FC = () => {
 
   const cancelNavigateHome = () => {
     setIsNavigatingHome(false);
+  };
+
+  const handleClearCanvasRequest = useCallback(() => {
+    if (nodes.length > 0) {
+        setIsClearingCanvas(true);
+    }
+  }, [nodes.length]);
+
+  const confirmClearCanvas = () => {
+    setNodes([]);
+    setConnections([]);
+    setIsClearingCanvas(false);
+  };
+
+  const cancelClearCanvas = () => {
+    setIsClearingCanvas(false);
   };
 
   const addNode = useCallback((pos?: { x: number; y: number }) => {
@@ -536,6 +553,7 @@ const App: React.FC = () => {
       {showWelcomeModal && <WelcomeModal onStartFresh={handleStartFresh} onLoadTemplate={handleLoadTemplate} onClose={() => setShowWelcomeModal(false)} />}
       <Toolbar 
         onNavigateHome={handleNavigateHome}
+        onClearCanvas={handleClearCanvasRequest}
         onAddNode={() => addNode()} 
         onAddTextNode={() => addTextNode()} 
         onAddImageNode={() => addImageNode()} 
@@ -592,6 +610,14 @@ const App: React.FC = () => {
         message="Returning to the home screen will clear your current canvas. Are you sure you want to continue?"
         confirmText="Continue"
         confirmButtonClass="bg-cyan-600 hover:bg-cyan-500"
+      />
+      <ConfirmationModal
+        isOpen={isClearingCanvas}
+        onConfirm={confirmClearCanvas}
+        onCancel={cancelClearCanvas}
+        title="Clear Canvas?"
+        message="This will remove all nodes and connections from your canvas. This action cannot be undone. Are you sure you want to proceed?"
+        confirmText="Clear"
       />
     </div>
   );
