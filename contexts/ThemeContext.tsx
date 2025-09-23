@@ -59,6 +59,18 @@ export const themes = {
       thumbHover: '#A0AEC0',
       track: 'transparent',
     },
+    switch: {
+      bgOn: 'bg-cyan-600',
+      bgOff: 'bg-gray-600',
+      thumb: 'bg-white',
+    },
+    sidebar: {
+      bg: 'bg-gray-900/50',
+      itemText: 'text-gray-300',
+      itemHoverBg: 'hover:bg-gray-700/50',
+      itemActiveText: 'text-white',
+      itemActiveBg: 'bg-cyan-600',
+    },
   },
   modern: {
     name: 'Modern',
@@ -116,6 +128,18 @@ export const themes = {
       thumbHover: '#A0AEC0',
       track: 'transparent',
     },
+    switch: {
+      bgOn: 'bg-blue-500',
+      bgOff: 'bg-gray-300',
+      thumb: 'bg-white',
+    },
+    sidebar: {
+        bg: 'bg-gray-100',
+        itemText: 'text-gray-600',
+        itemHoverBg: 'hover:bg-gray-200',
+        itemActiveText: 'text-white',
+        itemActiveBg: 'bg-blue-500',
+      },
   },
   elegant: {
     name: 'Elegant',
@@ -172,6 +196,18 @@ export const themes = {
       thumb: '#b45309',
       thumbHover: '#d97706',
       track: 'transparent',
+    },
+    switch: {
+        bgOn: 'bg-amber-500',
+        bgOff: 'bg-stone-600',
+        thumb: 'bg-white',
+    },
+    sidebar: {
+        bg: 'bg-stone-900/60',
+        itemText: 'text-stone-300',
+        itemHoverBg: 'hover:bg-stone-700/50',
+        itemActiveText: 'text-white',
+        itemActiveBg: 'bg-amber-600',
     },
   },
 };

@@ -23,7 +23,7 @@ const ThemeSwitcher: React.FC = () => {
   };
 
   return (
-    <div className={`absolute top-4 right-4 z-20 p-1 ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-lg shadow-lg flex items-center space-x-1`}>
+    <div className={`p-1 ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-lg shadow-lg flex items-center space-x-1`}>
       {Object.values(themes).map(themeOption => (
         <button
           key={themeOption.key}

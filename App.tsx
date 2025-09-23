@@ -74,12 +74,20 @@ const App: React.FC = () => {
   const [projectFileContent, setProjectFileContent] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [showWelcomeOnStartup, setShowWelcomeOnStartup] = useState(() => {
+    const setting = localStorage.getItem('showWelcomeOnStartup');
+    return setting === null || setting === 'true';
+  });
+
 
   const { styles } = useTheme();
 
   useEffect(() => {
-    const setting = localStorage.getItem('showWelcomeOnStartup');
-    if (setting === null || setting === 'true') {
+    localStorage.setItem('showWelcomeOnStartup', String(showWelcomeOnStartup));
+  }, [showWelcomeOnStartup]);
+
+  useEffect(() => {
+    if (showWelcomeOnStartup) {
       setShowWelcomeModal(true);
     }
   }, []);
@@ -686,7 +694,13 @@ const App: React.FC = () => {
 
   return (
     <div className={`w-screen h-screen ${styles.app.bg} ${styles.app.text} overflow-hidden flex flex-col font-sans ${isDragging ? 'select-none' : ''}`}>
-      {showWelcomeModal && <WelcomeModal onStartFresh={handleStartFresh} onLoadTemplate={handleLoadTemplate} onClose={() => setShowWelcomeModal(false)} />}
+      {showWelcomeModal && <WelcomeModal 
+        onStartFresh={handleStartFresh} 
+        onLoadTemplate={handleLoadTemplate} 
+        onClose={() => setShowWelcomeModal(false)}
+        showOnStartup={showWelcomeOnStartup}
+        onShowOnStartupChange={setShowWelcomeOnStartup}
+      />}
       <Toolbar 
         onNavigateHome={handleNavigateHome}
         onSaveProject={handleSaveProject}
@@ -710,16 +724,25 @@ const App: React.FC = () => {
         className="hidden"
         aria-hidden="true"
       />
-      <button 
-        onClick={handleOpenSettingsModal}
-        className={`absolute top-4 right-20 z-20 p-2 ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-lg shadow-lg text-gray-400 ${styles.toolbar.buttonHoverBg}`}
-        aria-label="Open settings"
-      >
-        <SettingsIcon className="w-5 h-5" />
-      </button>
-      <ThemeSwitcher />
+      <div className="absolute top-4 right-4 z-20">
+        <ThemeSwitcher />
+      </div>
+      <div className="absolute bottom-4 right-4 z-20">
+        <button 
+          onClick={handleOpenSettingsModal}
+          className={`w-12 h-12 flex items-center justify-center ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-full shadow-lg text-gray-400 ${styles.toolbar.buttonHoverBg}`}
+          aria-label="Open settings"
+        >
+          <SettingsIcon className="w-6 h-6" />
+        </button>
+      </div>
       <GalleryPanel />
-      {isSettingsModalOpen && <SettingsModal isOpen={isSettingsModalOpen} onClose={handleCloseSettingsModal} />}
+      {isSettingsModalOpen && <SettingsModal 
+        isOpen={isSettingsModalOpen} 
+        onClose={handleCloseSettingsModal}
+        showWelcomeOnStartup={showWelcomeOnStartup}
+        onShowWelcomeOnStartupChange={setShowWelcomeOnStartup}
+      />}
 
       <Canvas
         ref={canvasRef}
