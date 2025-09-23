@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -8,9 +7,19 @@ interface ConfirmationModalProps {
   onCancel: () => void;
   title: string;
   message: string;
+  confirmText?: string;
+  confirmButtonClass?: string;
 }
 
-const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onConfirm, onCancel, title, message }) => {
+const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ 
+  isOpen, 
+  onConfirm, 
+  onCancel, 
+  title, 
+  message, 
+  confirmText, 
+  confirmButtonClass 
+}) => {
   const { styles, theme } = useTheme();
   if (!isOpen) {
     return null;
@@ -34,16 +43,16 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onConfirm
           <button
             onClick={onCancel}
             className={`px-4 py-2 ${styles.modal.cancelButton} ${theme === 'modern' ? 'text-gray-800' : 'text-white'} font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 ${styles.modal.focusRingOffset} ${styles.modal.cancelFocusRing}`}
-            aria-label="Cancel deletion"
+            aria-label="Cancel action"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className={`px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 ${styles.modal.focusRingOffset} focus:ring-red-500`}
-            aria-label="Confirm deletion"
+            className={`px-4 py-2 ${confirmButtonClass || 'bg-red-600 hover:bg-red-500'} text-white font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 ${styles.modal.focusRingOffset} focus:ring-red-500`}
+            aria-label="Confirm action"
           >
-            Delete
+            {confirmText || 'Delete'}
           </button>
         </div>
       </div>

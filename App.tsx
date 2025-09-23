@@ -1,5 +1,4 @@
-
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { NodeData, NodeType, Connection } from './types';
 import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
@@ -8,6 +7,15 @@ import ConfirmationModal from './components/ConfirmationModal';
 import { generateImageFromPrompt, editImageWithPrompt, generateVideoFromPrompt } from './services/geminiService';
 import { useTheme } from './contexts/ThemeContext';
 import ThemeSwitcher from './components/ThemeSwitcher';
+import GalleryPanel from './components/GalleryPanel';
+import WelcomeModal from './components/WelcomeModal';
+import { templates } from './utils/templates';
+import ContextMenu, { ContextMenuAction } from './components/ContextMenu';
+import ImageIcon from './components/icons/ImageIcon';
+import TextIcon from './components/icons/TextIcon';
+import EditIcon from './components/icons/EditIcon';
+import VideoIcon from './components/icons/VideoIcon';
+import UploadIcon from './components/icons/UploadIcon';
 
 const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } } = {
   [NodeType.CharacterGenerator]: { width: 256 },
@@ -17,34 +25,6 @@ const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } }
   [NodeType.Image]: { width: 256 },
 };
 
-const initialNodes: NodeData[] = [
-  {
-    id: 'initial_node_1',
-    type: NodeType.CharacterGenerator,
-    position: { x: 400, y: 50 },
-    data: {
-      characterDescription: 'A cat astronaut on Mars, wearing a detailed high-resolution spacesuit',
-      style: 'Studio Portrait Photo',
-      layout: '4-panel grid',
-      aspectRatio: '1:1',
-    },
-  },
-  {
-    id: 'initial_node_2',
-    type: NodeType.Text,
-    position: { x: 50, y: 150 },
-    data: {
-      text: 'A majestic lion with a crown of stars, photorealistic, cinematic lighting',
-    },
-  },
-   {
-    id: 'initial_node_3',
-    type: NodeType.Image,
-    position: { x: 50, y: 350 },
-    data: {},
-  },
-];
-
 interface DragStartInfo {
   startMouseX: number;
   startMouseY: number;
@@ -53,7 +33,7 @@ interface DragStartInfo {
 }
 
 const App: React.FC = () => {
-  const [nodes, setNodes] = useState<NodeData[]>(initialNodes);
+  const [nodes, setNodes] = useState<NodeData[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [dragStartInfo, setDragStartInfo] = useState<DragStartInfo | null>(null);
@@ -68,14 +48,108 @@ const App: React.FC = () => {
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [canvasOffset, setCanvasOffset] = useState({ x: 50, y: 50 });
   const [zoom, setZoom] = useState(1);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [isNavigatingHome, setIsNavigatingHome] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ isOpen: boolean; x: number; y: number; canvasX: number; canvasY: number; } | null>(null);
+
 
   const { styles } = useTheme();
 
-  const addNode = useCallback(() => {
+  useEffect(() => {
+    const setting = localStorage.getItem('showWelcomeOnStartup');
+    if (setting === null || setting === 'true') {
+      setShowWelcomeModal(true);
+    }
+  }, []);
+
+  const handleStartFresh = useCallback(() => {
+    setNodes([]);
+    setConnections([]);
+    setShowWelcomeModal(false);
+  }, []);
+  
+  const handleLoadTemplate = useCallback((templateKey: keyof typeof templates) => {
+    const template = templates[templateKey];
+    const idMap = new Map<string, string>();
+    
+    const newNodes = template.nodes.map(node => {
+      const newId = `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      idMap.set(node.id, newId);
+      return { ...node, id: newId };
+    });
+    
+    const newConnections = template.connections.map(conn => {
+        const newFromId = idMap.get(conn.fromNodeId);
+        const newToId = idMap.get(conn.toNodeId);
+        if (!newFromId || !newToId) {
+            console.error("Failed to map connection IDs for template:", template.name);
+            return null;
+        }
+        return {
+            ...conn,
+            id: `conn_${newFromId}_${newToId}`,
+            fromNodeId: newFromId,
+            toNodeId: newToId,
+        };
+    }).filter((c): c is Connection => c !== null);
+  
+    const propagateInitialData = (initialNodes: NodeData[], initialConnections: Connection[]) => {
+      let propagatedNodes = [...initialNodes];
+      initialConnections.forEach(conn => {
+        const fromNodeIndex = propagatedNodes.findIndex(n => n.id === conn.fromNodeId);
+        const toNodeIndex = propagatedNodes.findIndex(n => n.id === conn.toNodeId);
+        if (fromNodeIndex === -1 || toNodeIndex === -1) return;
+
+        const fromNode = propagatedNodes[fromNodeIndex];
+        const toNode = propagatedNodes[toNodeIndex];
+        let dataToUpdate: Partial<NodeData['data']> = {};
+        
+        if (fromNode.type === NodeType.Text && 'text' in fromNode.data) {
+          if (toNode.type === NodeType.CharacterGenerator) dataToUpdate = { characterDescription: fromNode.data.text };
+          else if (toNode.type === NodeType.VideoGenerator) dataToUpdate = { editDescription: fromNode.data.text };
+        }
+        
+        if ((fromNode.type === NodeType.CharacterGenerator || fromNode.type === NodeType.ImageEditor || fromNode.type === NodeType.Image) && 'imageUrl' in fromNode.data) {
+          if (toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) dataToUpdate = { inputImageUrl: fromNode.data.imageUrl };
+        }
+
+        if (Object.keys(dataToUpdate).length > 0) {
+            propagatedNodes[toNodeIndex] = { ...toNode, data: { ...toNode.data, ...dataToUpdate } };
+        }
+      });
+      return propagatedNodes;
+    };
+    
+    const finalNodes = propagateInitialData(newNodes, newConnections);
+    setNodes(finalNodes);
+    setConnections(newConnections);
+    setShowWelcomeModal(false);
+  }, []);
+
+  const handleNavigateHome = useCallback(() => {
+    if (nodes.length > 0) {
+        setIsNavigatingHome(true);
+    } else {
+        setShowWelcomeModal(true);
+    }
+  }, [nodes.length]);
+
+  const confirmNavigateHome = () => {
+    setNodes([]);
+    setConnections([]);
+    setShowWelcomeModal(true);
+    setIsNavigatingHome(false);
+  };
+
+  const cancelNavigateHome = () => {
+    setIsNavigatingHome(false);
+  };
+
+  const addNode = useCallback((pos?: { x: number; y: number }) => {
     const newNode: NodeData = {
-      id: `node_${Date.now()}_${Math.random()}`,
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: NodeType.CharacterGenerator,
-      position: { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
+      position: pos || { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
       data: {
         characterDescription: 'A brave knight with a scar over his left eye',
         style: 'Studio Portrait Photo',
@@ -86,41 +160,41 @@ const App: React.FC = () => {
     setNodes((prevNodes) => [...prevNodes, newNode]);
   }, [canvasOffset, zoom]);
 
-  const addTextNode = useCallback(() => {
+  const addTextNode = useCallback((pos?: { x: number; y: number }) => {
     const newNode: NodeData = {
-      id: `node_${Date.now()}_${Math.random()}`,
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: NodeType.Text,
-      position: { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
+      position: pos || { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
       data: { text: 'A futuristic cityscape at dusk.' },
     };
     setNodes((prevNodes) => [...prevNodes, newNode]);
   }, [canvasOffset, zoom]);
   
-  const addImageNode = useCallback(() => {
+  const addImageNode = useCallback((pos?: { x: number; y: number }) => {
     const newNode: NodeData = {
-      id: `node_${Date.now()}_${Math.random()}`,
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: NodeType.Image,
-      position: { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
+      position: pos || { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
       data: { },
     };
     setNodes((prevNodes) => [...prevNodes, newNode]);
   }, [canvasOffset, zoom]);
 
-  const addImageEditorNode = useCallback(() => {
+  const addImageEditorNode = useCallback((pos?: { x: number; y: number }) => {
     const newNode: NodeData = {
-      id: `node_${Date.now()}_${Math.random()}`,
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: NodeType.ImageEditor,
-      position: { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
+      position: pos || { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
       data: { editDescription: 'Add a golden crown' },
     };
     setNodes((prevNodes) => [...prevNodes, newNode]);
   }, [canvasOffset, zoom]);
 
-  const addVideoGeneratorNode = useCallback(() => {
+  const addVideoGeneratorNode = useCallback((pos?: { x: number; y: number }) => {
     const newNode: NodeData = {
-      id: `node_${Date.now()}_${Math.random()}`,
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: NodeType.VideoGenerator,
-      position: { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
+      position: pos || { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
       data: {
         editDescription: 'A majestic eagle soaring over mountains',
         videoModel: 'veo-2.0-generate-001',
@@ -218,11 +292,34 @@ const App: React.FC = () => {
   }, []);
   
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
+    if (contextMenu?.isOpen) {
+      setContextMenu(null);
+    }
     if (e.target === e.currentTarget) {
         setIsPanning(true);
         setPanStart({ x: e.clientX, y: e.clientY });
     }
-  }, []);
+  }, [contextMenu?.isOpen]);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    // Only open context menu on canvas background, not on nodes
+    if (e.target !== e.currentTarget) return;
+
+    const canvasX = (e.clientX - canvasOffset.x) / zoom;
+    const canvasY = (e.clientY - canvasOffset.y) / zoom;
+    setContextMenu({
+        isOpen: true,
+        x: e.clientX,
+        y: e.clientY,
+        canvasX,
+        canvasY,
+    });
+  }, [canvasOffset.x, canvasOffset.y, zoom]);
+
+  const handleCloseContextMenu = () => {
+    setContextMenu(null);
+  };
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     const target = e.target as HTMLElement;
@@ -406,10 +503,47 @@ const App: React.FC = () => {
 
   const isDragging = draggingNodeId !== null || tempConnectionStartNodeId !== null;
 
+  const contextMenuActions: ContextMenuAction[] = contextMenu ? [
+    {
+      label: 'Character Gen',
+      icon: <ImageIcon className="w-5 h-5 text-cyan-400" />,
+      action: () => addNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
+    },
+    {
+      label: 'Text',
+      icon: <TextIcon className="w-5 h-5 text-yellow-400" />,
+      action: () => addTextNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
+    },
+    {
+      label: 'Image',
+      icon: <UploadIcon className="w-5 h-5 text-orange-400" />,
+      action: () => addImageNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
+    },
+    {
+      label: 'Image Editor',
+      icon: <EditIcon className="w-5 h-5 text-purple-400" />,
+      action: () => addImageEditorNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
+    },
+    {
+      label: 'Video Gen',
+      icon: <VideoIcon className="w-5 h-5 text-green-400" />,
+      action: () => addVideoGeneratorNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
+    },
+  ] : [];
+
   return (
     <div className={`w-screen h-screen ${styles.app.bg} ${styles.app.text} overflow-hidden flex flex-col font-sans ${isDragging ? 'select-none' : ''}`}>
-      <Toolbar onAddNode={addNode} onAddTextNode={addTextNode} onAddImageNode={addImageNode} onAddImageEditorNode={addImageEditorNode} onAddVideoGeneratorNode={addVideoGeneratorNode} />
+      {showWelcomeModal && <WelcomeModal onStartFresh={handleStartFresh} onLoadTemplate={handleLoadTemplate} onClose={() => setShowWelcomeModal(false)} />}
+      <Toolbar 
+        onNavigateHome={handleNavigateHome}
+        onAddNode={() => addNode()} 
+        onAddTextNode={() => addTextNode()} 
+        onAddImageNode={() => addImageNode()} 
+        onAddImageEditorNode={() => addImageEditorNode()} 
+        onAddVideoGeneratorNode={() => addVideoGeneratorNode()} 
+      />
       <ThemeSwitcher />
+      <GalleryPanel />
       <Canvas
         ref={canvasRef}
         nodes={nodes}
@@ -418,6 +552,7 @@ const App: React.FC = () => {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onWheel={handleWheel}
+        onContextMenu={handleContextMenu}
         onNodeDragStart={handleNodeDragStart}
         onUpdateNodeData={updateNodeData}
         onGenerateImage={handleGenerateImage}
@@ -435,6 +570,12 @@ const App: React.FC = () => {
         tempConnectionStartNodeId={tempConnectionStartNodeId}
         mousePosition={mousePosition}
       />
+      <ContextMenu
+        isOpen={!!contextMenu?.isOpen}
+        position={{ x: contextMenu?.x || 0, y: contextMenu?.y || 0 }}
+        actions={contextMenuActions}
+        onClose={handleCloseContextMenu}
+      />
       <ImageModal imageUrl={modalImageUrl} onClose={handleCloseModal} />
       <ConfirmationModal
         isOpen={!!nodeToDelete}
@@ -442,6 +583,15 @@ const App: React.FC = () => {
         onCancel={cancelDeleteNode}
         title="Delete Node"
         message="Are you sure you want to delete this node and all of its connections? This action cannot be undone."
+      />
+      <ConfirmationModal
+        isOpen={isNavigatingHome}
+        onConfirm={confirmNavigateHome}
+        onCancel={cancelNavigateHome}
+        title="Start a New Project?"
+        message="Returning to the home screen will clear your current canvas. Are you sure you want to continue?"
+        confirmText="Continue"
+        confirmButtonClass="bg-cyan-600 hover:bg-cyan-500"
       />
     </div>
   );

@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import { NodeData, NodeType, Connection } from '../types';
 import ImageIcon from './icons/ImageIcon';
@@ -37,12 +36,16 @@ interface NodeHeaderProps {
   isMinimized: boolean;
   onToggleMinimize: () => void;
   onDelete: () => void;
+  onMouseDown: (e: React.MouseEvent) => void;
 }
 
-const NodeHeader: React.FC<NodeHeaderProps> = ({ title, icon, isMinimized, onToggleMinimize, onDelete }) => {
+const NodeHeader: React.FC<NodeHeaderProps> = ({ title, icon, isMinimized, onToggleMinimize, onDelete, onMouseDown }) => {
   const { styles } = useTheme();
   return (
-    <div className={`flex items-center justify-between p-2 ${styles.node.headerBg} rounded-t-lg cursor-move`}>
+    <div 
+      className={`flex items-center justify-between p-2 ${styles.node.headerBg} rounded-t-lg cursor-move`}
+      onMouseDown={onMouseDown}
+    >
       <div className="flex items-center space-x-2">
         {icon}
         <span className="font-bold text-sm">{title}</span>
@@ -94,13 +97,11 @@ const Node: React.FC<NodeProps> = ({
   const labelClassName = `text-xs font-semibold ${styles.node.labelText}`;
   const imagePreviewBaseClassName = `w-full ${styles.node.imagePlaceholderBg} rounded-md flex items-center justify-center border border-dashed ${styles.node.imagePlaceholderBorder}`;
   const textAreaClassName = (isDisabled = false) => `w-full h-20 p-1 ${isDisabled ? 'bg-gray-700 text-gray-400' : styles.node.inputBg} border ${styles.node.inputBorder} rounded-md text-sm ${isDisabled ? '' : styles.node.text} focus:outline-none focus:ring-2 ${styles.node.inputFocusRing} resize-none`;
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.cursor-move')) {
-        onDragStart(node.id, e);
-    }
-  };
   
+  const handleHeaderMouseDown = (e: React.MouseEvent) => {
+    onDragStart(node.id, e);
+  };
+
   const handleTextAreaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>, nodeType: NodeType) => {
     if (e.ctrlKey && e.key === 'Enter') {
       e.preventDefault();
@@ -301,14 +302,13 @@ const Node: React.FC<NodeProps> = ({
   return (
     <div
       ref={nodeRef}
-      className={`absolute ${styles.node.bg} border ${styles.node.border} rounded-lg flex flex-col transition-all duration-300 ease-in-out`}
+      className={`absolute ${styles.node.bg} border ${styles.node.border} rounded-lg flex flex-col`}
       style={{
         left: node.position.x,
         top: node.position.y,
         width: `${dimensions.width}px`,
         height: dimensions.height && !isMinimized ? `${dimensions.height}px` : undefined,
       }}
-      onMouseDownCapture={handleMouseDown}
     >
       {node.type === NodeType.Text && (
         <>
@@ -318,6 +318,7 @@ const Node: React.FC<NodeProps> = ({
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={() => onDelete(node.id)}
+                onMouseDown={handleHeaderMouseDown}
             />
             <div
                 onTransitionEnd={handleTextNodeTransitionEnd}
@@ -360,6 +361,7 @@ const Node: React.FC<NodeProps> = ({
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={() => onDelete(node.id)}
+                onMouseDown={handleHeaderMouseDown}
             />
             <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
                 <div className="p-2">
@@ -431,6 +433,7 @@ const Node: React.FC<NodeProps> = ({
             isMinimized={isMinimized}
             onToggleMinimize={() => onToggleMinimize(node.id)}
             onDelete={() => onDelete(node.id)}
+            onMouseDown={handleHeaderMouseDown}
           />
           <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
             <div className="p-2 space-y-2">
@@ -571,6 +574,7 @@ const Node: React.FC<NodeProps> = ({
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={() => onDelete(node.id)}
+                onMouseDown={handleHeaderMouseDown}
             />
             <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
               <div className="p-2 space-y-2">
@@ -671,6 +675,7 @@ const Node: React.FC<NodeProps> = ({
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={() => onDelete(node.id)}
+                onMouseDown={handleHeaderMouseDown}
             />
             <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
               <div className="p-2 space-y-2">

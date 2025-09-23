@@ -12,6 +12,7 @@ interface CanvasProps {
   onMouseMove: (e: React.MouseEvent) => void;
   onMouseUp: (e: React.MouseEvent) => void;
   onWheel: (e: React.WheelEvent) => void;
+  onContextMenu: (e: React.MouseEvent) => void;
   onNodeDragStart: (nodeId: string, e: React.MouseEvent) => void;
   onUpdateNodeData: (nodeId: string, data: Partial<NodeData['data']>) => void;
   onGenerateImage: (nodeId: string) => void;
@@ -41,6 +42,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
   onMouseMove,
   onMouseUp,
   onWheel,
+  onContextMenu,
   onNodeDragStart,
   onUpdateNodeData,
   onGenerateImage,
@@ -139,6 +141,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
       onWheel={onWheel}
+      onContextMenu={onContextMenu}
     >
       <div 
         className="absolute top-0 left-0"
