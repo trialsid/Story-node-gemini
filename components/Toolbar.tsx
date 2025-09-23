@@ -7,30 +7,55 @@ import VideoIcon from './icons/VideoIcon';
 import UploadIcon from './icons/UploadIcon';
 import HomeIcon from './icons/HomeIcon';
 import ClearCanvasIcon from './icons/ClearCanvasIcon';
+import UndoIcon from './icons/UndoIcon';
+import RedoIcon from './icons/RedoIcon';
+import SaveIcon from './icons/SaveIcon';
+import LoadIcon from './icons/LoadIcon';
 
 interface ToolbarProps {
   onNavigateHome: () => void;
   onClearCanvas: () => void;
+  onSaveProject: () => void;
+  onLoadProject: () => void;
   onAddNode: () => void;
   onAddTextNode: () => void;
   onAddImageNode: () => void;
   onAddImageEditorNode: () => void;
   onAddVideoGeneratorNode: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
 }
 
-const ToolbarButton: React.FC<{ onClick: () => void; children: React.ReactNode; isHome?: boolean }> = ({ onClick, children, isHome = false }) => {
+const ToolbarButton: React.FC<{ onClick: () => void; children: React.ReactNode; isHome?: boolean; disabled?: boolean; }> = ({ onClick, children, isHome = false, disabled = false }) => {
     const { styles } = useTheme();
     return (
         <button
             onClick={onClick}
-            className={`flex items-center space-x-2 px-3 py-2 ${styles.toolbar.buttonBg} ${isHome ? 'hover:bg-cyan-500/20' : styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium`}
+            disabled={disabled}
+            className={`flex items-center space-x-2 px-3 py-2 ${styles.toolbar.buttonBg} ${isHome ? 'hover:bg-cyan-500/20' : styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
         >
             {children}
         </button>
     )
 }
 
-const Toolbar: React.FC<ToolbarProps> = ({ onNavigateHome, onClearCanvas, onAddNode, onAddTextNode, onAddImageNode, onAddImageEditorNode, onAddVideoGeneratorNode }) => {
+const Toolbar: React.FC<ToolbarProps> = ({ 
+    onNavigateHome, 
+    onClearCanvas, 
+    onSaveProject,
+    onLoadProject,
+    onAddNode, 
+    onAddTextNode, 
+    onAddImageNode, 
+    onAddImageEditorNode, 
+    onAddVideoGeneratorNode,
+    onUndo,
+    onRedo,
+    canUndo,
+    canRedo,
+}) => {
   const { styles } = useTheme();
   return (
     <div className={`absolute top-4 left-4 z-20 p-2 ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-lg shadow-lg`}>
@@ -39,9 +64,26 @@ const Toolbar: React.FC<ToolbarProps> = ({ onNavigateHome, onClearCanvas, onAddN
             <HomeIcon className="w-5 h-5 text-cyan-400" />
             <span>Home</span>
         </ToolbarButton>
+        <ToolbarButton onClick={onSaveProject}>
+            <SaveIcon className="w-5 h-5 text-gray-300" />
+            <span>Save</span>
+        </ToolbarButton>
+        <ToolbarButton onClick={onLoadProject}>
+            <LoadIcon className="w-5 h-5 text-gray-300" />
+            <span>Load</span>
+        </ToolbarButton>
         <ToolbarButton onClick={onClearCanvas}>
             <ClearCanvasIcon className="w-5 h-5 text-red-400" />
             <span>Clear</span>
+        </ToolbarButton>
+        <div className="w-px h-6 bg-gray-500/30" />
+        <ToolbarButton onClick={onUndo} disabled={!canUndo}>
+            <UndoIcon className="w-5 h-5 text-gray-300" />
+            <span>Undo</span>
+        </ToolbarButton>
+        <ToolbarButton onClick={onRedo} disabled={!canRedo}>
+            <RedoIcon className="w-5 h-5 text-gray-300" />
+            <span>Redo</span>
         </ToolbarButton>
         <div className="w-px h-6 bg-gray-500/30" />
         <ToolbarButton onClick={onAddNode}>

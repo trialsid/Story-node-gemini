@@ -32,6 +32,15 @@ const GalleryPanel: React.FC = () => {
     const [isMinimized, setIsMinimized] = useState(true);
     const { styles } = useTheme();
 
+    const handleMinimizedScroll = (e: React.WheelEvent<HTMLDivElement>) => {
+        // Allow native horizontal scrolling (e.g., trackpad) to work.
+        // Convert vertical scroll to horizontal scroll.
+        if (e.deltaY !== 0 && e.deltaX === 0) {
+            e.preventDefault();
+            e.currentTarget.scrollLeft += e.deltaY;
+        }
+    };
+
     return (
         <div 
             className={`absolute top-20 right-4 z-20 w-64 ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-lg shadow-lg flex flex-col transition-all duration-300 ease-in-out`}
@@ -86,7 +95,10 @@ const GalleryPanel: React.FC = () => {
             {/* Minimized Content */}
             <div className={`transition-all duration-300 ease-in-out overflow-hidden ${!isMinimized ? 'max-h-0 opacity-0' : 'max-h-24 opacity-100'}`}>
                 <div className={`p-2 border-t ${styles.toolbar.border}`}>
-                    <div className="flex space-x-2 overflow-x-auto pb-2 custom-scrollbar">
+                    <div 
+                        className="flex space-x-2 overflow-x-auto pb-2 custom-scrollbar"
+                        onWheel={handleMinimizedScroll}
+                    >
                         {mockMedia.map(media => (
                            <div key={media.id} className={`w-12 h-12 flex-shrink-0 rounded-md ${styles.node.imagePlaceholderBg} p-0.5 flex items-center justify-center overflow-hidden`}>
                                {media.type === 'image' ? (

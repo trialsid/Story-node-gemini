@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { NodeData, NodeType, Connection } from './types';
+import { NodeData, NodeType, Connection, CanvasState } from './types';
 import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
 import ImageModal from './components/ImageModal';
@@ -16,6 +16,9 @@ import TextIcon from './components/icons/TextIcon';
 import EditIcon from './components/icons/EditIcon';
 import VideoIcon from './components/icons/VideoIcon';
 import UploadIcon from './components/icons/UploadIcon';
+import SettingsModal from './components/SettingsModal';
+import SettingsIcon from './components/icons/SettingsIcon';
+import { useHistory } from './hooks/useHistory';
 
 const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } } = {
   [NodeType.CharacterGenerator]: { width: 256 },
@@ -33,8 +36,20 @@ interface DragStartInfo {
 }
 
 const App: React.FC = () => {
-  const [nodes, setNodes] = useState<NodeData[]>([]);
-  const [connections, setConnections] = useState<Connection[]>([]);
+  const {
+    state: canvasState,
+    set: setCanvasState,
+    undo,
+    redo,
+    reset: resetHistory,
+    canUndo,
+    canRedo,
+  } = useHistory<CanvasState>({ nodes: [], connections: [] });
+
+  const { nodes, connections } = canvasState;
+
+  // State for real-time dragging feedback without polluting history
+  const [localNodes, setLocalNodes] = useState<NodeData[]>([]);
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [dragStartInfo, setDragStartInfo] = useState<DragStartInfo | null>(null);
   const [modalImageUrl, setModalImageUrl] = useState<string | null>(null);
@@ -52,6 +67,12 @@ const App: React.FC = () => {
   const [isNavigatingHome, setIsNavigatingHome] = useState(false);
   const [isClearingCanvas, setIsClearingCanvas] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ isOpen: boolean; x: number; y: number; canvasX: number; canvasY: number; } | null>(null);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  
+  // New state for project loading
+  const [isLoadingProject, setIsLoadingProject] = useState(false);
+  const [projectFileContent, setProjectFileContent] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
 
   const { styles } = useTheme();
@@ -63,11 +84,41 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // Sync localNodes with history state when not dragging
+  useEffect(() => {
+    if (!draggingNodeId) {
+      setLocalNodes(nodes);
+    }
+  }, [nodes, draggingNodeId]);
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.ctrlKey || e.metaKey) {
+            if (e.key === 'z') {
+                if (e.shiftKey) {
+                    if (canRedo) redo();
+                } else {
+                    if (canUndo) undo();
+                }
+                e.preventDefault();
+            } else if (e.key === 'y') {
+                if (canRedo) redo();
+                e.preventDefault();
+            }
+        }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo, canUndo, canRedo]);
+
+  const handleOpenSettingsModal = () => setIsSettingsModalOpen(true);
+  const handleCloseSettingsModal = () => setIsSettingsModalOpen(false);
+
   const handleStartFresh = useCallback(() => {
-    setNodes([]);
-    setConnections([]);
+    resetHistory({ nodes: [], connections: [] });
     setShowWelcomeModal(false);
-  }, []);
+  }, [resetHistory]);
   
   const handleLoadTemplate = useCallback((templateKey: keyof typeof templates) => {
     const template = templates[templateKey];
@@ -122,10 +173,9 @@ const App: React.FC = () => {
     };
     
     const finalNodes = propagateInitialData(newNodes, newConnections);
-    setNodes(finalNodes);
-    setConnections(newConnections);
+    resetHistory({ nodes: finalNodes, connections: newConnections });
     setShowWelcomeModal(false);
-  }, []);
+  }, [resetHistory]);
 
   const handleNavigateHome = useCallback(() => {
     if (nodes.length > 0) {
@@ -136,8 +186,7 @@ const App: React.FC = () => {
   }, [nodes.length]);
 
   const confirmNavigateHome = () => {
-    setNodes([]);
-    setConnections([]);
+    resetHistory({ nodes: [], connections: [] });
     setShowWelcomeModal(true);
     setIsNavigatingHome(false);
   };
@@ -153,13 +202,82 @@ const App: React.FC = () => {
   }, [nodes.length]);
 
   const confirmClearCanvas = () => {
-    setNodes([]);
-    setConnections([]);
+    resetHistory({ nodes: [], connections: [] });
     setIsClearingCanvas(false);
   };
 
   const cancelClearCanvas = () => {
     setIsClearingCanvas(false);
+  };
+
+  const handleSaveProject = useCallback(() => {
+    const stateToSave: CanvasState = { nodes, connections };
+    const jsonString = JSON.stringify(stateToSave, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    a.download = `gemini-node-canvas-project-${timestamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [nodes, connections]);
+
+  const loadProject = useCallback((jsonString: string) => {
+    try {
+      const loadedState = JSON.parse(jsonString) as CanvasState;
+      if (Array.isArray(loadedState.nodes) && Array.isArray(loadedState.connections)) {
+        resetHistory(loadedState);
+      } else {
+        throw new Error('Invalid project file format: Missing nodes or connections array.');
+      }
+    } catch (error) {
+      console.error("Failed to load project:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      alert(`Failed to load project file. It may be corrupted or in an invalid format.\n\nError: ${errorMessage}`);
+    }
+  }, [resetHistory]);
+  
+  const confirmLoadProject = useCallback(() => {
+    if (projectFileContent) {
+      loadProject(projectFileContent);
+    }
+    setIsLoadingProject(false);
+    setProjectFileContent(null);
+  }, [projectFileContent, loadProject]);
+
+  const cancelLoadProject = () => {
+    setIsLoadingProject(false);
+    setProjectFileContent(null);
+  };
+
+  const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+  
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result;
+      if (typeof text === 'string') {
+        if (nodes.length > 0 || connections.length > 0) {
+          setProjectFileContent(text);
+          setIsLoadingProject(true);
+        } else {
+          loadProject(text);
+        }
+      }
+    };
+    reader.onerror = () => {
+      alert('Error reading file.');
+    };
+    reader.readAsText(file);
+    event.target.value = ''; // Reset to allow loading same file again
+  };
+  
+  const handleLoadProject = () => {
+    fileInputRef.current?.click();
   };
 
   const addNode = useCallback((pos?: { x: number; y: number }) => {
@@ -174,8 +292,8 @@ const App: React.FC = () => {
         aspectRatio: '1:1',
       },
     };
-    setNodes((prevNodes) => [...prevNodes, newNode]);
-  }, [canvasOffset, zoom]);
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+  }, [canvasOffset, zoom, setCanvasState]);
 
   const addTextNode = useCallback((pos?: { x: number; y: number }) => {
     const newNode: NodeData = {
@@ -184,8 +302,8 @@ const App: React.FC = () => {
       position: pos || { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
       data: { text: 'A futuristic cityscape at dusk.' },
     };
-    setNodes((prevNodes) => [...prevNodes, newNode]);
-  }, [canvasOffset, zoom]);
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+  }, [canvasOffset, zoom, setCanvasState]);
   
   const addImageNode = useCallback((pos?: { x: number; y: number }) => {
     const newNode: NodeData = {
@@ -194,8 +312,8 @@ const App: React.FC = () => {
       position: pos || { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
       data: { },
     };
-    setNodes((prevNodes) => [...prevNodes, newNode]);
-  }, [canvasOffset, zoom]);
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+  }, [canvasOffset, zoom, setCanvasState]);
 
   const addImageEditorNode = useCallback((pos?: { x: number; y: number }) => {
     const newNode: NodeData = {
@@ -204,8 +322,8 @@ const App: React.FC = () => {
       position: pos || { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
       data: { editDescription: 'Add a golden crown' },
     };
-    setNodes((prevNodes) => [...prevNodes, newNode]);
-  }, [canvasOffset, zoom]);
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+  }, [canvasOffset, zoom, setCanvasState]);
 
   const addVideoGeneratorNode = useCallback((pos?: { x: number; y: number }) => {
     const newNode: NodeData = {
@@ -217,29 +335,30 @@ const App: React.FC = () => {
         videoModel: 'veo-2.0-generate-001',
       },
     };
-    setNodes((prevNodes) => [...prevNodes, newNode]);
-  }, [canvasOffset, zoom]);
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+  }, [canvasOffset, zoom, setCanvasState]);
   
   const toggleNodeMinimization = useCallback((nodeId: string) => {
-    setNodes(prevNodes =>
-      prevNodes.map(node =>
-        node.id === nodeId
-          ? { ...node, data: { ...node.data, isMinimized: !node.data.isMinimized } }
-          : node
-      )
-    );
-  }, []);
+    setCanvasState(prevState => ({
+        ...prevState,
+        nodes: prevState.nodes.map(node =>
+            node.id === nodeId
+            ? { ...node, data: { ...node.data, isMinimized: !node.data.isMinimized } }
+            : node
+        ),
+    }));
+  }, [setCanvasState]);
 
   const updateNodeData = useCallback((nodeId: string, data: Partial<NodeData['data']>) => {
-    setNodes((currentNodes) => {
-        let newNodes = [...currentNodes];
+    setCanvasState((prevState) => {
+        let newNodes = [...prevState.nodes];
         const nodeIndex = newNodes.findIndex(n => n.id === nodeId);
-        if (nodeIndex === -1) return currentNodes;
+        if (nodeIndex === -1) return prevState;
         
         const updatedNode = { ...newNodes[nodeIndex], data: { ...newNodes[nodeIndex].data, ...data } };
         newNodes[nodeIndex] = updatedNode;
 
-        connections.forEach(conn => {
+        prevState.connections.forEach(conn => {
             if (conn.fromNodeId === nodeId) {
                 const toNodeIndex = newNodes.findIndex(n => n.id === conn.toNodeId);
                 if (toNodeIndex === -1) return;
@@ -263,9 +382,9 @@ const App: React.FC = () => {
                 }
             }
         });
-        return newNodes;
+        return { ...prevState, nodes: newNodes };
     });
-  }, [connections]);
+  }, [setCanvasState]);
 
   const handleNodeDragStart = useCallback((nodeId: string, e: React.MouseEvent) => {
     setDraggingNodeId(nodeId);
@@ -288,7 +407,7 @@ const App: React.FC = () => {
       const dy = e.clientY - dragStartInfo.startMouseY;
       const x = dragStartInfo.startNodeX + dx / zoom;
       const y = dragStartInfo.startNodeY + dy / zoom;
-      setNodes((prevNodes) =>
+      setLocalNodes((prevNodes) =>
         prevNodes.map((node) =>
           node.id === draggingNodeId ? { ...node, position: { x, y } } : node
         )
@@ -302,11 +421,15 @@ const App: React.FC = () => {
   }, [draggingNodeId, dragStartInfo, isPanning, panStart, zoom]);
 
   const handleMouseUp = useCallback(() => {
+    if (draggingNodeId) {
+      // Commit the final position to history
+      setCanvasState(prevState => ({ ...prevState, nodes: localNodes }));
+    }
     setDraggingNodeId(null);
     setDragStartInfo(null);
     setIsPanning(false);
     setTempConnectionStartNodeId(null); // Cancel connection on mouse up
-  }, []);
+  }, [draggingNodeId, localNodes, setCanvasState]);
   
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
     if (contextMenu?.isOpen) {
@@ -366,17 +489,17 @@ const App: React.FC = () => {
   }, [zoom, canvasOffset]);
 
   const handleOutputMouseDown = useCallback((nodeId: string) => {
-    setConnections(prev => prev.filter(c => c.fromNodeId !== nodeId));
+    setCanvasState(prev => ({ ...prev, connections: prev.connections.filter(c => c.fromNodeId !== nodeId) }));
     setTempConnectionStartNodeId(nodeId);
-  }, []);
+  }, [setCanvasState]);
 
   const handleInputMouseDown = useCallback((nodeId: string) => {
     const connection = connections.find(c => c.toNodeId === nodeId);
     if (connection) {
-        setConnections(prev => prev.filter(c => c.id !== connection.id));
+        setCanvasState(prev => ({ ...prev, connections: prev.connections.filter(c => c.id !== connection.id) }));
         setTempConnectionStartNodeId(connection.fromNodeId);
     }
-  }, [connections]);
+  }, [connections, setCanvasState]);
 
   const handleInputMouseUp = useCallback((toNodeId: string) => {
     if (!tempConnectionStartNodeId) return;
@@ -413,19 +536,32 @@ const App: React.FC = () => {
       toNodeId: toNodeId,
     };
     
-    setConnections(prev => [...prev.filter(c => c.toNodeId !== toNodeId && c.fromNodeId !== tempConnectionStartNodeId), newConnection]);
-    
-    // Update target node's data immediately based on connection type
-    if (isTextToCharGen) {
-      updateNodeData(toNodeId, { characterDescription: fromNode.data.text });
-    } else if (isImageToVideoGen || isCharGenToImageEditor || isImageEditorToImageEditor || isImageToImageEditor) {
-        updateNodeData(toNodeId, { inputImageUrl: fromNode.data.imageUrl });
-    } else if (isTextToVideoGen) {
-        updateNodeData(toNodeId, { editDescription: fromNode.data.text });
-    }
+    setCanvasState(prevState => {
+        const newConnections = [...prevState.connections.filter(c => c.toNodeId !== toNodeId && c.fromNodeId !== tempConnectionStartNodeId), newConnection];
+        let newNodes = [...prevState.nodes];
+        
+        const fromNode = newNodes.find(n => n.id === tempConnectionStartNodeId);
+        const toNodeIndex = newNodes.findIndex(n => n.id === toNodeId);
+        
+        if (fromNode && toNodeIndex !== -1) {
+            let dataToUpdate: Partial<NodeData['data']> = {};
+            if (isTextToCharGen && 'text' in fromNode.data) {
+                dataToUpdate = { characterDescription: fromNode.data.text };
+            } else if ((isImageToVideoGen || isCharGenToImageEditor || isImageEditorToImageEditor || isImageToImageEditor) && 'imageUrl' in fromNode.data) {
+                dataToUpdate = { inputImageUrl: fromNode.data.imageUrl };
+            } else if (isTextToVideoGen && 'text' in fromNode.data) {
+                dataToUpdate = { editDescription: fromNode.data.text };
+            }
+            if (Object.keys(dataToUpdate).length > 0) {
+                const toNode = newNodes[toNodeIndex];
+                newNodes[toNodeIndex] = { ...toNode, data: { ...toNode.data, ...dataToUpdate }};
+            }
+        }
+        return { nodes: newNodes, connections: newConnections };
+    });
     
     setTempConnectionStartNodeId(null);
-  }, [tempConnectionStartNodeId, nodes, connections, updateNodeData]);
+  }, [tempConnectionStartNodeId, nodes, connections, setCanvasState]);
 
   const handleGenerateImage = useCallback(async (nodeId: string) => {
     const sourceNode = nodes.find(n => n.id === nodeId);
@@ -508,10 +644,10 @@ const App: React.FC = () => {
 
   const confirmDeleteNode = () => {
     if (!nodeToDelete) return;
-    setNodes(prevNodes => prevNodes.filter(n => n.id !== nodeToDelete));
-    setConnections(prevConnections =>
-      prevConnections.filter(c => c.fromNodeId !== nodeToDelete && c.toNodeId !== nodeToDelete)
-    );
+    setCanvasState(prevState => ({
+        nodes: prevState.nodes.filter(n => n.id !== nodeToDelete),
+        connections: prevState.connections.filter(c => c.fromNodeId !== nodeToDelete && c.toNodeId !== nodeToDelete)
+    }));
     setNodeToDelete(null);
   };
 
@@ -553,18 +689,41 @@ const App: React.FC = () => {
       {showWelcomeModal && <WelcomeModal onStartFresh={handleStartFresh} onLoadTemplate={handleLoadTemplate} onClose={() => setShowWelcomeModal(false)} />}
       <Toolbar 
         onNavigateHome={handleNavigateHome}
+        onSaveProject={handleSaveProject}
+        onLoadProject={handleLoadProject}
         onClearCanvas={handleClearCanvasRequest}
-        onAddNode={() => addNode()} 
-        onAddTextNode={() => addTextNode()} 
-        onAddImageNode={() => addImageNode()} 
-        onAddImageEditorNode={() => addImageEditorNode()} 
-        onAddVideoGeneratorNode={() => addVideoGeneratorNode()} 
+        onAddNode={() => addNode()}
+        onAddTextNode={() => addTextNode()}
+        onAddImageNode={() => addImageNode()}
+        onAddImageEditorNode={() => addImageEditorNode()}
+        onAddVideoGeneratorNode={() => addVideoGeneratorNode()}
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={canUndo}
+        canRedo={canRedo}
       />
+       <input
+        type="file"
+        accept=".json,application/json"
+        ref={fileInputRef}
+        onChange={handleFileSelected}
+        className="hidden"
+        aria-hidden="true"
+      />
+      <button 
+        onClick={handleOpenSettingsModal}
+        className={`absolute top-4 right-20 z-20 p-2 ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-lg shadow-lg text-gray-400 ${styles.toolbar.buttonHoverBg}`}
+        aria-label="Open settings"
+      >
+        <SettingsIcon className="w-5 h-5" />
+      </button>
       <ThemeSwitcher />
       <GalleryPanel />
+      {isSettingsModalOpen && <SettingsModal isOpen={isSettingsModalOpen} onClose={handleCloseSettingsModal} />}
+
       <Canvas
         ref={canvasRef}
-        nodes={nodes}
+        nodes={localNodes}
         connections={connections}
         onMouseDown={handleCanvasMouseDown}
         onMouseMove={handleMouseMove}
@@ -588,37 +747,57 @@ const App: React.FC = () => {
         tempConnectionStartNodeId={tempConnectionStartNodeId}
         mousePosition={mousePosition}
       />
-      <ContextMenu
-        isOpen={!!contextMenu?.isOpen}
-        position={{ x: contextMenu?.x || 0, y: contextMenu?.y || 0 }}
-        actions={contextMenuActions}
-        onClose={handleCloseContextMenu}
-      />
-      <ImageModal imageUrl={modalImageUrl} onClose={handleCloseModal} />
-      <ConfirmationModal
-        isOpen={!!nodeToDelete}
-        onConfirm={confirmDeleteNode}
-        onCancel={cancelDeleteNode}
-        title="Delete Node"
-        message="Are you sure you want to delete this node and all of its connections? This action cannot be undone."
-      />
-      <ConfirmationModal
-        isOpen={isNavigatingHome}
-        onConfirm={confirmNavigateHome}
-        onCancel={cancelNavigateHome}
-        title="Start a New Project?"
-        message="Returning to the home screen will clear your current canvas. Are you sure you want to continue?"
-        confirmText="Continue"
-        confirmButtonClass="bg-cyan-600 hover:bg-cyan-500"
-      />
-      <ConfirmationModal
-        isOpen={isClearingCanvas}
-        onConfirm={confirmClearCanvas}
-        onCancel={cancelClearCanvas}
-        title="Clear Canvas?"
-        message="This will remove all nodes and connections from your canvas. This action cannot be undone. Are you sure you want to proceed?"
-        confirmText="Clear"
-      />
+
+      {modalImageUrl && <ImageModal imageUrl={modalImageUrl} onClose={handleCloseModal} />}
+      {nodeToDelete && (
+        <ConfirmationModal
+          isOpen={!!nodeToDelete}
+          onConfirm={confirmDeleteNode}
+          onCancel={cancelDeleteNode}
+          title="Delete Node"
+          message="Are you sure you want to delete this node? This action cannot be undone."
+        />
+      )}
+      {isNavigatingHome && (
+        <ConfirmationModal
+            isOpen={isNavigatingHome}
+            onConfirm={confirmNavigateHome}
+            onCancel={cancelNavigateHome}
+            title="Return Home"
+            message="Are you sure you want to return to the home screen? All unsaved changes will be lost."
+            confirmText="Return Home"
+            confirmButtonClass="bg-cyan-600 hover:bg-cyan-500"
+        />
+      )}
+      {isClearingCanvas && (
+        <ConfirmationModal
+            isOpen={isClearingCanvas}
+            onConfirm={confirmClearCanvas}
+            onCancel={cancelClearCanvas}
+            title="Clear Canvas"
+            message="Are you sure you want to clear the canvas? All unsaved changes will be lost."
+            confirmText="Clear Canvas"
+        />
+      )}
+       {isLoadingProject && (
+        <ConfirmationModal
+          isOpen={isLoadingProject}
+          onConfirm={confirmLoadProject}
+          onCancel={cancelLoadProject}
+          title="Load Project"
+          message="Loading a project will replace the current canvas and clear your undo/redo history. Are you sure you want to continue?"
+          confirmText="Load Project"
+          confirmButtonClass="bg-cyan-600 hover:bg-cyan-500"
+        />
+      )}
+      {contextMenu && (
+        <ContextMenu 
+          isOpen={contextMenu.isOpen} 
+          position={{ x: contextMenu.x, y: contextMenu.y }} 
+          actions={contextMenuActions} 
+          onClose={handleCloseContextMenu}
+        />
+      )}
     </div>
   );
 };

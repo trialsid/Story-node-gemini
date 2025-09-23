@@ -6,6 +6,7 @@ import TextIcon from './icons/TextIcon';
 import VideoIcon from './icons/VideoIcon';
 import PlusIcon from './icons/PlusIcon';
 import CloseIcon from './icons/CloseIcon';
+import SettingsIcon from './icons/SettingsIcon';
 
 interface WelcomeModalProps {
   onStartFresh: () => void;
@@ -115,7 +116,7 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ onStartFresh, onLoadTemplat
           </section>
         </main>
 
-        <footer className={`p-4 border-t ${styles.modal.border} mt-auto`}>
+        <footer className={`p-4 border-t ${styles.modal.border} mt-auto flex justify-between items-center`}>
           <div className="flex items-center">
             <input
               type="checkbox"
@@ -127,6 +128,13 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ onStartFresh, onLoadTemplat
             <label htmlFor="show-on-startup" className="ml-2 text-sm">
               Show on startup
             </label>
+          </div>
+          <div className="flex items-center space-x-1.5 text-xs text-gray-400">
+            <span>Access settings via the</span>
+            <div className={`${styles.toolbar.buttonBg} p-1 rounded-sm`}>
+                <SettingsIcon className="w-3 h-3" />
+            </div>
+            <span>icon on the canvas.</span>
           </div>
         </footer>
 

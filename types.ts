@@ -51,3 +51,8 @@ export interface NodeData {
     // `imageUrl` is used for the uploaded image
   };
 }
+
+export interface CanvasState {
+  nodes: NodeData[];
+  connections: Connection[];
+}
