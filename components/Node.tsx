@@ -137,6 +137,7 @@ const Node: React.FC<NodeProps> = ({
   const handleAnchorRefs = useRef<{ [handleId: string]: HTMLElement | null }>({});
   const minimizedImageRef = useRef<HTMLImageElement>(null);
   const minimizedVideoRef = useRef<HTMLVideoElement>(null);
+  const prevIsMinimizedRef = useRef(isMinimized);
 
   const previewImage = node.data.imageUrl || node.data.inputImageUrl;
   const previewVideo = node.data.videoUrl;
@@ -215,29 +216,48 @@ const Node: React.FC<NodeProps> = ({
 
   // Effect for calculating handle positions
   useEffect(() => {
+    const wasMinimized = prevIsMinimizedRef.current;
+    prevIsMinimizedRef.current = isMinimized;
+
     if (!nodeRef.current || isMinimized) return;
-    const nodeElement = nodeRef.current;
+
+    const calculateOffsets = () => {
+      if (!nodeRef.current) return; // Check again in case component unmounted
+      const nodeElement = nodeRef.current;
+      
+      let needsUpdate = false;
+      const newOffsets: { [handleId: string]: number } = {};
+
+      [...nodeSpec.inputs, ...nodeSpec.outputs].forEach(handle => {
+          const handleElement = handleAnchorRefs.current[handle.id];
+          if (handleElement) {
+              const nodeRect = nodeElement.getBoundingClientRect();
+              const targetRect = handleElement.getBoundingClientRect();
+              const yPosition = (targetRect.top - nodeRect.top) + (targetRect.height / 2);
+              
+              newOffsets[handle.id] = yPosition;
+              // Only mark for update if there's a significant change to prevent infinite loops
+              if (Math.abs((node.data.handleYOffsets?.[handle.id] || 0) - yPosition) > 1) {
+                  needsUpdate = true;
+              }
+          }
+      });
+
+      if (needsUpdate) {
+          // Create a merged object to avoid race conditions with other updates
+          onUpdateData(node.id, { handleYOffsets: { ...node.data.handleYOffsets, ...newOffsets }});
+      }
+    };
     
-    let needsUpdate = false;
-    const newOffsets: { [handleId: string]: number } = {};
-
-    [...nodeSpec.inputs, ...nodeSpec.outputs].forEach(handle => {
-        const handleElement = handleAnchorRefs.current[handle.id];
-        if (handleElement) {
-            const nodeRect = nodeElement.getBoundingClientRect();
-            const targetRect = handleElement.getBoundingClientRect();
-            const yPosition = (targetRect.top - nodeRect.top) + (targetRect.height / 2);
-            
-            newOffsets[handle.id] = yPosition;
-            if (Math.abs((node.data.handleYOffsets?.[handle.id] || 0) - yPosition) > 1) {
-                needsUpdate = true;
-            }
-        }
-    });
-
-    if (needsUpdate) {
-        onUpdateData(node.id, { handleYOffsets: { ...node.data.handleYOffsets, ...newOffsets }});
+    // If we just maximized the node, wait for the animation to finish
+    if (wasMinimized && !isMinimized) {
+        const timeoutId = setTimeout(calculateOffsets, 310); // 300ms transition + 10ms buffer
+        return () => clearTimeout(timeoutId);
+    } else {
+        // Otherwise, calculate immediately (e.g., on initial render)
+        calculateOffsets();
     }
+
   }, [node.id, node.type, onUpdateData, isMinimized, nodeSpec, node.data.handleYOffsets, node.data.text, node.data.imageUrl]);
   
   const handleFileChange = (file: File | null) => {
