@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import ImageIcon from './icons/ImageIcon';
 import TextIcon from './icons/TextIcon';
 import EditIcon from './icons/EditIcon';
@@ -12,6 +12,8 @@ import RedoIcon from './icons/RedoIcon';
 import SaveIcon from './icons/SaveIcon';
 import LoadIcon from './icons/LoadIcon';
 import BotIcon from './icons/BotIcon';
+import PlusIcon from './icons/PlusIcon';
+import ChevronDownIcon from './icons/ChevronDownIcon';
 
 interface ToolbarProps {
   onNavigateHome: () => void;
@@ -30,18 +32,28 @@ interface ToolbarProps {
   canRedo: boolean;
 }
 
-const ToolbarButton: React.FC<{ onClick: () => void; children: React.ReactNode; isHome?: boolean; disabled?: boolean; }> = ({ onClick, children, isHome = false, disabled = false }) => {
+const ToolbarButton: React.FC<{ 
+    onClick: () => void; 
+    children: React.ReactNode; 
+    tooltip: string; 
+    disabled?: boolean; 
+    className?: string;
+}> = ({ onClick, children, tooltip, disabled = false, className = '' }) => {
     const { styles } = useTheme();
     return (
         <button
             onClick={onClick}
             disabled={disabled}
-            className={`flex items-center space-x-2 px-3 py-2 ${styles.toolbar.buttonBg} ${isHome ? 'hover:bg-cyan-500/20' : styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
+            className={`flex items-center justify-center p-2.5 ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed relative group ${className}`}
+            aria-label={tooltip}
         >
             {children}
+            <span className="absolute top-full mt-2 w-max bg-gray-900 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                {tooltip}
+            </span>
         </button>
     )
-}
+};
 
 const Toolbar: React.FC<ToolbarProps> = ({ 
     onNavigateHome, 
@@ -60,59 +72,89 @@ const Toolbar: React.FC<ToolbarProps> = ({
     canRedo,
 }) => {
   const { styles } = useTheme();
+  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+  const addMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+        if (addMenuRef.current && !addMenuRef.current.contains(event.target as Node)) {
+            setIsAddMenuOpen(false);
+        }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const nodeTypes = [
+    { label: 'Character Gen', icon: <ImageIcon className="w-5 h-5 text-cyan-400" />, action: onAddNode },
+    { label: 'Gemini Text', icon: <BotIcon className="w-5 h-5 text-indigo-400" />, action: onAddGeminiTextNode },
+    { label: 'Text', icon: <TextIcon className="w-5 h-5 text-yellow-400" />, action: onAddTextNode },
+    { label: 'Image', icon: <UploadIcon className="w-5 h-5 text-orange-400" />, action: onAddImageNode },
+    { label: 'Image Editor', icon: <EditIcon className="w-5 h-5 text-purple-400" />, action: onAddImageEditorNode },
+    { label: 'Video Gen', icon: <VideoIcon className="w-5 h-5 text-green-400" />, action: onAddVideoGeneratorNode },
+  ];
+
   return (
     <div className={`absolute top-4 left-4 z-20 p-2 ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-lg shadow-lg`}>
-      <div className="flex items-center space-x-2">
-        <ToolbarButton onClick={onNavigateHome} isHome>
+      <div className="flex items-center space-x-1.5">
+        {/* Group 1: Project & Canvas */}
+        <ToolbarButton onClick={onNavigateHome} tooltip="Home" className="hover:bg-cyan-500/20">
             <HomeIcon className="w-5 h-5 text-cyan-400" />
-            <span>Home</span>
         </ToolbarButton>
-        <ToolbarButton onClick={onSaveProject}>
+        <ToolbarButton onClick={onSaveProject} tooltip="Save Project">
             <SaveIcon className="w-5 h-5 text-gray-300" />
-            <span>Save</span>
         </ToolbarButton>
-        <ToolbarButton onClick={onLoadProject}>
+        <ToolbarButton onClick={onLoadProject} tooltip="Load Project">
             <LoadIcon className="w-5 h-5 text-gray-300" />
-            <span>Load</span>
         </ToolbarButton>
-        <ToolbarButton onClick={onClearCanvas}>
+        <ToolbarButton onClick={onClearCanvas} tooltip="Clear Canvas">
             <ClearCanvasIcon className="w-5 h-5 text-red-400" />
-            <span>Clear</span>
         </ToolbarButton>
-        <div className="w-px h-6 bg-gray-500/30" />
-        <ToolbarButton onClick={onUndo} disabled={!canUndo}>
+        
+        <div className="w-px h-6 bg-gray-500/30 mx-1" />
+
+        {/* Group 2: History */}
+        <ToolbarButton onClick={onUndo} disabled={!canUndo} tooltip="Undo (Ctrl+Z)">
             <UndoIcon className="w-5 h-5 text-gray-300" />
-            <span>Undo</span>
         </ToolbarButton>
-        <ToolbarButton onClick={onRedo} disabled={!canRedo}>
+        <ToolbarButton onClick={onRedo} disabled={!canRedo} tooltip="Redo (Ctrl+Shift+Z)">
             <RedoIcon className="w-5 h-5 text-gray-300" />
-            <span>Redo</span>
         </ToolbarButton>
-        <div className="w-px h-6 bg-gray-500/30" />
-        <ToolbarButton onClick={onAddNode}>
-            <ImageIcon className="w-5 h-5 text-cyan-400" />
-            <span>Character Gen</span>
-        </ToolbarButton>
-        <ToolbarButton onClick={onAddGeminiTextNode}>
-            <BotIcon className="w-5 h-5 text-indigo-400" />
-            <span>Gemini Text</span>
-        </ToolbarButton>
-        <ToolbarButton onClick={onAddTextNode}>
-            <TextIcon className="w-5 h-5 text-yellow-400" />
-            <span>Text</span>
-        </ToolbarButton>
-        <ToolbarButton onClick={onAddImageNode}>
-            <UploadIcon className="w-5 h-5 text-orange-400" />
-            <span>Image</span>
-        </ToolbarButton>
-        <ToolbarButton onClick={onAddImageEditorNode}>
-            <EditIcon className="w-5 h-5 text-purple-400" />
-            <span>Image Editor</span>
-        </ToolbarButton>
-        <ToolbarButton onClick={onAddVideoGeneratorNode}>
-            <VideoIcon className="w-5 h-5 text-green-400" />
-            <span>Video Gen</span>
-        </ToolbarButton>
+        
+        <div className="w-px h-6 bg-gray-500/30 mx-1" />
+        
+        {/* Group 3: Add Node Dropdown */}
+        <div className="relative" ref={addMenuRef}>
+            <button
+                onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
+                className={`flex items-center space-x-2 px-3 py-2 ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium`}
+            >
+                <PlusIcon className="w-5 h-5 text-gray-300" />
+                <span>Add Node</span>
+                <ChevronDownIcon className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isAddMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {isAddMenuOpen && (
+                <div 
+                    className={`absolute top-full mt-2 w-56 p-1 ${styles.toolbar.bg} border ${styles.toolbar.border} rounded-lg shadow-lg z-10`}
+                    role="menu"
+                >
+                    {nodeTypes.map((nodeType) => (
+                        <button
+                            key={nodeType.label}
+                            onClick={() => {
+                                nodeType.action();
+                                setIsAddMenuOpen(false);
+                            }}
+                            className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium`}
+                            role="menuitem"
+                        >
+                            {nodeType.icon}
+                            <span>{nodeType.label}</span>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
       </div>
     </div>
   );
