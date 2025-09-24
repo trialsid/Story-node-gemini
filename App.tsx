@@ -4,7 +4,7 @@ import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
 import ImageModal from './components/ImageModal';
 import ConfirmationModal from './components/ConfirmationModal';
-import { generateImageFromPrompt, editImageWithPrompt, generateVideoFromPrompt } from './services/geminiService';
+import { generateImageFromPrompt, editImageWithPrompt, generateVideoFromPrompt, generateTextFromPrompt } from './services/geminiService';
 import { useTheme } from './contexts/ThemeContext';
 import ThemeSwitcher from './components/ThemeSwitcher';
 import GalleryPanel from './components/GalleryPanel';
@@ -20,6 +20,7 @@ import SettingsModal from './components/SettingsModal';
 import SettingsIcon from './components/icons/SettingsIcon';
 import { useHistory } from './hooks/useHistory';
 import { NODE_SPEC, areHandlesCompatible } from './utils/node-spec';
+import BotIcon from './components/icons/BotIcon';
 
 
 const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } } = {
@@ -28,6 +29,7 @@ const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } }
   [NodeType.ImageEditor]: { width: 256 },
   [NodeType.VideoGenerator]: { width: 256 },
   [NodeType.Image]: { width: 256 },
+  [NodeType.GeminiText]: { width: 256 },
 };
 
 interface DragStartInfo {
@@ -178,11 +180,13 @@ const App: React.FC = () => {
         const toNode = propagatedNodes[toNodeIndex];
         let dataToUpdate: Partial<NodeData['data']> = {};
         
-        if (fromNode.type === NodeType.Text && 'text' in fromNode.data) {
+        if ((fromNode.type === NodeType.Text || fromNode.type === NodeType.GeminiText) && 'text' in fromNode.data) {
           if (toNode.type === NodeType.CharacterGenerator && conn.toHandleId === 'description_input') {
               dataToUpdate = { characterDescription: fromNode.data.text };
           } else if (toNode.type === NodeType.VideoGenerator && conn.toHandleId === 'prompt_input') {
               dataToUpdate = { editDescription: fromNode.data.text };
+          } else if (toNode.type === NodeType.GeminiText && conn.toHandleId === 'prompt_input') {
+              dataToUpdate = { prompt: fromNode.data.text };
           }
         }
         
@@ -365,6 +369,16 @@ const App: React.FC = () => {
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState]);
   
+  const addGeminiTextNode = useCallback((pos?: { x: number; y: number }) => {
+    const newNode: NodeData = {
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type: NodeType.GeminiText,
+      position: pos || { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
+      data: { prompt: 'Write a short story about a robot who discovers music.' },
+    };
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+  }, [canvasOffset, zoom, setCanvasState]);
+
   const toggleNodeMinimization = useCallback((nodeId: string) => {
     setCanvasState(prevState => ({
         ...prevState,
@@ -393,11 +407,13 @@ const App: React.FC = () => {
                 const toNode = newNodes[toNodeIndex];
                 let dataToUpdate: Partial<NodeData['data']> = {};
                 
-                if (updatedNode.type === NodeType.Text && 'text' in data) {
+                if ((updatedNode.type === NodeType.Text || updatedNode.type === NodeType.GeminiText) && 'text' in data) {
                     if (toNode.type === NodeType.CharacterGenerator && conn.toHandleId === 'description_input') {
                         dataToUpdate = { characterDescription: data.text };
                     } else if (toNode.type === NodeType.VideoGenerator && conn.toHandleId === 'prompt_input') {
                         dataToUpdate = { editDescription: data.text };
+                    } else if (toNode.type === NodeType.GeminiText && conn.toHandleId === 'prompt_input') {
+                      dataToUpdate = { prompt: data.text };
                     }
                 }
                 
@@ -589,11 +605,13 @@ const App: React.FC = () => {
             let dataToUpdate: Partial<NodeData['data']> = {};
             const toNode = newNodes[toNodeIndex];
 
-            if (fromNode.type === NodeType.Text && 'text' in fromNode.data) {
+            if ((fromNode.type === NodeType.Text || fromNode.type === NodeType.GeminiText) && 'text' in fromNode.data) {
                 if (toNode.type === NodeType.CharacterGenerator && toHandleId === 'description_input') {
                     dataToUpdate = { characterDescription: fromNode.data.text };
                 } else if (toNode.type === NodeType.VideoGenerator && toHandleId === 'prompt_input') {
                     dataToUpdate = { editDescription: fromNode.data.text };
+                } else if (toNode.type === NodeType.GeminiText && toHandleId === 'prompt_input') {
+                    dataToUpdate = { prompt: fromNode.data.text };
                 }
             } else if ((fromNode.type === NodeType.CharacterGenerator || fromNode.type === NodeType.ImageEditor || fromNode.type === NodeType.Image) && 'imageUrl' in fromNode.data) {
                  if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && toHandleId === 'image_input') {
@@ -681,6 +699,25 @@ const App: React.FC = () => {
     }
   }, [nodes, updateNodeData]);
 
+  const handleGenerateText = useCallback(async (nodeId: string) => {
+    const sourceNode = nodes.find(n => n.id === nodeId);
+    if (!sourceNode || sourceNode.type !== NodeType.GeminiText || !sourceNode.data.prompt) {
+      updateNodeData(nodeId, { error: 'Prompt cannot be empty.' });
+      return;
+    }
+  
+    updateNodeData(nodeId, { isLoading: true, error: undefined, text: undefined });
+    try {
+      const { prompt } = sourceNode.data;
+      const resultText = await generateTextFromPrompt(prompt!);
+      updateNodeData(nodeId, { text: resultText, isLoading: false });
+    } catch (error) {
+      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      updateNodeData(nodeId, { error: errorMessage, isLoading: false });
+    }
+  }, [nodes, updateNodeData]);
+
   const requestDeleteNode = (nodeId: string) => {
     setNodeToDelete(nodeId);
   };
@@ -708,6 +745,11 @@ const App: React.FC = () => {
       label: 'Character Gen',
       icon: <ImageIcon className="w-5 h-5 text-cyan-400" />,
       action: () => addNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
+    },
+    {
+      label: 'Gemini Text',
+      icon: <BotIcon className="w-5 h-5 text-indigo-400" />,
+      action: () => addGeminiTextNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
     },
     {
       label: 'Text',
@@ -747,6 +789,7 @@ const App: React.FC = () => {
         onClearCanvas={handleClearCanvasRequest}
         onAddNode={() => addNode()}
         onAddTextNode={() => addTextNode()}
+        onAddGeminiTextNode={() => addGeminiTextNode()}
         onAddImageNode={() => addImageNode()}
         onAddImageEditorNode={() => addImageEditorNode()}
         onAddVideoGeneratorNode={() => addVideoGeneratorNode()}
@@ -795,6 +838,7 @@ const App: React.FC = () => {
         onNodeDragStart={handleNodeDragStart}
         onUpdateNodeData={updateNodeData}
         onGenerateImage={handleGenerateImage}
+        onGenerateText={handleGenerateText}
         onEditImage={handleEditImage}
         onGenerateVideo={handleGenerateVideo}
         onImageClick={handleImageClick}

@@ -11,6 +11,7 @@ import UndoIcon from './icons/UndoIcon';
 import RedoIcon from './icons/RedoIcon';
 import SaveIcon from './icons/SaveIcon';
 import LoadIcon from './icons/LoadIcon';
+import BotIcon from './icons/BotIcon';
 
 interface ToolbarProps {
   onNavigateHome: () => void;
@@ -19,6 +20,7 @@ interface ToolbarProps {
   onLoadProject: () => void;
   onAddNode: () => void;
   onAddTextNode: () => void;
+  onAddGeminiTextNode: () => void;
   onAddImageNode: () => void;
   onAddImageEditorNode: () => void;
   onAddVideoGeneratorNode: () => void;
@@ -48,6 +50,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onLoadProject,
     onAddNode, 
     onAddTextNode, 
+    onAddGeminiTextNode,
     onAddImageNode, 
     onAddImageEditorNode, 
     onAddVideoGeneratorNode,
@@ -89,6 +92,10 @@ const Toolbar: React.FC<ToolbarProps> = ({
         <ToolbarButton onClick={onAddNode}>
             <ImageIcon className="w-5 h-5 text-cyan-400" />
             <span>Character Gen</span>
+        </ToolbarButton>
+        <ToolbarButton onClick={onAddGeminiTextNode}>
+            <BotIcon className="w-5 h-5 text-indigo-400" />
+            <span>Gemini Text</span>
         </ToolbarButton>
         <ToolbarButton onClick={onAddTextNode}>
             <TextIcon className="w-5 h-5 text-yellow-400" />

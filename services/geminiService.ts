@@ -78,6 +78,34 @@ const dataUrlToPart = (dataUrl: string) => {
     };
 };
 
+export const generateTextFromPrompt = async (
+    prompt: string
+): Promise<string> => {
+    if (!ai) {
+        throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
+    }
+
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+            return response.text;
+        } catch (error) {
+            lastError = error;
+            console.error(`Attempt ${attempt} failed:`, error);
+            if (attempt < MAX_RETRIES) {
+                await sleep(INITIAL_DELAY_MS * Math.pow(2, attempt - 1));
+            }
+        }
+    }
+
+    throw new Error(getFriendlyErrorMessage(lastError));
+};
+
 export const generateImageFromPrompt = async (
   characterDescription: string,
   style: string,

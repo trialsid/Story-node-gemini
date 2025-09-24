@@ -20,6 +20,10 @@ export const NODE_SPEC: { [key in NodeType]: NodeSpec } = {
     inputs: [],
     outputs: [{ id: 'image_output', type: HandleType.Image, label: 'Image' }],
   },
+  [NodeType.GeminiText]: {
+    inputs: [{ id: 'prompt_input', type: HandleType.Text, label: 'Prompt' }],
+    outputs: [{ id: 'text_output', type: HandleType.Text, label: 'Text' }],
+  },
   [NodeType.CharacterGenerator]: {
     inputs: [{ id: 'description_input', type: HandleType.Text, label: 'Character Description' }],
     outputs: [{ id: 'image_output', type: HandleType.Image, label: 'Output Image' }],

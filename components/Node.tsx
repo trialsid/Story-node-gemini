@@ -12,6 +12,7 @@ import ChevronUpIcon from './icons/ChevronUpIcon';
 import VideoIcon from './icons/VideoIcon';
 import UploadIcon from './icons/UploadIcon';
 import { NODE_SPEC, areHandlesCompatible, NodeHandleSpec } from '../utils/node-spec';
+import BotIcon from './icons/BotIcon';
 
 interface TempConnectionInfo {
   startNodeId: string;
@@ -30,6 +31,7 @@ interface NodeProps {
   onGenerateImage: (nodeId: string) => void;
   onEditImage: (nodeId: string) => void;
   onGenerateVideo: (nodeId: string) => void;
+  onGenerateText: (nodeId: string) => void;
   onImageClick: (imageUrl: string) => void;
   onOutputMouseDown: (nodeId: string, handleId: string) => void;
   onInputMouseDown: (nodeId: string, handleId: string) => void;
@@ -92,6 +94,7 @@ const Node: React.FC<NodeProps> = ({
   onGenerateImage,
   onEditImage,
   onGenerateVideo,
+  onGenerateText,
   onImageClick,
   onOutputMouseDown,
   onInputMouseDown,
@@ -126,6 +129,8 @@ const Node: React.FC<NodeProps> = ({
         onEditImage(node.id);
       } else if (nodeType === NodeType.VideoGenerator) {
         onGenerateVideo(node.id);
+      } else if (nodeType === NodeType.GeminiText) {
+        onGenerateText(node.id);
       }
     }
   };
@@ -258,7 +263,7 @@ const Node: React.FC<NodeProps> = ({
         calculateOffsets();
     }
 
-  }, [node.id, node.type, onUpdateData, isMinimized, nodeSpec, node.data.handleYOffsets, node.data.text, node.data.imageUrl]);
+  }, [node.id, node.type, onUpdateData, isMinimized, nodeSpec, node.data.handleYOffsets, node.data.text, node.data.imageUrl, node.data.prompt]);
   
   const handleFileChange = (file: File | null) => {
     if (file && file.type.startsWith('image/')) {
@@ -384,6 +389,61 @@ const Node: React.FC<NodeProps> = ({
         </>
       )}
       
+      {node.type === NodeType.GeminiText && (
+        <>
+            <NodeHeader 
+                title='Gemini Text'
+                icon={<BotIcon className="w-4 h-4 text-indigo-400" />}
+                isMinimized={isMinimized}
+                onToggleMinimize={() => onToggleMinimize(node.id)}
+                onDelete={() => onDelete(node.id)}
+                onMouseDown={handleHeaderMouseDown}
+            />
+            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
+                <div className="p-2 space-y-2">
+                    <div ref={el => handleAnchorRefs.current['prompt_input'] = el}>
+                        <label htmlFor={`prompt-${node.id}`} className={labelClassName}>Prompt</label>
+                        <textarea
+                          id={`prompt-${node.id}`}
+                          value={node.data.prompt || ''}
+                          onChange={(e) => onUpdateData(node.id, { prompt: e.target.value })}
+                          onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.GeminiText)}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          className={`${textAreaClassName(connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input'))} h-24`}
+                          disabled={connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input')}
+                          placeholder="Your prompt here..."
+                        />
+                    </div>
+                    
+                    <div ref={el => handleAnchorRefs.current['text_output'] = el}>
+                        <label className={labelClassName}>Generated Text</label>
+                        <div className={`${imagePreviewBaseClassName} h-32 items-start`}>
+                          {node.data.isLoading ? <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-400 mt-12"></div>
+                          : node.data.error ? <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
+                          : <textarea
+                                readOnly
+                                value={node.data.text || ''}
+                                className={`w-full h-full p-1 bg-transparent border-0 focus:outline-none focus:ring-0 resize-none custom-scrollbar`}
+                                placeholder="Output will appear here..."
+                            />
+                          }
+                        </div>
+                    </div>
+                    <button onClick={() => onGenerateText(node.id)} disabled={node.data.isLoading} className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-indigo-600 hover:bg-indigo-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`} >
+                      <SparklesIcon className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                      {node.data.isLoading ? 'Generating...' : 'Generate Text'}
+                    </button>
+                </div>
+            </div>
+            
+            {isMinimized && (
+              <div className={`p-2 h-16 text-xs italic ${styles.node.labelText} truncate rounded-b-md flex items-center border-t ${styles.node.border}`}>
+                  {node.data.text || "No generated text."}
+              </div>
+            )}
+        </>
+      )}
+
       {node.type === NodeType.Image && (
         <>
             <NodeHeader 

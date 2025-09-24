@@ -29,6 +29,7 @@ interface CanvasProps {
   onGenerateImage: (nodeId: string) => void;
   onEditImage: (nodeId: string) => void;
   onGenerateVideo: (nodeId: string) => void;
+  onGenerateText: (nodeId: string) => void;
   onImageClick: (imageUrl: string) => void;
   onOutputMouseDown: (nodeId: string, handleId: string) => void;
   onInputMouseDown: (nodeId: string, handleId: string) => void;
@@ -61,6 +62,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
   onGenerateImage,
   onEditImage,
   onGenerateVideo,
+  onGenerateText,
   onImageClick,
   onOutputMouseDown,
   onInputMouseDown,
@@ -154,6 +156,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
             onGenerateImage={onGenerateImage}
             onEditImage={onEditImage}
             onGenerateVideo={onGenerateVideo}
+            onGenerateText={onGenerateText}
             onImageClick={onImageClick}
             onOutputMouseDown={onOutputMouseDown}
             onInputMouseDown={onInputMouseDown}

@@ -6,6 +6,7 @@ export enum NodeType {
   Image = 'IMAGE_NODE',
   ImageEditor = 'IMAGE_EDITOR',
   VideoGenerator = 'VIDEO_GENERATOR',
+  GeminiText = 'GEMINI_TEXT_NODE',
 }
 
 export enum HandleType {
@@ -41,6 +42,10 @@ export interface NodeData {
 
     // For Text Node
     text?: string;
+    
+    // For Gemini Text Node
+    prompt?: string;
+    // `text` is used for the output
     
     // For Image Editor
     editDescription?: string;
