@@ -13,6 +13,7 @@ import VideoIcon from './icons/VideoIcon';
 import UploadIcon from './icons/UploadIcon';
 import { NODE_SPEC, areHandlesCompatible, NodeHandleSpec } from '../utils/node-spec';
 import BotIcon from './icons/BotIcon';
+import MixerIcon from './icons/MixerIcon';
 
 interface TempConnectionInfo {
   startNodeId: string;
@@ -25,12 +26,14 @@ interface HoveredInputInfo {
 }
 interface NodeProps {
   node: NodeData;
+  allNodes: NodeData[];
   connections: Connection[];
   onDragStart: (nodeId: string, e: React.MouseEvent) => void;
   onUpdateData: (nodeId: string, data: Partial<NodeData['data']>) => void;
   onGenerateCharacterImage: (nodeId: string) => void;
   onGenerateImages: (nodeId: string) => void;
   onEditImage: (nodeId: string) => void;
+  onMixImages: (nodeId: string) => void;
   onGenerateVideo: (nodeId: string) => void;
   onGenerateText: (nodeId: string) => void;
   onImageClick: (imageUrl: string) => void;
@@ -91,12 +94,14 @@ const SLICE_HEIGHT_PX = 32; // Corresponds to h-8 in TailwindCSS
 
 const Node: React.FC<NodeProps> = ({
   node,
+  allNodes,
   connections,
   onDragStart,
   onUpdateData,
   onGenerateCharacterImage,
   onGenerateImages,
   onEditImage,
+  onMixImages,
   onGenerateVideo,
   onGenerateText,
   onImageClick,
@@ -133,9 +138,11 @@ const Node: React.FC<NodeProps> = ({
         onGenerateImages(node.id);
       } else if (nodeType === NodeType.ImageEditor) {
         onEditImage(node.id);
+      } else if (nodeType === NodeType.ImageMixer) {
+        onMixImages(node.id);
       } else if (nodeType === NodeType.VideoGenerator) {
         onGenerateVideo(node.id);
-      } else if (nodeType === NodeType.GeminiText) {
+      } else if (nodeType === NodeType.TextGenerator) {
         onGenerateText(node.id);
       }
     }
@@ -420,10 +427,10 @@ const Node: React.FC<NodeProps> = ({
         </>
       )}
       
-      {node.type === NodeType.GeminiText && (
+      {node.type === NodeType.TextGenerator && (
         <>
             <NodeHeader 
-                title='Gemini Text'
+                title='Text Generator'
                 icon={<BotIcon className="w-4 h-4 text-indigo-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
@@ -438,7 +445,7 @@ const Node: React.FC<NodeProps> = ({
                           id={`prompt-${node.id}`}
                           value={node.data.prompt || ''}
                           onChange={(e) => onUpdateData(node.id, { prompt: e.target.value })}
-                          onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.GeminiText)}
+                          onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.TextGenerator)}
                           onMouseDown={(e) => e.stopPropagation()}
                           className={`${textAreaClassName(connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input'))} h-24`}
                           disabled={connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input')}
@@ -760,6 +767,79 @@ const Node: React.FC<NodeProps> = ({
             </div> )}
         </>
       )}
+
+       {node.type === NodeType.ImageMixer && (() => {
+          const inputConnections = connections.filter(c => c.toNodeId === node.id && c.toHandleId === 'image_input');
+          const inputImageUrls = inputConnections.flatMap(conn => {
+            const sourceNode = allNodes.find(n => n.id === conn.fromNodeId);
+            if (!sourceNode) return [];
+
+            if (sourceNode.type === NodeType.ImageGenerator && sourceNode.data.imageUrls) {
+              const match = conn.fromHandleId.match(/_(\d+)$/);
+              if (match) {
+                const imageIndex = parseInt(match[1], 10) - 1;
+                return sourceNode.data.imageUrls[imageIndex] ? [sourceNode.data.imageUrls[imageIndex]] : [];
+              }
+              return [];
+            } else if (sourceNode.data.imageUrl) {
+              return [sourceNode.data.imageUrl];
+            }
+            return [];
+          });
+          const mixerPreviewImage = node.data.imageUrl;
+          const mixerHasVisuals = !!mixerPreviewImage;
+
+          return (
+            <>
+              <NodeHeader 
+                title='Image Mixer'
+                icon={<MixerIcon className="w-4 h-4 text-pink-400" />}
+                isMinimized={isMinimized}
+                onToggleMinimize={() => onToggleMinimize(node.id)}
+                onDelete={() => onDelete(node.id)}
+                onMouseDown={handleHeaderMouseDown}
+              />
+              <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
+                <div className="p-2 space-y-2">
+                  <div ref={el => handleAnchorRefs.current['image_input'] = el}>
+                    <label className={labelClassName}>Input Images ({inputImageUrls.length})</label>
+                    <div className={`${imagePreviewBaseClassName} min-h-[5rem] p-2 flex-wrap gap-2`}>
+                      {inputImageUrls.length > 0 ? (
+                        inputImageUrls.map((url, index) => (
+                          <img key={`${url}-${index}`} src={url} alt={`Input ${index + 1}`} className="w-16 h-16 object-cover rounded-md" />
+                        ))
+                      ) : (
+                        <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor={`edit-desc-${node.id}`} className={labelClassName}>Mix Description</label>
+                    <textarea id={`edit-desc-${node.id}`} value={node.data.editDescription || ''} onChange={(e) => onUpdateData(node.id, { editDescription: e.target.value })} onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.ImageMixer)} onMouseDown={(e) => e.stopPropagation()} className={`${textAreaClassName()} h-20`} placeholder="e.g., A photorealistic blend..." />
+                  </div>
+                  <div ref={el => handleAnchorRefs.current['image_output'] = el}>
+                    <label className={labelClassName}>Output Image</label>
+                    <div className={`${imagePreviewBaseClassName} h-40`}>
+                      {node.data.isLoading ? <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-400"></div>
+                      : node.data.error ? <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
+                      : node.data.imageUrl ? <img src={node.data.imageUrl} alt="Mixed image" className="w-full h-full object-cover rounded-md cursor-zoom-in" onClick={() => onImageClick(node.data.imageUrl!)} />
+                      : <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+                    </div>
+                  </div>
+                  <button onClick={() => onMixImages(node.id)} disabled={node.data.isLoading} className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-pink-600 hover:bg-pink-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`} >
+                    <SparklesIcon className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                    {node.data.isLoading ? 'Mixing...' : 'Mix Images'}
+                  </button>
+                </div>
+              </div>
+              {isMinimized && (
+                <div className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md flex items-center justify-center border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`} style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }}>
+                  {mixerHasVisuals ? <img key={mixerPreviewImage} ref={minimizedImageRef} src={mixerPreviewImage!} alt="Preview" className="w-full h-full object-contain" /> : <MixerIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+                </div>
+              )}
+            </>
+          )
+      })()}
 
       {node.type === NodeType.VideoGenerator && (
         <>

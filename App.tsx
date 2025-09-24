@@ -4,7 +4,7 @@ import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
 import ImageModal from './components/ImageModal';
 import ConfirmationModal from './components/ConfirmationModal';
-import { generateCharacterSheet, editImageWithPrompt, generateVideoFromPrompt, generateTextFromPrompt, generateImages } from './services/geminiService';
+import { generateCharacterSheet, editImageWithPrompt, generateVideoFromPrompt, generateTextFromPrompt, generateImages, mixImagesWithPrompt } from './services/geminiService';
 import { useTheme } from './contexts/ThemeContext';
 import ThemeSwitcher from './components/ThemeSwitcher';
 import GalleryPanel from './components/GalleryPanel';
@@ -21,6 +21,7 @@ import SettingsIcon from './components/icons/SettingsIcon';
 import { useHistory } from './hooks/useHistory';
 import { NODE_SPEC, areHandlesCompatible } from './utils/node-spec';
 import BotIcon from './components/icons/BotIcon';
+import MixerIcon from './components/icons/MixerIcon';
 
 
 const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } } = {
@@ -30,7 +31,8 @@ const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } }
   [NodeType.ImageEditor]: { width: 256 },
   [NodeType.VideoGenerator]: { width: 256 },
   [NodeType.Image]: { width: 256 },
-  [NodeType.GeminiText]: { width: 256 },
+  [NodeType.TextGenerator]: { width: 256 },
+  [NodeType.ImageMixer]: { width: 256 },
 };
 
 interface DragStartInfo {
@@ -183,20 +185,20 @@ const App: React.FC = () => {
         const toNode = propagatedNodes[toNodeIndex];
         let dataToUpdate: Partial<NodeData['data']> = {};
         
-        if ((fromNode.type === NodeType.Text || fromNode.type === NodeType.GeminiText) && 'text' in fromNode.data) {
+        if ((fromNode.type === NodeType.Text || fromNode.type === NodeType.TextGenerator) && 'text' in fromNode.data) {
           if (toNode.type === NodeType.CharacterGenerator && conn.toHandleId === 'description_input') {
               dataToUpdate = { characterDescription: fromNode.data.text };
           } else if (toNode.type === NodeType.ImageGenerator && conn.toHandleId === 'prompt_input') {
               dataToUpdate = { prompt: fromNode.data.text };
           } else if (toNode.type === NodeType.VideoGenerator && conn.toHandleId === 'prompt_input') {
               dataToUpdate = { editDescription: fromNode.data.text };
-          } else if (toNode.type === NodeType.GeminiText && conn.toHandleId === 'prompt_input') {
+          } else if (toNode.type === NodeType.TextGenerator && conn.toHandleId === 'prompt_input') {
               dataToUpdate = { prompt: fromNode.data.text };
           }
         }
         
         if ((fromNode.type === NodeType.CharacterGenerator || fromNode.type === NodeType.ImageEditor || fromNode.type === NodeType.Image) && 'imageUrl' in fromNode.data) {
-          if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && conn.toHandleId === 'image_input') {
+          if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator || toNode.type === NodeType.ImageMixer) && conn.toHandleId === 'image_input') {
               dataToUpdate = { inputImageUrl: fromNode.data.imageUrl };
           }
         }
@@ -435,6 +437,27 @@ const App: React.FC = () => {
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
 
+  const addImageMixerNode = useCallback((pos?: { x: number; y: number }) => {
+    let newNodePosition: { x: number, y: number };
+    if (pos) {
+        newNodePosition = pos;
+        setLastAddedNodePosition(null);
+    } else {
+        const nextPos = lastAddedNodePosition
+            ? { x: lastAddedNodePosition.x + 32, y: lastAddedNodePosition.y + 32 }
+            : { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom };
+        newNodePosition = nextPos;
+        setLastAddedNodePosition(nextPos);
+    }
+    const newNode: NodeData = {
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type: NodeType.ImageMixer,
+      position: newNodePosition,
+      data: { editDescription: 'A photorealistic blend of the input images' },
+    };
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+  }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
+
   const addVideoGeneratorNode = useCallback((pos?: { x: number; y: number }) => {
     let newNodePosition: { x: number, y: number };
     if (pos) {
@@ -459,7 +482,7 @@ const App: React.FC = () => {
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
   
-  const addGeminiTextNode = useCallback((pos?: { x: number; y: number }) => {
+  const addTextGeneratorNode = useCallback((pos?: { x: number; y: number }) => {
     let newNodePosition: { x: number, y: number };
     if (pos) {
         newNodePosition = pos;
@@ -473,7 +496,7 @@ const App: React.FC = () => {
     }
     const newNode: NodeData = {
       id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-      type: NodeType.GeminiText,
+      type: NodeType.TextGenerator,
       position: newNodePosition,
       data: { prompt: 'Write a short story about a robot who discovers music.' },
     };
@@ -508,19 +531,19 @@ const App: React.FC = () => {
                 const toNode = newNodes[toNodeIndex];
                 let dataToUpdate: Partial<NodeData['data']> = {};
                 
-                if ((updatedNode.type === NodeType.Text || updatedNode.type === NodeType.GeminiText) && 'text' in data) {
+                if ((updatedNode.type === NodeType.Text || updatedNode.type === NodeType.TextGenerator) && 'text' in data) {
                     if (toNode.type === NodeType.CharacterGenerator && conn.toHandleId === 'description_input') {
                         dataToUpdate = { characterDescription: data.text };
                     } else if (toNode.type === NodeType.ImageGenerator && conn.toHandleId === 'prompt_input') {
                         dataToUpdate = { prompt: data.text };
                     } else if (toNode.type === NodeType.VideoGenerator && conn.toHandleId === 'prompt_input') {
                         dataToUpdate = { editDescription: data.text };
-                    } else if (toNode.type === NodeType.GeminiText && conn.toHandleId === 'prompt_input') {
+                    } else if (toNode.type === NodeType.TextGenerator && conn.toHandleId === 'prompt_input') {
                       dataToUpdate = { prompt: data.text };
                     }
                 }
                 
-                if ((updatedNode.type === NodeType.CharacterGenerator || updatedNode.type === NodeType.ImageEditor || updatedNode.type === NodeType.Image) && 'imageUrl' in data) {
+                if ((updatedNode.type === NodeType.CharacterGenerator || updatedNode.type === NodeType.ImageEditor || updatedNode.type === NodeType.Image || updatedNode.type === NodeType.ImageMixer) && 'imageUrl' in data) {
                   if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && conn.toHandleId === 'image_input') {
                       dataToUpdate = { inputImageUrl: data.imageUrl };
                   }
@@ -668,6 +691,19 @@ const App: React.FC = () => {
   }, [nodes, setCanvasState]);
 
   const handleInputMouseDown = useCallback((nodeId: string, handleId: string) => {
+    const clickedNode = nodes.find(n => n.id === nodeId);
+    const isMixerMultiInput = clickedNode?.type === NodeType.ImageMixer && handleId === 'image_input';
+
+    if (isMixerMultiInput) {
+        // Just break all connections to this input, don't start a new temp connection
+        setCanvasState(prev => ({
+            ...prev,
+            connections: prev.connections.filter(c => !(c.toNodeId === nodeId && c.toHandleId === handleId))
+        }));
+        setTempConnectionInfo(null);
+        return;
+    }
+
     const connection = connections.find(c => c.toNodeId === nodeId && c.toHandleId === handleId);
     if (connection) {
         setCanvasState(prev => ({ ...prev, connections: prev.connections.filter(c => c.id !== connection.id) }));
@@ -712,24 +748,33 @@ const App: React.FC = () => {
     };
     
     setCanvasState(prevState => {
-        const newConnections = [...prevState.connections.filter(c => !(c.toNodeId === toNodeId && c.toHandleId === toHandleId)), newConnection];
+        const isMixerMultiInput = toNode.type === NodeType.ImageMixer && toHandleId === 'image_input';
+
+        let connectionsToKeep = prevState.connections;
+        if (!isMixerMultiInput) {
+            // Default behavior: filter out any existing connections to this input
+            connectionsToKeep = connectionsToKeep.filter(c => !(c.toNodeId === toNodeId && c.toHandleId === toHandleId));
+        }
+
+        const newConnections = [...connectionsToKeep, newConnection];
         let newNodes = [...prevState.nodes];
         
         const fromNode = newNodes.find(n => n.id === startNodeId);
         const toNodeIndex = newNodes.findIndex(n => n.id === toNodeId);
         
-        if (fromNode && toNodeIndex !== -1) {
+        // Data propagation (except for mixer, which resolves inputs at generation time)
+        if (fromNode && toNodeIndex !== -1 && !isMixerMultiInput) {
             let dataToUpdate: Partial<NodeData['data']> = {};
             const toNode = newNodes[toNodeIndex];
 
-            if ((fromNode.type === NodeType.Text || fromNode.type === NodeType.GeminiText) && 'text' in fromNode.data) {
+            if ((fromNode.type === NodeType.Text || fromNode.type === NodeType.TextGenerator) && 'text' in fromNode.data) {
                 if (toNode.type === NodeType.CharacterGenerator && toHandleId === 'description_input') {
                     dataToUpdate = { characterDescription: fromNode.data.text };
                 } else if (toNode.type === NodeType.ImageGenerator && toHandleId === 'prompt_input') {
                     dataToUpdate = { prompt: fromNode.data.text };
                 } else if (toNode.type === NodeType.VideoGenerator && toHandleId === 'prompt_input') {
                     dataToUpdate = { editDescription: fromNode.data.text };
-                } else if (toNode.type === NodeType.GeminiText && toHandleId === 'prompt_input') {
+                } else if (toNode.type === NodeType.TextGenerator && toHandleId === 'prompt_input') {
                     dataToUpdate = { prompt: fromNode.data.text };
                 }
             } else if ((fromNode.type === NodeType.CharacterGenerator || fromNode.type === NodeType.ImageEditor || fromNode.type === NodeType.Image) && 'imageUrl' in fromNode.data) {
@@ -820,6 +865,51 @@ const App: React.FC = () => {
     }
   }, [nodes, updateNodeData]);
 
+  const handleMixImages = useCallback(async (nodeId: string) => {
+    const sourceNode = nodes.find(n => n.id === nodeId);
+    if (!sourceNode || sourceNode.type !== NodeType.ImageMixer) return;
+
+    const { editDescription } = sourceNode.data;
+    if (!editDescription) {
+        updateNodeData(nodeId, { error: 'Please provide a mixing prompt.' });
+        return;
+    }
+    
+    // Dynamically find all connected image URLs
+    const inputConnections = connections.filter(c => c.toNodeId === nodeId && c.toHandleId === 'image_input');
+    const inputImageUrls = inputConnections.flatMap(conn => {
+        const sourceNode = nodes.find(n => n.id === conn.fromNodeId);
+        if (!sourceNode) return [];
+
+        if (sourceNode.type === NodeType.ImageGenerator && sourceNode.data.imageUrls) {
+            const match = conn.fromHandleId.match(/_(\d+)$/);
+            if (match) {
+                const imageIndex = parseInt(match[1], 10) - 1;
+                return sourceNode.data.imageUrls[imageIndex] ? [sourceNode.data.imageUrls[imageIndex]] : [];
+            }
+            return [];
+        } else if (sourceNode.data.imageUrl) {
+            return [sourceNode.data.imageUrl];
+        }
+        return [];
+    });
+
+    if (inputImageUrls.length === 0) {
+        updateNodeData(nodeId, { error: 'Please connect at least one input image.' });
+        return;
+    }
+
+    updateNodeData(nodeId, { isLoading: true, error: undefined, imageUrl: undefined });
+    try {
+        const mixedImageUrl = await mixImagesWithPrompt(inputImageUrls, editDescription);
+        updateNodeData(nodeId, { imageUrl: mixedImageUrl, isLoading: false });
+    } catch (error) {
+        console.error(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        updateNodeData(nodeId, { error: errorMessage, isLoading: false });
+    }
+  }, [nodes, connections, updateNodeData]);
+
   const handleGenerateVideo = useCallback(async (nodeId: string) => {
     const sourceNode = nodes.find(n => n.id === nodeId);
     if (!sourceNode || sourceNode.type !== NodeType.VideoGenerator) return;
@@ -848,7 +938,7 @@ const App: React.FC = () => {
 
   const handleGenerateText = useCallback(async (nodeId: string) => {
     const sourceNode = nodes.find(n => n.id === nodeId);
-    if (!sourceNode || sourceNode.type !== NodeType.GeminiText || !sourceNode.data.prompt) {
+    if (!sourceNode || sourceNode.type !== NodeType.TextGenerator || !sourceNode.data.prompt) {
       updateNodeData(nodeId, { error: 'Prompt cannot be empty.' });
       return;
     }
@@ -895,9 +985,9 @@ const App: React.FC = () => {
       action: () => addTextNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
     },
     {
-      label: 'Gemini Text',
+      label: 'Text Generator',
       icon: <BotIcon className="w-5 h-5 text-indigo-400" />,
-      action: () => addGeminiTextNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
+      action: () => addTextGeneratorNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
     },
     // Image-related
     {
@@ -919,6 +1009,11 @@ const App: React.FC = () => {
       label: 'Image Editor',
       icon: <EditIcon className="w-5 h-5 text-purple-400" />,
       action: () => addImageEditorNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
+    },
+    {
+        label: 'Image Mixer',
+        icon: <MixerIcon className="w-5 h-5 text-pink-400" />,
+        action: () => addImageMixerNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
     },
     // Video-related
     {
@@ -945,9 +1040,10 @@ const App: React.FC = () => {
         onAddNode={() => addNode()}
         onAddImageGeneratorNode={() => addImageGeneratorNode()}
         onAddTextNode={() => addTextNode()}
-        onAddGeminiTextNode={() => addGeminiTextNode()}
+        onAddTextGeneratorNode={() => addTextGeneratorNode()}
         onAddImageNode={() => addImageNode()}
         onAddImageEditorNode={() => addImageEditorNode()}
+        onAddImageMixerNode={() => addImageMixerNode()}
         onAddVideoGeneratorNode={() => addVideoGeneratorNode()}
         onUndo={undo}
         onRedo={redo}
@@ -984,7 +1080,7 @@ const App: React.FC = () => {
 
       <Canvas
         ref={canvasRef}
-        nodes={localNodes}
+        allNodes={localNodes}
         connections={connections}
         onMouseDown={handleCanvasMouseDown}
         onMouseMove={handleMouseMove}
@@ -997,6 +1093,7 @@ const App: React.FC = () => {
         onGenerateImages={handleGenerateImages}
         onGenerateText={handleGenerateText}
         onEditImage={handleEditImage}
+        onMixImages={handleMixImages}
         onGenerateVideo={handleGenerateVideo}
         onImageClick={handleImageClick}
         onOutputMouseDown={handleOutputMouseDown}

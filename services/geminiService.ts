@@ -325,3 +325,51 @@ export const editImageWithPrompt = async (
     
     throw new Error(getFriendlyErrorMessage(lastError));
 };
+
+export const mixImagesWithPrompt = async (
+    base64Images: string[],
+    prompt: string
+): Promise<string> => {
+    if (!ai) {
+        throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
+    }
+
+    if (base64Images.length === 0) {
+        throw new Error("At least one input image is required for mixing.");
+    }
+
+    const imageParts = base64Images.map(dataUrlToPart);
+    const textPart = { text: prompt };
+    const allParts = [...imageParts, textPart];
+
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash-image-preview',
+                contents: { parts: allParts },
+                config: {
+                    responseModalities: [Modality.IMAGE, Modality.TEXT],
+                },
+            });
+
+            for (const part of response.candidates[0].content.parts) {
+                if (part.inlineData) {
+                    const base64ImageBytes: string = part.inlineData.data;
+                    return `data:${part.inlineData.mimeType};base64,${base64ImageBytes}`;
+                }
+            }
+            throw new Error("No image was generated. The model may have refused the prompt.");
+
+        } catch (error) {
+            lastError = error;
+            console.error(`Attempt ${attempt} failed:`, error);
+            if (attempt < MAX_RETRIES) {
+                await sleep(INITIAL_DELAY_MS * Math.pow(2, attempt - 1));
+            }
+        }
+    }
+
+    throw new Error(getFriendlyErrorMessage(lastError));
+};

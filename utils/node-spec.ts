@@ -20,7 +20,7 @@ export const NODE_SPEC: { [key in NodeType]: NodeSpec } = {
     inputs: [],
     outputs: [{ id: 'image_output', type: HandleType.Image, label: 'Image' }],
   },
-  [NodeType.GeminiText]: {
+  [NodeType.TextGenerator]: {
     inputs: [{ id: 'prompt_input', type: HandleType.Text, label: 'Prompt' }],
     outputs: [{ id: 'text_output', type: HandleType.Text, label: 'Text' }],
   },
@@ -40,6 +40,10 @@ export const NODE_SPEC: { [key in NodeType]: NodeSpec } = {
   [NodeType.ImageEditor]: {
     inputs: [{ id: 'image_input', type: HandleType.Image, label: 'Input Image' }],
     outputs: [{ id: 'image_output', type: HandleType.Image, label: 'Output Image' }],
+  },
+  [NodeType.ImageMixer]: {
+    inputs: [{ id: 'image_input', type: HandleType.Image, label: 'Images' }],
+    outputs: [{ id: 'image_output', type: HandleType.Image, label: 'Mixed Image' }],
   },
   [NodeType.VideoGenerator]: {
     inputs: [

@@ -7,7 +7,8 @@ export enum NodeType {
   Image = 'IMAGE_NODE',
   ImageEditor = 'IMAGE_EDITOR',
   VideoGenerator = 'VIDEO_GENERATOR',
-  GeminiText = 'GEMINI_TEXT_NODE',
+  TextGenerator = 'TEXT_GENERATOR_NODE',
+  ImageMixer = 'IMAGE_MIXER',
 }
 
 export enum HandleType {
@@ -44,11 +45,11 @@ export interface NodeData {
     // For Text Node
     text?: string;
     
-    // For Gemini Text Node
+    // For TextGenerator Node
     prompt?: string;
     // `text` is used for the output
     
-    // For Image Editor
+    // For Image Editor & Image Mixer
     editDescription?: string;
     inputImageUrl?: string;
     // `imageUrl` from CharacterGenerator is used for the output image

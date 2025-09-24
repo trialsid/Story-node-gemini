@@ -17,7 +17,7 @@ interface HoveredInputInfo {
 }
 
 interface CanvasProps {
-  nodes: NodeData[];
+  allNodes: NodeData[];
   connections: Connection[];
   onMouseDown: (e: React.MouseEvent) => void;
   onMouseMove: (e: React.MouseEvent) => void;
@@ -29,6 +29,7 @@ interface CanvasProps {
   onGenerateCharacterImage: (nodeId: string) => void;
   onGenerateImages: (nodeId: string) => void;
   onEditImage: (nodeId: string) => void;
+  onMixImages: (nodeId: string) => void;
   onGenerateVideo: (nodeId: string) => void;
   onGenerateText: (nodeId: string) => void;
   onImageClick: (imageUrl: string) => void;
@@ -51,7 +52,7 @@ const MINIMIZED_NODE_HEADER_HEIGHT = 40; // Corresponds to p-2 padding and text 
 
 
 const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
-  nodes,
+  allNodes,
   connections,
   onMouseDown,
   onMouseMove,
@@ -63,6 +64,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
   onGenerateCharacterImage,
   onGenerateImages,
   onEditImage,
+  onMixImages,
   onGenerateVideo,
   onGenerateText,
   onImageClick,
@@ -115,7 +117,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
     return { x: xPos, y: node.position.y + 100 };
   };
 
-  const tempConnectionStartNode = nodes.find(n => n.id === tempConnectionInfo?.startNodeId);
+  const tempConnectionStartNode = allNodes.find(n => n.id === tempConnectionInfo?.startNodeId);
   let tempConnectionPath = null;
   if (tempConnectionInfo && tempConnectionStartNode) {
     const fromPos = getNodeHandlePosition(tempConnectionStartNode, tempConnectionInfo.startHandleId, 'output');
@@ -148,16 +150,18 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
           transformOrigin: '0 0',
         }}
       >
-        {nodes.map((node) => (
+        {allNodes.map((node) => (
           <Node
             key={node.id}
             node={node}
+            allNodes={allNodes}
             connections={connections}
             onDragStart={onNodeDragStart}
             onUpdateData={onUpdateNodeData}
             onGenerateCharacterImage={onGenerateCharacterImage}
             onGenerateImages={onGenerateImages}
             onEditImage={onEditImage}
+            onMixImages={onMixImages}
             onGenerateVideo={onGenerateVideo}
             onGenerateText={onGenerateText}
             onImageClick={onImageClick}
@@ -179,8 +183,8 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
               transformOrigin: '0 0',
           }}>
               {connections.map(conn => {
-                  const fromNode = nodes.find(n => n.id === conn.fromNodeId);
-                  const toNode = nodes.find(n => n.id === conn.toNodeId);
+                  const fromNode = allNodes.find(n => n.id === conn.fromNodeId);
+                  const toNode = allNodes.find(n => n.id === conn.toNodeId);
                   if (!fromNode || !toNode) return null;
 
                   const fromPos = getNodeHandlePosition(fromNode, conn.fromHandleId, 'output');

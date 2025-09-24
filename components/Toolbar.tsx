@@ -14,6 +14,7 @@ import LoadIcon from './icons/LoadIcon';
 import BotIcon from './icons/BotIcon';
 import PlusIcon from './icons/PlusIcon';
 import ChevronDownIcon from './icons/ChevronDownIcon';
+import MixerIcon from './icons/MixerIcon';
 
 interface ToolbarProps {
   onNavigateHome: () => void;
@@ -23,9 +24,10 @@ interface ToolbarProps {
   onAddNode: () => void;
   onAddImageGeneratorNode: () => void;
   onAddTextNode: () => void;
-  onAddGeminiTextNode: () => void;
+  onAddTextGeneratorNode: () => void;
   onAddImageNode: () => void;
   onAddImageEditorNode: () => void;
+  onAddImageMixerNode: () => void;
   onAddVideoGeneratorNode: () => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -64,9 +66,10 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddNode, 
     onAddImageGeneratorNode,
     onAddTextNode, 
-    onAddGeminiTextNode,
+    onAddTextGeneratorNode,
     onAddImageNode, 
     onAddImageEditorNode, 
+    onAddImageMixerNode,
     onAddVideoGeneratorNode,
     onUndo,
     onRedo,
@@ -90,12 +93,13 @@ const Toolbar: React.FC<ToolbarProps> = ({
   const nodeTypes = [
     // Basic Input
     { label: 'Text', icon: <TextIcon className="w-5 h-5 text-yellow-400" />, action: onAddTextNode },
-    { label: 'Gemini Text', icon: <BotIcon className="w-5 h-5 text-indigo-400" />, action: onAddGeminiTextNode },
+    { label: 'Text Generator', icon: <BotIcon className="w-5 h-5 text-indigo-400" />, action: onAddTextGeneratorNode },
     // Image-related
     { label: 'Image', icon: <UploadIcon className="w-5 h-5 text-orange-400" />, action: onAddImageNode },
     { label: 'Image Gen', icon: <ImageIcon className="w-5 h-5 text-blue-400" />, action: onAddImageGeneratorNode },
     { label: 'Character Gen', icon: <ImageIcon className="w-5 h-5 text-cyan-400" />, action: onAddNode },
     { label: 'Image Editor', icon: <EditIcon className="w-5 h-5 text-purple-400" />, action: onAddImageEditorNode },
+    { label: 'Image Mixer', icon: <MixerIcon className="w-5 h-5 text-pink-400" />, action: onAddImageMixerNode },
     // Video-related
     { label: 'Video Gen', icon: <VideoIcon className="w-5 h-5 text-green-400" />, action: onAddVideoGeneratorNode },
   ];
