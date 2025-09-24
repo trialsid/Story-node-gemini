@@ -88,17 +88,20 @@ const Toolbar: React.FC<ToolbarProps> = ({
   }, []);
 
   const nodeTypes = [
-    { label: 'Character Gen', icon: <ImageIcon className="w-5 h-5 text-cyan-400" />, action: onAddNode },
-    { label: 'Image Gen', icon: <ImageIcon className="w-5 h-5 text-blue-400" />, action: onAddImageGeneratorNode },
-    { label: 'Gemini Text', icon: <BotIcon className="w-5 h-5 text-indigo-400" />, action: onAddGeminiTextNode },
+    // Basic Input
     { label: 'Text', icon: <TextIcon className="w-5 h-5 text-yellow-400" />, action: onAddTextNode },
+    { label: 'Gemini Text', icon: <BotIcon className="w-5 h-5 text-indigo-400" />, action: onAddGeminiTextNode },
+    // Image-related
     { label: 'Image', icon: <UploadIcon className="w-5 h-5 text-orange-400" />, action: onAddImageNode },
+    { label: 'Image Gen', icon: <ImageIcon className="w-5 h-5 text-blue-400" />, action: onAddImageGeneratorNode },
+    { label: 'Character Gen', icon: <ImageIcon className="w-5 h-5 text-cyan-400" />, action: onAddNode },
     { label: 'Image Editor', icon: <EditIcon className="w-5 h-5 text-purple-400" />, action: onAddImageEditorNode },
+    // Video-related
     { label: 'Video Gen', icon: <VideoIcon className="w-5 h-5 text-green-400" />, action: onAddVideoGeneratorNode },
   ];
 
   return (
-    <div className={`absolute top-4 left-4 z-20 p-2 ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-lg shadow-lg`}>
+    <div className={`absolute top-4 left-4 z-20 p-2 ${styles.toolbar.bg} border ${styles.toolbar.border} rounded-lg shadow-lg`}>
       <div className="flex items-center space-x-1.5">
         {/* Group 1: Project & Canvas */}
         <ToolbarButton onClick={onNavigateHome} tooltip="Home" className="hover:bg-cyan-500/20">
@@ -138,7 +141,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
             </button>
             {isAddMenuOpen && (
                 <div 
-                    className={`absolute top-full mt-2 w-56 p-1 ${styles.toolbar.bg} border ${styles.toolbar.border} rounded-lg shadow-lg z-10`}
+                    className={`absolute top-full mt-2 w-56 p-1 ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-lg shadow-lg z-10`}
                     role="menu"
                 >
                     {nodeTypes.map((nodeType) => (

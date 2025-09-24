@@ -888,36 +888,39 @@ const App: React.FC = () => {
   const isDragging = draggingNodeId !== null || tempConnectionInfo !== null;
 
   const contextMenuActions: ContextMenuAction[] = contextMenu ? [
-    {
-      label: 'Character Gen',
-      icon: <ImageIcon className="w-5 h-5 text-cyan-400" />,
-      action: () => addNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
-    },
-    {
-        label: 'Image Gen',
-        icon: <ImageIcon className="w-5 h-5 text-blue-400" />,
-        action: () => addImageGeneratorNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
-    },
-    {
-      label: 'Gemini Text',
-      icon: <BotIcon className="w-5 h-5 text-indigo-400" />,
-      action: () => addGeminiTextNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
-    },
+    // Basic Input
     {
       label: 'Text',
       icon: <TextIcon className="w-5 h-5 text-yellow-400" />,
       action: () => addTextNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
     },
     {
+      label: 'Gemini Text',
+      icon: <BotIcon className="w-5 h-5 text-indigo-400" />,
+      action: () => addGeminiTextNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
+    },
+    // Image-related
+    {
       label: 'Image',
       icon: <UploadIcon className="w-5 h-5 text-orange-400" />,
       action: () => addImageNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
+    },
+    {
+      label: 'Image Gen',
+      icon: <ImageIcon className="w-5 h-5 text-blue-400" />,
+      action: () => addImageGeneratorNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
+    },
+    {
+      label: 'Character Gen',
+      icon: <ImageIcon className="w-5 h-5 text-cyan-400" />,
+      action: () => addNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
     },
     {
       label: 'Image Editor',
       icon: <EditIcon className="w-5 h-5 text-purple-400" />,
       action: () => addImageEditorNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
     },
+    // Video-related
     {
       label: 'Video Gen',
       icon: <VideoIcon className="w-5 h-5 text-green-400" />,
