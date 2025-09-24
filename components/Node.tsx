@@ -333,9 +333,9 @@ const Node: React.FC<NodeProps> = ({
           isBeingDraggedOver={isBeingDraggedOver}
           isValidTarget={isCompatible}
           style={{
-            [side === 'input' ? 'left' : 'right']: '-8px',
-            top: isMinimized ? `${getMinimizedHandleTop(handle.id, side)}px` : `${node.data.handleYOffsets?.[handle.id] || '50%'}`,
-            transform: 'translateY(-50%)',
+            [side === 'input' ? 'left' : 'right']: '-8px', // Position handle outside node border
+            top: isMinimized ? getMinimizedHandleTop(handle.id, side) : (node.data.handleYOffsets?.[handle.id] ?? '50%'),
+            transform: 'translateY(-50%)', // Vertically center the handle on its 'top' position
             // Animate position changes for a smoother experience
             transition: 'top 0.2s ease-in-out',
           }}
