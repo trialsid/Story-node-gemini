@@ -87,6 +87,8 @@ const NodeHeader: React.FC<NodeHeaderProps> = ({ title, icon, isMinimized, onTog
   );
 };
 
+const SLICE_HEIGHT_PX = 32; // Corresponds to h-8 in TailwindCSS
+
 const Node: React.FC<NodeProps> = ({
   node,
   connections,
@@ -160,6 +162,15 @@ const Node: React.FC<NodeProps> = ({
         }
         return;
     }
+    
+    if (node.type === NodeType.ImageGenerator && node.data.imageUrls && (node.data.numberOfImages || 1) > 1) {
+        const visibleSlices = (node.data.imageUrls || []).slice(0, node.data.numberOfImages || 1).length;
+        const newHeight = visibleSlices * SLICE_HEIGHT_PX;
+        if (node.data.minimizedHeight !== newHeight) {
+            onUpdateData(node.id, { minimizedHeight: newHeight });
+        }
+        return;
+    }
 
     let isMounted = true;
     let element: HTMLImageElement | HTMLVideoElement | null = null;
@@ -179,7 +190,6 @@ const Node: React.FC<NodeProps> = ({
 
     const calculateHeight = () => {
       if (hasVisuals) {
-        // Priority 1: Use explicit aspect ratio from CharacterGenerator
         if ((node.type === NodeType.CharacterGenerator || node.type === NodeType.ImageGenerator) && node.data.aspectRatio) {
             const [w, h] = node.data.aspectRatio.split(':').map(Number);
             if (w && h) {
@@ -191,7 +201,6 @@ const Node: React.FC<NodeProps> = ({
             }
         }
         
-        // Priority 2: Calculate from media element ref
         element = previewVideo ? minimizedVideoRef.current : minimizedImageRef.current;
         eventName = previewVideo ? 'loadedmetadata' : 'load';
 
@@ -204,14 +213,12 @@ const Node: React.FC<NodeProps> = ({
             }
         }
       } else {
-          // No visuals, use default height for text/placeholder
           if (node.data.minimizedHeight !== 64) {
               onUpdateData(node.id, { minimizedHeight: 64 });
           }
       }
     };
 
-    // Run after a delay to ensure refs are populated
     const timeoutId = setTimeout(calculateHeight, 0);
 
     return () => {
@@ -221,7 +228,7 @@ const Node: React.FC<NodeProps> = ({
             element.removeEventListener(eventName, setHeightFromElement);
         }
     };
-  }, [isMinimized, hasVisuals, previewImage, previewVideo, node.type, node.data.aspectRatio, dimensions.width, node.id, onUpdateData, node.data.minimizedHeight]);
+  }, [isMinimized, hasVisuals, previewImage, previewVideo, node.type, node.data.aspectRatio, dimensions.width, node.id, onUpdateData, node.data.minimizedHeight, node.data.imageUrls, node.data.numberOfImages]);
 
   // Effect for calculating handle positions
   useEffect(() => {
@@ -231,7 +238,7 @@ const Node: React.FC<NodeProps> = ({
     if (!nodeRef.current || isMinimized) return;
 
     const calculateOffsets = () => {
-      if (!nodeRef.current) return; // Check again in case component unmounted
+      if (!nodeRef.current) return;
       const nodeElement = nodeRef.current;
       
       let needsUpdate = false;
@@ -245,7 +252,6 @@ const Node: React.FC<NodeProps> = ({
               const yPosition = (targetRect.top - nodeRect.top) + (targetRect.height / 2);
               
               newOffsets[handle.id] = yPosition;
-              // Only mark for update if there's a significant change to prevent infinite loops
               if (Math.abs((node.data.handleYOffsets?.[handle.id] || 0) - yPosition) > 1) {
                   needsUpdate = true;
               }
@@ -253,21 +259,18 @@ const Node: React.FC<NodeProps> = ({
       });
 
       if (needsUpdate) {
-          // Create a merged object to avoid race conditions with other updates
           onUpdateData(node.id, { handleYOffsets: { ...node.data.handleYOffsets, ...newOffsets }});
       }
     };
     
-    // If we just maximized the node, wait for the animation to finish
     if (wasMinimized && !isMinimized) {
         const timeoutId = setTimeout(calculateOffsets, 310); // 300ms transition + 10ms buffer
         return () => clearTimeout(timeoutId);
     } else {
-        // Otherwise, calculate immediately (e.g., on initial render)
         calculateOffsets();
     }
 
-  }, [node.id, node.type, onUpdateData, isMinimized, nodeSpec, node.data.handleYOffsets, node.data.text, node.data.imageUrl, node.data.imageUrls, node.data.prompt]);
+  }, [node.id, node.type, onUpdateData, isMinimized, nodeSpec, node.data.handleYOffsets, node.data.text, node.data.imageUrl, node.data.imageUrls, node.data.prompt, node.data.numberOfImages]);
   
   const handleFileChange = (file: File | null) => {
     if (file && file.type.startsWith('image/')) {
@@ -300,19 +303,41 @@ const Node: React.FC<NodeProps> = ({
   };
   
   const getMinimizedHandleTop = (handleId: string, side: 'input' | 'output') => {
-    const headerHeight = 40; // Corresponds to MINIMIZED_NODE_HEADER_HEIGHT
-    const previewHeight = node.data.minimizedHeight || 64;
-
+    const headerHeight = 40;
+    
     const spec = NODE_SPEC[node.type];
-    const handles = side === 'input' ? spec.inputs : spec.outputs;
-    const handleIndex = handles.findIndex(h => h.id === handleId);
-    const totalHandles = handles.length;
+    const allHandlesForSide = side === 'input' ? spec.inputs : spec.outputs;
 
-    if (handleIndex === -1 || totalHandles === 0) {
+    let visibleHandles: NodeHandleSpec[];
+    if (node.type === NodeType.ImageGenerator && side === 'output') {
+      visibleHandles = allHandlesForSide.slice(0, node.data.numberOfImages || 1);
+    } else {
+      visibleHandles = allHandlesForSide;
+    }
+
+    const totalVisibleHandles = visibleHandles.length;
+    const currentHandleIndex = visibleHandles.findIndex(h => h.id === handleId);
+
+    if (node.type === NodeType.ImageGenerator && side === 'output') {
+        const generatedImagesCount = (node.data.imageUrls || []).length;
+        
+        // Use slice-based positioning ONLY if more than one image has been generated
+        // AND all the expected (visible) images have also been generated.
+        if (generatedImagesCount > 1 && generatedImagesCount >= totalVisibleHandles) {
+            if (currentHandleIndex !== -1) {
+                return headerHeight + (SLICE_HEIGHT_PX * currentHandleIndex) + (SLICE_HEIGHT_PX / 2);
+            }
+        }
+    }
+
+    // Fallback logic for all other cases (including single image, no images, or partially generated images)
+    const previewHeight = node.data.minimizedHeight || 64;
+    
+    if (currentHandleIndex === -1 || totalVisibleHandles === 0) {
         return headerHeight + (previewHeight / 2);
     }
     
-    return headerHeight + (previewHeight * (handleIndex + 1)) / (totalHandles + 1);
+    return headerHeight + (previewHeight * (currentHandleIndex + 1)) / (totalVisibleHandles + 1);
   };
 
   const renderHandles = (handles: NodeHandleSpec[], side: 'input' | 'output') => {
@@ -337,11 +362,10 @@ const Node: React.FC<NodeProps> = ({
           isBeingDraggedOver={isBeingDraggedOver}
           isValidTarget={isCompatible}
           style={{
-            [side === 'input' ? 'left' : 'right']: '-8px', // Position handle outside node border
+            [side === 'input' ? 'left' : 'right']: '-8px',
             top: isMinimized ? getMinimizedHandleTop(handle.id, side) : (node.data.handleYOffsets?.[handle.id] ?? '50%'),
-            transform: 'translateY(-50%)', // Vertically center the handle on its 'top' position
-            // Animate position changes for a smoother experience
-            transition: 'top 0.2s ease-in-out',
+            transform: 'translateY(-50%)',
+            transition: 'top 0.3s ease-in-out',
           }}
         />
       );
@@ -563,16 +587,26 @@ const Node: React.FC<NodeProps> = ({
                         </div>
                     ) : node.data.error ? (
                         <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
-                    ) : node.data.imageUrls && node.data.imageUrls.length > 0 ? (
-                        node.data.imageUrls.map((url, index) => (
-                            <div key={index} className="relative" ref={el => (handleAnchorRefs.current[`image_output_${index + 1}`] = el)}>
-                                <img src={url} alt={`Generated image ${index + 1}`} className="w-full h-auto object-cover rounded-md cursor-zoom-in" onClick={() => onImageClick(url)} />
-                            </div>
-                        ))
                     ) : (
-                        <div className={`${imagePreviewBaseClassName} h-40`}>
-                            <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
-                        </div>
+                        Array.from({ length: node.data.numberOfImages || 1 }).map((_, index) => {
+                            const imageUrl = node.data.imageUrls?.[index];
+                            return (
+                                <div key={index} className="relative" ref={el => { handleAnchorRefs.current[`image_output_${index + 1}`] = el; }}>
+                                    {imageUrl ? (
+                                        <img 
+                                            src={imageUrl} 
+                                            alt={`Generated image ${index + 1}`} 
+                                            className="w-full h-auto object-cover rounded-md cursor-zoom-in" 
+                                            onClick={() => onImageClick(imageUrl)} 
+                                        />
+                                    ) : (
+                                        <div className={`${imagePreviewBaseClassName} h-40`}>
+                                            <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
                     )}
                 </div>
               </div>
@@ -583,9 +617,27 @@ const Node: React.FC<NodeProps> = ({
               </button>
             </div>
           </div>
-          {isMinimized && ( <div className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md flex items-center justify-center border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`} style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }} >
-              {previewImage ? <img key={previewImage} ref={minimizedImageRef} src={previewImage!} alt="Preview" className="w-full h-full object-contain" /> : <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
-          </div> )}
+            {isMinimized && (
+                (node.data.imageUrls || []).length > 1 && (node.data.imageUrls || []).length >= (node.data.numberOfImages || 1) ? (
+                    <div 
+                        className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`}
+                        style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : 'auto' }}
+                    >
+                        {(node.data.imageUrls || []).slice(0, node.data.numberOfImages || 1).map((url, index) => (
+                            <div
+                                key={index}
+                                className="w-full bg-cover bg-center"
+                                style={{ backgroundImage: `url(${url})`, height: `${SLICE_HEIGHT_PX}px` }}
+                                aria-label={`Preview slice of generated image ${index + 1}`}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <div className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md flex items-center justify-center border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`} style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }} >
+                        {previewImage ? <img key={previewImage} ref={minimizedImageRef} src={previewImage} alt="Preview" className="w-full h-full object-contain" /> : <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+                    </div>
+                )
+            )}
         </>
       )}
 
