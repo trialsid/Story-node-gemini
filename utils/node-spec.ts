@@ -33,7 +33,7 @@ export const NODE_SPEC: { [key in NodeType]: NodeSpec } = {
       { id: 'image_input', type: HandleType.Image, label: 'Input Image (Optional)' },
       { id: 'prompt_input', type: HandleType.Text, label: 'Video Prompt' },
     ],
-    outputs: [], // No video output handle yet
+    outputs: [{ id: 'video_output', type: HandleType.Video, label: 'Output Video' }],
   },
 };
 

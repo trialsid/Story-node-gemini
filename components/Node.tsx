@@ -270,10 +270,20 @@ const Node: React.FC<NodeProps> = ({
       }
   };
   
-  const getMinimizedHandleTop = () => {
-    const headerHeight = 40; // from Canvas.tsx MINIMIZED_NODE_HEADER_HEIGHT
+  const getMinimizedHandleTop = (handleId: string, side: 'input' | 'output') => {
+    const headerHeight = 40; // Corresponds to MINIMIZED_NODE_HEADER_HEIGHT
     const previewHeight = node.data.minimizedHeight || 64;
-    return headerHeight + (previewHeight / 2);
+
+    const spec = NODE_SPEC[node.type];
+    const handles = side === 'input' ? spec.inputs : spec.outputs;
+    const handleIndex = handles.findIndex(h => h.id === handleId);
+    const totalHandles = handles.length;
+
+    if (handleIndex === -1 || totalHandles === 0) {
+        return headerHeight + (previewHeight / 2);
+    }
+    
+    return headerHeight + (previewHeight * (handleIndex + 1)) / (totalHandles + 1);
   };
 
   const renderHandles = (handles: NodeHandleSpec[], side: 'input' | 'output') => {
@@ -299,9 +309,10 @@ const Node: React.FC<NodeProps> = ({
           isValidTarget={isCompatible}
           style={{
             [side === 'input' ? 'left' : 'right']: '-8px',
-            top: isMinimized ? `${getMinimizedHandleTop()}px` : `${node.data.handleYOffsets?.[handle.id] || '50%'}`,
+            top: isMinimized ? `${getMinimizedHandleTop(handle.id, side)}px` : `${node.data.handleYOffsets?.[handle.id] || '50%'}`,
             transform: 'translateY(-50%)',
-            transition: 'none', // Position is updated via state, no CSS transition needed
+            // Animate position changes for a smoother experience
+            transition: 'top 0.2s ease-in-out',
           }}
         />
       );

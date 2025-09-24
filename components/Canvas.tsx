@@ -86,15 +86,22 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
     const xPos = handleSide === 'input' ? node.position.x : node.position.x + dims.width;
 
     if (isMinimized) {
-        // Simple vertical center for minimized nodes for now
+        const headerHeight = MINIMIZED_NODE_HEADER_HEIGHT;
         const previewHeight = node.data.minimizedHeight || 64;
-        const yCenter = MINIMIZED_NODE_HEADER_HEIGHT + (previewHeight / 2);
         
-        if (node.type === NodeType.Text && handleSide === 'output') {
-             return { x: xPos, y: node.position.y + MINIMIZED_NODE_HEADER_HEIGHT / 2 };
+        const spec = NODE_SPEC[node.type];
+        const handles = handleSide === 'input' ? spec.inputs : spec.outputs;
+        const handleIndex = handles.findIndex(h => h.id === handleId);
+        const totalHandles = handles.length;
+
+        if (handleIndex === -1 || totalHandles === 0) {
+            return { x: xPos, y: node.position.y + headerHeight + (previewHeight / 2) };
         }
-        return { x: xPos, y: node.position.y + yCenter };
+
+        const yPosition = headerHeight + (previewHeight * (handleIndex + 1)) / (totalHandles + 1);
+        return { x: xPos, y: node.position.y + yPosition };
     }
+    
 
     if (yOffset !== undefined) {
         return { x: xPos, y: node.position.y + yOffset };
