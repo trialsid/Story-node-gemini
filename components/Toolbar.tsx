@@ -21,6 +21,7 @@ interface ToolbarProps {
   onSaveProject: () => void;
   onLoadProject: () => void;
   onAddNode: () => void;
+  onAddImageGeneratorNode: () => void;
   onAddTextNode: () => void;
   onAddGeminiTextNode: () => void;
   onAddImageNode: () => void;
@@ -61,6 +62,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onSaveProject,
     onLoadProject,
     onAddNode, 
+    onAddImageGeneratorNode,
     onAddTextNode, 
     onAddGeminiTextNode,
     onAddImageNode, 
@@ -87,6 +89,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
   const nodeTypes = [
     { label: 'Character Gen', icon: <ImageIcon className="w-5 h-5 text-cyan-400" />, action: onAddNode },
+    { label: 'Image Gen', icon: <ImageIcon className="w-5 h-5 text-blue-400" />, action: onAddImageGeneratorNode },
     { label: 'Gemini Text', icon: <BotIcon className="w-5 h-5 text-indigo-400" />, action: onAddGeminiTextNode },
     { label: 'Text', icon: <TextIcon className="w-5 h-5 text-yellow-400" />, action: onAddTextNode },
     { label: 'Image', icon: <UploadIcon className="w-5 h-5 text-orange-400" />, action: onAddImageNode },

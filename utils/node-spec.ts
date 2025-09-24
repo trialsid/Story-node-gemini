@@ -28,6 +28,15 @@ export const NODE_SPEC: { [key in NodeType]: NodeSpec } = {
     inputs: [{ id: 'description_input', type: HandleType.Text, label: 'Character Description' }],
     outputs: [{ id: 'image_output', type: HandleType.Image, label: 'Output Image' }],
   },
+  [NodeType.ImageGenerator]: {
+    inputs: [{ id: 'prompt_input', type: HandleType.Text, label: 'Prompt' }],
+    outputs: [
+      { id: 'image_output_1', type: HandleType.Image, label: 'Image 1' },
+      { id: 'image_output_2', type: HandleType.Image, label: 'Image 2' },
+      { id: 'image_output_3', type: HandleType.Image, label: 'Image 3' },
+      { id: 'image_output_4', type: HandleType.Image, label: 'Image 4' },
+    ],
+  },
   [NodeType.ImageEditor]: {
     inputs: [{ id: 'image_input', type: HandleType.Image, label: 'Input Image' }],
     outputs: [{ id: 'image_output', type: HandleType.Image, label: 'Output Image' }],

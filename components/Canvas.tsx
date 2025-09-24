@@ -26,7 +26,8 @@ interface CanvasProps {
   onContextMenu: (e: React.MouseEvent) => void;
   onNodeDragStart: (nodeId: string, e: React.MouseEvent) => void;
   onUpdateNodeData: (nodeId: string, data: Partial<NodeData['data']>) => void;
-  onGenerateImage: (nodeId: string) => void;
+  onGenerateCharacterImage: (nodeId: string) => void;
+  onGenerateImages: (nodeId: string) => void;
   onEditImage: (nodeId: string) => void;
   onGenerateVideo: (nodeId: string) => void;
   onGenerateText: (nodeId: string) => void;
@@ -59,7 +60,8 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
   onContextMenu,
   onNodeDragStart,
   onUpdateNodeData,
-  onGenerateImage,
+  onGenerateCharacterImage,
+  onGenerateImages,
   onEditImage,
   onGenerateVideo,
   onGenerateText,
@@ -153,7 +155,8 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
             connections={connections}
             onDragStart={onNodeDragStart}
             onUpdateData={onUpdateNodeData}
-            onGenerateImage={onGenerateImage}
+            onGenerateCharacterImage={onGenerateCharacterImage}
+            onGenerateImages={onGenerateImages}
             onEditImage={onEditImage}
             onGenerateVideo={onGenerateVideo}
             onGenerateText={onGenerateText}

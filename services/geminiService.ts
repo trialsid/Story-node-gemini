@@ -106,7 +106,7 @@ export const generateTextFromPrompt = async (
     throw new Error(getFriendlyErrorMessage(lastError));
 };
 
-export const generateImageFromPrompt = async (
+export const generateCharacterSheet = async (
   characterDescription: string,
   style: string,
   layout: string,
@@ -155,6 +155,44 @@ export const generateImageFromPrompt = async (
 
     throw new Error(getFriendlyErrorMessage(lastError));
 };
+
+export const generateImages = async (
+    prompt: string,
+    numberOfImages: number,
+    aspectRatio: string
+): Promise<string[]> => {
+    if (!ai) {
+        throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
+    }
+
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            const response = await ai.models.generateImages({
+                model: 'imagen-4.0-generate-001',
+                prompt: prompt,
+                config: {
+                    numberOfImages,
+                    outputMimeType: 'image/jpeg',
+                    aspectRatio: aspectRatio as "1:1" | "3:4" | "4:3" | "9:16" | "16:9",
+                },
+            });
+
+            return response.generatedImages.map(img => `data:image/jpeg;base64,${img.image.imageBytes}`);
+
+        } catch (error) {
+            lastError = error;
+            console.error(`Attempt ${attempt} failed:`, error);
+            if (attempt < MAX_RETRIES) {
+                await sleep(INITIAL_DELAY_MS * Math.pow(2, attempt - 1));
+            }
+        }
+    }
+
+    throw new Error(getFriendlyErrorMessage(lastError));
+};
+
 
 const VIDEO_GENERATION_MESSAGES = [
     "Warming up the cinematic engine...",

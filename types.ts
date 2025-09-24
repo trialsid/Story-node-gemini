@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 
 export enum NodeType {
   CharacterGenerator = 'CHARACTER_GENERATOR',
+  ImageGenerator = 'IMAGE_GENERATOR',
   Text = 'TEXT_NODE',
   Image = 'IMAGE_NODE',
   ImageEditor = 'IMAGE_EDITOR',
@@ -61,6 +62,12 @@ export interface NodeData {
     
     // For Image Node
     // `imageUrl` is used for the uploaded image
+
+    // For Image Generator
+    numberOfImages?: number;
+    imageUrls?: string[];
+    // `prompt` is shared
+    // `aspectRatio` is shared
   };
 }
 

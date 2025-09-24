@@ -4,7 +4,7 @@ import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
 import ImageModal from './components/ImageModal';
 import ConfirmationModal from './components/ConfirmationModal';
-import { generateImageFromPrompt, editImageWithPrompt, generateVideoFromPrompt, generateTextFromPrompt } from './services/geminiService';
+import { generateCharacterSheet, editImageWithPrompt, generateVideoFromPrompt, generateTextFromPrompt, generateImages } from './services/geminiService';
 import { useTheme } from './contexts/ThemeContext';
 import ThemeSwitcher from './components/ThemeSwitcher';
 import GalleryPanel from './components/GalleryPanel';
@@ -25,6 +25,7 @@ import BotIcon from './components/icons/BotIcon';
 
 const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } } = {
   [NodeType.CharacterGenerator]: { width: 256 },
+  [NodeType.ImageGenerator]: { width: 256 },
   [NodeType.Text]: { width: 256 },
   [NodeType.ImageEditor]: { width: 256 },
   [NodeType.VideoGenerator]: { width: 256 },
@@ -89,6 +90,7 @@ const App: React.FC = () => {
   const [isLoadingProject, setIsLoadingProject] = useState(false);
   const [projectFileContent, setProjectFileContent] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [lastAddedNodePosition, setLastAddedNodePosition] = useState<{ x: number, y: number } | null>(null);
 
   const [showWelcomeOnStartup, setShowWelcomeOnStartup] = useState(() => {
     const setting = localStorage.getItem('showWelcomeOnStartup');
@@ -142,6 +144,7 @@ const App: React.FC = () => {
   const handleStartFresh = useCallback(() => {
     resetHistory({ nodes: [], connections: [] });
     setShowWelcomeModal(false);
+    setLastAddedNodePosition(null);
   }, [resetHistory]);
   
   const handleLoadTemplate = useCallback((templateKey: keyof typeof templates) => {
@@ -183,6 +186,8 @@ const App: React.FC = () => {
         if ((fromNode.type === NodeType.Text || fromNode.type === NodeType.GeminiText) && 'text' in fromNode.data) {
           if (toNode.type === NodeType.CharacterGenerator && conn.toHandleId === 'description_input') {
               dataToUpdate = { characterDescription: fromNode.data.text };
+          } else if (toNode.type === NodeType.ImageGenerator && conn.toHandleId === 'prompt_input') {
+              dataToUpdate = { prompt: fromNode.data.text };
           } else if (toNode.type === NodeType.VideoGenerator && conn.toHandleId === 'prompt_input') {
               dataToUpdate = { editDescription: fromNode.data.text };
           } else if (toNode.type === NodeType.GeminiText && conn.toHandleId === 'prompt_input') {
@@ -206,6 +211,7 @@ const App: React.FC = () => {
     const finalNodes = propagateInitialData(newNodes, newConnections);
     resetHistory({ nodes: finalNodes, connections: newConnections });
     setShowWelcomeModal(false);
+    setLastAddedNodePosition(null);
   }, [resetHistory]);
 
   const handleNavigateHome = useCallback(() => {
@@ -220,6 +226,7 @@ const App: React.FC = () => {
     resetHistory({ nodes: [], connections: [] });
     setShowWelcomeModal(true);
     setIsNavigatingHome(false);
+    setLastAddedNodePosition(null);
   };
 
   const cancelNavigateHome = () => {
@@ -235,6 +242,7 @@ const App: React.FC = () => {
   const confirmClearCanvas = () => {
     resetHistory({ nodes: [], connections: [] });
     setIsClearingCanvas(false);
+    setLastAddedNodePosition(null);
   };
 
   const cancelClearCanvas = () => {
@@ -261,6 +269,7 @@ const App: React.FC = () => {
       const loadedState = JSON.parse(jsonString) as CanvasState;
       if (Array.isArray(loadedState.nodes) && Array.isArray(loadedState.connections)) {
         resetHistory(loadedState);
+        setLastAddedNodePosition(null);
       } else {
         throw new Error('Invalid project file format: Missing nodes or connections array.');
       }
@@ -312,10 +321,22 @@ const App: React.FC = () => {
   };
 
   const addNode = useCallback((pos?: { x: number; y: number }) => {
+    let newNodePosition: { x: number, y: number };
+    if (pos) {
+        newNodePosition = pos;
+        setLastAddedNodePosition(null);
+    } else {
+        const nextPos = lastAddedNodePosition
+            ? { x: lastAddedNodePosition.x + 32, y: lastAddedNodePosition.y + 32 }
+            : { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom };
+        newNodePosition = nextPos;
+        setLastAddedNodePosition(nextPos);
+    }
+
     const newNode: NodeData = {
       id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: NodeType.CharacterGenerator,
-      position: pos || { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
+      position: newNodePosition,
       data: {
         characterDescription: 'A brave knight with a scar over his left eye',
         style: 'Studio Portrait Photo',
@@ -324,60 +345,140 @@ const App: React.FC = () => {
       },
     };
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
-  }, [canvasOffset, zoom, setCanvasState]);
+  }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
+
+  const addImageGeneratorNode = useCallback((pos?: { x: number; y: number }) => {
+    let newNodePosition: { x: number, y: number };
+    if (pos) {
+        newNodePosition = pos;
+        setLastAddedNodePosition(null);
+    } else {
+        const nextPos = lastAddedNodePosition
+            ? { x: lastAddedNodePosition.x + 32, y: lastAddedNodePosition.y + 32 }
+            : { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom };
+        newNodePosition = nextPos;
+        setLastAddedNodePosition(nextPos);
+    }
+    const newNode: NodeData = {
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type: NodeType.ImageGenerator,
+      position: newNodePosition,
+      data: {
+        prompt: 'A photorealistic cat astronaut on Mars',
+        numberOfImages: 1,
+        aspectRatio: '1:1',
+      },
+    };
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+  }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
 
   const addTextNode = useCallback((pos?: { x: number; y: number }) => {
+    let newNodePosition: { x: number, y: number };
+    if (pos) {
+        newNodePosition = pos;
+        setLastAddedNodePosition(null);
+    } else {
+        const nextPos = lastAddedNodePosition
+            ? { x: lastAddedNodePosition.x + 32, y: lastAddedNodePosition.y + 32 }
+            : { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom };
+        newNodePosition = nextPos;
+        setLastAddedNodePosition(nextPos);
+    }
     const newNode: NodeData = {
       id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: NodeType.Text,
-      position: pos || { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
+      position: newNodePosition,
       data: { text: 'A futuristic cityscape at dusk.' },
     };
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
-  }, [canvasOffset, zoom, setCanvasState]);
+  }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
   
   const addImageNode = useCallback((pos?: { x: number; y: number }) => {
+    let newNodePosition: { x: number, y: number };
+    if (pos) {
+        newNodePosition = pos;
+        setLastAddedNodePosition(null);
+    } else {
+        const nextPos = lastAddedNodePosition
+            ? { x: lastAddedNodePosition.x + 32, y: lastAddedNodePosition.y + 32 }
+            : { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom };
+        newNodePosition = nextPos;
+        setLastAddedNodePosition(nextPos);
+    }
     const newNode: NodeData = {
       id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: NodeType.Image,
-      position: pos || { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
+      position: newNodePosition,
       data: { },
     };
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
-  }, [canvasOffset, zoom, setCanvasState]);
+  }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
 
   const addImageEditorNode = useCallback((pos?: { x: number; y: number }) => {
+    let newNodePosition: { x: number, y: number };
+    if (pos) {
+        newNodePosition = pos;
+        setLastAddedNodePosition(null);
+    } else {
+        const nextPos = lastAddedNodePosition
+            ? { x: lastAddedNodePosition.x + 32, y: lastAddedNodePosition.y + 32 }
+            : { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom };
+        newNodePosition = nextPos;
+        setLastAddedNodePosition(nextPos);
+    }
     const newNode: NodeData = {
       id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: NodeType.ImageEditor,
-      position: pos || { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
+      position: newNodePosition,
       data: { editDescription: 'Add a golden crown' },
     };
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
-  }, [canvasOffset, zoom, setCanvasState]);
+  }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
 
   const addVideoGeneratorNode = useCallback((pos?: { x: number; y: number }) => {
+    let newNodePosition: { x: number, y: number };
+    if (pos) {
+        newNodePosition = pos;
+        setLastAddedNodePosition(null);
+    } else {
+        const nextPos = lastAddedNodePosition
+            ? { x: lastAddedNodePosition.x + 32, y: lastAddedNodePosition.y + 32 }
+            : { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom };
+        newNodePosition = nextPos;
+        setLastAddedNodePosition(nextPos);
+    }
     const newNode: NodeData = {
       id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: NodeType.VideoGenerator,
-      position: pos || { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
+      position: newNodePosition,
       data: {
         editDescription: 'A majestic eagle soaring over mountains',
         videoModel: 'veo-2.0-generate-001',
       },
     };
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
-  }, [canvasOffset, zoom, setCanvasState]);
+  }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
   
   const addGeminiTextNode = useCallback((pos?: { x: number; y: number }) => {
+    let newNodePosition: { x: number, y: number };
+    if (pos) {
+        newNodePosition = pos;
+        setLastAddedNodePosition(null);
+    } else {
+        const nextPos = lastAddedNodePosition
+            ? { x: lastAddedNodePosition.x + 32, y: lastAddedNodePosition.y + 32 }
+            : { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom };
+        newNodePosition = nextPos;
+        setLastAddedNodePosition(nextPos);
+    }
     const newNode: NodeData = {
       id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: NodeType.GeminiText,
-      position: pos || { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom },
+      position: newNodePosition,
       data: { prompt: 'Write a short story about a robot who discovers music.' },
     };
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
-  }, [canvasOffset, zoom, setCanvasState]);
+  }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
 
   const toggleNodeMinimization = useCallback((nodeId: string) => {
     setCanvasState(prevState => ({
@@ -410,6 +511,8 @@ const App: React.FC = () => {
                 if ((updatedNode.type === NodeType.Text || updatedNode.type === NodeType.GeminiText) && 'text' in data) {
                     if (toNode.type === NodeType.CharacterGenerator && conn.toHandleId === 'description_input') {
                         dataToUpdate = { characterDescription: data.text };
+                    } else if (toNode.type === NodeType.ImageGenerator && conn.toHandleId === 'prompt_input') {
+                        dataToUpdate = { prompt: data.text };
                     } else if (toNode.type === NodeType.VideoGenerator && conn.toHandleId === 'prompt_input') {
                         dataToUpdate = { editDescription: data.text };
                     } else if (toNode.type === NodeType.GeminiText && conn.toHandleId === 'prompt_input') {
@@ -423,6 +526,18 @@ const App: React.FC = () => {
                   }
                 }
                 
+                if (updatedNode.type === NodeType.ImageGenerator && 'imageUrls' in data && Array.isArray(data.imageUrls)) {
+                    const match = conn.fromHandleId.match(/_(\d+)$/);
+                    if (match) {
+                        const imageIndex = parseInt(match[1], 10) - 1;
+                        const imageUrlToPropagate = data.imageUrls?.[imageIndex];
+        
+                        if (imageUrlToPropagate && (toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && conn.toHandleId === 'image_input') {
+                            dataToUpdate = { inputImageUrl: imageUrlToPropagate };
+                        }
+                    }
+                }
+
                 if (Object.keys(dataToUpdate).length > 0) {
                     newNodes[toNodeIndex] = { ...toNode, data: { ...toNode.data, ...dataToUpdate }};
                 }
@@ -434,6 +549,7 @@ const App: React.FC = () => {
 
   const handleNodeDragStart = useCallback((nodeId: string, e: React.MouseEvent) => {
     setDraggingNodeId(nodeId);
+    setLastAddedNodePosition(null);
     const node = nodes.find(n => n.id === nodeId);
     if (node) {
         setDragStartInfo({
@@ -483,6 +599,7 @@ const App: React.FC = () => {
       setContextMenu(null);
     }
     if (e.target === e.currentTarget) {
+        setLastAddedNodePosition(null);
         setIsPanning(true);
         setPanStart({ x: e.clientX, y: e.clientY });
     }
@@ -608,6 +725,8 @@ const App: React.FC = () => {
             if ((fromNode.type === NodeType.Text || fromNode.type === NodeType.GeminiText) && 'text' in fromNode.data) {
                 if (toNode.type === NodeType.CharacterGenerator && toHandleId === 'description_input') {
                     dataToUpdate = { characterDescription: fromNode.data.text };
+                } else if (toNode.type === NodeType.ImageGenerator && toHandleId === 'prompt_input') {
+                    dataToUpdate = { prompt: fromNode.data.text };
                 } else if (toNode.type === NodeType.VideoGenerator && toHandleId === 'prompt_input') {
                     dataToUpdate = { editDescription: fromNode.data.text };
                 } else if (toNode.type === NodeType.GeminiText && toHandleId === 'prompt_input') {
@@ -616,6 +735,15 @@ const App: React.FC = () => {
             } else if ((fromNode.type === NodeType.CharacterGenerator || fromNode.type === NodeType.ImageEditor || fromNode.type === NodeType.Image) && 'imageUrl' in fromNode.data) {
                  if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && toHandleId === 'image_input') {
                     dataToUpdate = { inputImageUrl: fromNode.data.imageUrl };
+                }
+            } else if (fromNode.type === NodeType.ImageGenerator && fromNode.data.imageUrls) {
+                const match = startHandleId.match(/_(\d+)$/);
+                if (match) {
+                    const imageIndex = parseInt(match[1], 10) - 1;
+                    const imageUrlToPropagate = fromNode.data.imageUrls?.[imageIndex];
+                    if (imageUrlToPropagate && (toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && toHandleId === 'image_input') {
+                        dataToUpdate = { inputImageUrl: imageUrlToPropagate };
+                    }
                 }
             }
             if (Object.keys(dataToUpdate).length > 0) {
@@ -628,7 +756,7 @@ const App: React.FC = () => {
     setTempConnectionInfo(null);
   }, [tempConnectionInfo, nodes, setCanvasState]);
 
-  const handleGenerateImage = useCallback(async (nodeId: string) => {
+  const handleGenerateCharacterImage = useCallback(async (nodeId: string) => {
     const sourceNode = nodes.find(n => n.id === nodeId);
     if (!sourceNode || sourceNode.type !== NodeType.CharacterGenerator || !sourceNode.data.characterDescription) {
       updateNodeData(nodeId, { error: 'Character description cannot be empty.' });
@@ -638,7 +766,7 @@ const App: React.FC = () => {
     updateNodeData(nodeId, { isLoading: true, error: undefined, imageUrl: undefined });
     try {
       const { characterDescription, style, layout, aspectRatio } = sourceNode.data;
-      const imageUrl = await generateImageFromPrompt(characterDescription!, style!, layout!, aspectRatio!);
+      const imageUrl = await generateCharacterSheet(characterDescription!, style!, layout!, aspectRatio!);
       updateNodeData(nodeId, { imageUrl, isLoading: false });
     } catch (error) {
       console.error(error);
@@ -647,6 +775,25 @@ const App: React.FC = () => {
     }
   }, [nodes, updateNodeData]);
   
+  const handleGenerateImages = useCallback(async (nodeId: string) => {
+    const sourceNode = nodes.find(n => n.id === nodeId);
+    if (!sourceNode || sourceNode.type !== NodeType.ImageGenerator || !sourceNode.data.prompt) {
+      updateNodeData(nodeId, { error: 'Prompt cannot be empty.' });
+      return;
+    }
+
+    updateNodeData(nodeId, { isLoading: true, error: undefined, imageUrls: [] });
+    try {
+      const { prompt, numberOfImages, aspectRatio } = sourceNode.data;
+      const imageUrls = await generateImages(prompt, numberOfImages || 1, aspectRatio || '1:1');
+      updateNodeData(nodeId, { imageUrls, isLoading: false });
+    } catch (error) {
+      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      updateNodeData(nodeId, { error: errorMessage, isLoading: false });
+    }
+  }, [nodes, updateNodeData]);
+
   const handleEditImage = useCallback(async (nodeId: string) => {
     const sourceNode = nodes.find(n => n.id === nodeId);
     if (!sourceNode || sourceNode.type !== NodeType.ImageEditor) return;
@@ -747,6 +894,11 @@ const App: React.FC = () => {
       action: () => addNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
     },
     {
+        label: 'Image Gen',
+        icon: <ImageIcon className="w-5 h-5 text-blue-400" />,
+        action: () => addImageGeneratorNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
+    },
+    {
       label: 'Gemini Text',
       icon: <BotIcon className="w-5 h-5 text-indigo-400" />,
       action: () => addGeminiTextNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
@@ -788,6 +940,7 @@ const App: React.FC = () => {
         onLoadProject={handleLoadProject}
         onClearCanvas={handleClearCanvasRequest}
         onAddNode={() => addNode()}
+        onAddImageGeneratorNode={() => addImageGeneratorNode()}
         onAddTextNode={() => addTextNode()}
         onAddGeminiTextNode={() => addGeminiTextNode()}
         onAddImageNode={() => addImageNode()}
@@ -837,7 +990,8 @@ const App: React.FC = () => {
         onContextMenu={handleContextMenu}
         onNodeDragStart={handleNodeDragStart}
         onUpdateNodeData={updateNodeData}
-        onGenerateImage={handleGenerateImage}
+        onGenerateCharacterImage={handleGenerateCharacterImage}
+        onGenerateImages={handleGenerateImages}
         onGenerateText={handleGenerateText}
         onEditImage={handleEditImage}
         onGenerateVideo={handleGenerateVideo}

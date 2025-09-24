@@ -28,7 +28,8 @@ interface NodeProps {
   connections: Connection[];
   onDragStart: (nodeId: string, e: React.MouseEvent) => void;
   onUpdateData: (nodeId: string, data: Partial<NodeData['data']>) => void;
-  onGenerateImage: (nodeId: string) => void;
+  onGenerateCharacterImage: (nodeId: string) => void;
+  onGenerateImages: (nodeId: string) => void;
   onEditImage: (nodeId: string) => void;
   onGenerateVideo: (nodeId: string) => void;
   onGenerateText: (nodeId: string) => void;
@@ -91,7 +92,8 @@ const Node: React.FC<NodeProps> = ({
   connections,
   onDragStart,
   onUpdateData,
-  onGenerateImage,
+  onGenerateCharacterImage,
+  onGenerateImages,
   onEditImage,
   onGenerateVideo,
   onGenerateText,
@@ -124,7 +126,9 @@ const Node: React.FC<NodeProps> = ({
     if (e.ctrlKey && e.key === 'Enter') {
       e.preventDefault();
       if (nodeType === NodeType.CharacterGenerator) {
-        onGenerateImage(node.id);
+        onGenerateCharacterImage(node.id);
+      } else if (nodeType === NodeType.ImageGenerator) {
+        onGenerateImages(node.id);
       } else if (nodeType === NodeType.ImageEditor) {
         onEditImage(node.id);
       } else if (nodeType === NodeType.VideoGenerator) {
@@ -144,7 +148,7 @@ const Node: React.FC<NodeProps> = ({
   const minimizedVideoRef = useRef<HTMLVideoElement>(null);
   const prevIsMinimizedRef = useRef(isMinimized);
 
-  const previewImage = node.data.imageUrl || node.data.inputImageUrl;
+  const previewImage = node.data.imageUrl || node.data.inputImageUrl || node.data.imageUrls?.[0];
   const previewVideo = node.data.videoUrl;
   const hasVisuals = !!(previewImage || previewVideo);
 
@@ -176,7 +180,7 @@ const Node: React.FC<NodeProps> = ({
     const calculateHeight = () => {
       if (hasVisuals) {
         // Priority 1: Use explicit aspect ratio from CharacterGenerator
-        if (node.type === NodeType.CharacterGenerator && node.data.aspectRatio) {
+        if ((node.type === NodeType.CharacterGenerator || node.type === NodeType.ImageGenerator) && node.data.aspectRatio) {
             const [w, h] = node.data.aspectRatio.split(':').map(Number);
             if (w && h) {
                 const newHeight = (dimensions.width * h) / w;
@@ -263,7 +267,7 @@ const Node: React.FC<NodeProps> = ({
         calculateOffsets();
     }
 
-  }, [node.id, node.type, onUpdateData, isMinimized, nodeSpec, node.data.handleYOffsets, node.data.text, node.data.imageUrl, node.data.prompt]);
+  }, [node.id, node.type, onUpdateData, isMinimized, nodeSpec, node.data.handleYOffsets, node.data.text, node.data.imageUrl, node.data.imageUrls, node.data.prompt]);
   
   const handleFileChange = (file: File | null) => {
     if (file && file.type.startsWith('image/')) {
@@ -356,7 +360,10 @@ const Node: React.FC<NodeProps> = ({
       }}
     >
       {renderHandles(nodeSpec.inputs, 'input')}
-      {renderHandles(nodeSpec.outputs, 'output')}
+      {node.type === NodeType.ImageGenerator ?
+        renderHandles(nodeSpec.outputs.slice(0, node.data.numberOfImages || 1), 'output')
+        : renderHandles(nodeSpec.outputs, 'output')
+      }
       
       {node.type === NodeType.Text && (
         <>
@@ -502,6 +509,85 @@ const Node: React.FC<NodeProps> = ({
             )}
         </>
       )}
+      
+      {node.type === NodeType.ImageGenerator && (
+        <>
+          <NodeHeader 
+            title='Image Generator'
+            icon={<ImageIcon className="w-4 h-4 text-blue-400" />}
+            isMinimized={isMinimized}
+            onToggleMinimize={() => onToggleMinimize(node.id)}
+            onDelete={() => onDelete(node.id)}
+            onMouseDown={handleHeaderMouseDown}
+          />
+          <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[2000px] opacity-100'}`}>
+            <div className="p-2 space-y-2">
+              <div ref={el => handleAnchorRefs.current['prompt_input'] = el}>
+                <label htmlFor={`prompt-${node.id}`} className={labelClassName}>Prompt</label>
+                <textarea
+                  id={`prompt-${node.id}`}
+                  value={node.data.prompt || ''}
+                  onChange={(e) => onUpdateData(node.id, { prompt: e.target.value })}
+                  onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.ImageGenerator)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className={textAreaClassName(connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input'))}
+                  disabled={connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input')}
+                  placeholder="e.g., A cat astronaut on Mars"
+                />
+              </div>
+              <div className='flex space-x-2'>
+                <div className='flex-1'>
+                    <label htmlFor={`count-${node.id}`} className={labelClassName}>Images</label>
+                    <select id={`count-${node.id}`} className={selectClassName} value={node.data.numberOfImages || 1} onChange={(e) => onUpdateData(node.id, { numberOfImages: parseInt(e.target.value) })} onMouseDown={(e) => e.stopPropagation()} >
+                      {[1, 2, 3, 4].map(i => <option key={i} value={i}>{i}</option>)}
+                    </select>
+                </div>
+                <div className='flex-1'>
+                  <label htmlFor={`aspect-${node.id}`} className={labelClassName}>Aspect Ratio</label>
+                  <select id={`aspect-${node.id}`} className={selectClassName} value={node.data.aspectRatio || '1:1'} onChange={(e) => onUpdateData(node.id, { aspectRatio: e.target.value })} onMouseDown={(e) => e.stopPropagation()} >
+                    <option value="1:1">1:1 (Square)</option>
+                    <option value="16:9">16:9 (Widescreen)</option>
+                    <option value="9:16">9:16 (Portrait)</option>
+                    <option value="4:3">4:3 (Standard)</option>
+                    <option value="3:4">3:4 (Standard Portrait)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className={labelClassName}>Output Images</label>
+                <div className="space-y-2">
+                    {node.data.isLoading ? (
+                        <div className={`${imagePreviewBaseClassName} h-40`}>
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+                        </div>
+                    ) : node.data.error ? (
+                        <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
+                    ) : node.data.imageUrls && node.data.imageUrls.length > 0 ? (
+                        node.data.imageUrls.map((url, index) => (
+                            <div key={index} className="relative" ref={el => (handleAnchorRefs.current[`image_output_${index + 1}`] = el)}>
+                                <img src={url} alt={`Generated image ${index + 1}`} className="w-full h-auto object-cover rounded-md cursor-zoom-in" onClick={() => onImageClick(url)} />
+                            </div>
+                        ))
+                    ) : (
+                        <div className={`${imagePreviewBaseClassName} h-40`}>
+                            <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
+                        </div>
+                    )}
+                </div>
+              </div>
+
+              <button onClick={() => onGenerateImages(node.id)} disabled={node.data.isLoading} className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-blue-600 hover:bg-blue-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`} >
+                <SparklesIcon className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                {node.data.isLoading ? 'Generating...' : 'Generate Images'}
+              </button>
+            </div>
+          </div>
+          {isMinimized && ( <div className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md flex items-center justify-center border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`} style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }} >
+              {previewImage ? <img key={previewImage} ref={minimizedImageRef} src={previewImage!} alt="Preview" className="w-full h-full object-contain" /> : <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+          </div> )}
+        </>
+      )}
 
       {node.type === NodeType.CharacterGenerator && (
         <>
@@ -568,7 +654,7 @@ const Node: React.FC<NodeProps> = ({
                   : <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
                 </div>
               </div>
-              <button onClick={() => onGenerateImage(node.id)} disabled={node.data.isLoading} className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-cyan-600 hover:bg-cyan-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`} >
+              <button onClick={() => onGenerateCharacterImage(node.id)} disabled={node.data.isLoading} className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-cyan-600 hover:bg-cyan-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`} >
                 <SparklesIcon className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
                 {node.data.isLoading ? 'Generating...' : 'Generate Image'}
               </button>
