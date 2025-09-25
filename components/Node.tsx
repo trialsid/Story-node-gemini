@@ -863,6 +863,7 @@ const Node: React.FC<NodeProps> = ({
                     <label htmlFor={`video-model-${node.id}`} className={labelClassName}>Video Model</label>
                     <select id={`video-model-${node.id}`} className={selectClassName} value={node.data.videoModel || 'veo-2.0-generate-001'} onChange={(e) => onUpdateData(node.id, { videoModel: e.target.value })} onMouseDown={(e) => e.stopPropagation()} >
                         <option value="veo-2.0-generate-001">Veo 2 (Standard)</option>
+                        <option value="veo-3-fast">Veo 3 (Fast)</option>
                     </select>
                 </div>
                 <div ref={el => handleAnchorRefs.current['prompt_input'] = el}>
@@ -872,7 +873,7 @@ const Node: React.FC<NodeProps> = ({
                 <div ref={el => handleAnchorRefs.current['video_output'] = el}>
                     <label className={labelClassName}>Output Video</label>
                     <div className={`${imagePreviewBaseClassName} h-40`}>
-                        {node.data.isLoading ? <div className="flex flex-col items-center justify-center text-center p-2"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400 mb-2"></div><span className="text-xs text-gray-400">{node.data.generationProgressMessage || 'Generating...'}</span></div>
+                        {node.data.isLoading ? <div className="flex flex-col items-center justify-center text-center p-2"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-400 mb-2"></div><span className="text-xs text-gray-400">{node.data.generationProgressMessage || 'Generating...'}</span></div>
                         : node.data.error ? <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
                         : node.data.videoUrl ? <video src={node.data.videoUrl} controls className="w-full h-full object-cover rounded-md" />
                         : <VideoIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}

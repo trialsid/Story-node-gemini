@@ -1,4 +1,5 @@
 
+
 import { GoogleGenAI, Modality } from "@google/genai";
 
 // The API key is loaded from env.js, which should be created in the project root.
@@ -219,14 +220,8 @@ export const generateVideoFromPrompt = async (
         throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
     }
     
-    let messageIndex = 0;
-    const progressInterval = setInterval(() => {
-        onProgress(VIDEO_GENERATION_MESSAGES[messageIndex % VIDEO_GENERATION_MESSAGES.length]);
-        messageIndex++;
-    }, 4000);
-
     try {
-        onProgress(VIDEO_GENERATION_MESSAGES[messageIndex++]);
+        onProgress("Sending generation request...");
         
         const imageParam = inputImage ? (() => {
             const [header, base64Data] = inputImage.split(',');
@@ -246,16 +241,23 @@ export const generateVideoFromPrompt = async (
             }
         });
 
-        onProgress(VIDEO_GENERATION_MESSAGES[messageIndex++]);
+        let messageIndex = 0;
+        const totalMessages = VIDEO_GENERATION_MESSAGES.length;
 
         while (!operation.done) {
+            onProgress(VIDEO_GENERATION_MESSAGES[messageIndex % totalMessages]);
+            messageIndex++;
             await sleep(10000); // Poll every 10 seconds
             operation = await ai.operations.getVideosOperation({ operation: operation });
         }
 
+        if (operation.error) {
+            throw new Error(`Video generation failed: ${operation.error.message}`);
+        }
+
         const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
         if (!downloadLink) {
-            throw new Error('Video generation finished, but no download link was provided.');
+            throw new Error('Video generation finished, but no video was returned. This may be due to safety filters or an issue with the prompt.');
         }
 
         onProgress("Downloading generated video...");
@@ -278,8 +280,6 @@ export const generateVideoFromPrompt = async (
 
     } catch (error) {
         throw new Error(getFriendlyErrorMessage(error));
-    } finally {
-        clearInterval(progressInterval);
     }
 };
 
