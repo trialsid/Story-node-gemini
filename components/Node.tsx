@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useLayoutEffect } from 'react';
 import { NodeData, NodeType, Connection, HandleType } from '../types';
 import ImageIcon from './icons/ImageIcon';
 import SparklesIcon from './icons/SparklesIcon';
@@ -208,7 +208,7 @@ const Node: React.FC<NodeProps> = ({
   }, [node.type, node.data.isLoading, node.data.generationStartTimeMs]);
 
   // Effect for calculating minimized node's preview height
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isMinimized) {
         if (node.data.minimizedHeight !== undefined) {
             onUpdateData(node.id, { minimizedHeight: undefined });
@@ -325,7 +325,7 @@ const Node: React.FC<NodeProps> = ({
   }, [isMinimized, hasVisuals, previewImage, previewVideo, node.type, node.data.aspectRatio, dimensions.width, node.id, onUpdateData, node.data.minimizedHeight, node.data.imageUrls, node.data.numberOfImages, node.data.characters]);
 
   // Effect for calculating handle positions
-  useEffect(() => {
+  useLayoutEffect(() => {
     const wasMinimized = prevIsMinimizedRef.current;
     prevIsMinimizedRef.current = isMinimized;
 
@@ -391,7 +391,7 @@ const Node: React.FC<NodeProps> = ({
 
   }, [node.id, node.type, onUpdateData, isMinimized, inputHandles, outputHandles, node.data.handleYOffsets, node.data.text, node.data.imageUrl, node.data.imageUrls, node.data.prompt, node.data.numberOfImages, node.data.characters, zoom]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!nodeRef.current || !isMinimized) return;
 
     const nodeElement = nodeRef.current;
@@ -507,7 +507,7 @@ const Node: React.FC<NodeProps> = ({
               ? (node.data.minimizedHandleYOffsets?.[handle.id] ?? getMinimizedHandleY(node, handle.id, side))
               : (node.data.handleYOffsets?.[handle.id] ?? '50%'),
             transform: 'translateY(-50%)',
-            transition: isMinimized ? 'top 0s linear' : 'top 0.25s ease-in-out',
+            transition: 'top 0.3s ease-in-out',
           }}
         />
       );
