@@ -228,14 +228,6 @@ const Node: React.FC<NodeProps> = ({
     if (node.type === NodeType.StoryCharacterCreator) {
         let resizeObserver: ResizeObserver | null = null;
 
-        const attachObserver = () => {
-          if (resizeObserver || typeof ResizeObserver === 'undefined') return;
-          const container = minimizedCharactersPreviewRef.current;
-          if (!container) return;
-          resizeObserver = new ResizeObserver(updateHeight);
-          resizeObserver.observe(container);
-        };
-
         const updateHeight = () => {
           const container = minimizedCharactersPreviewRef.current;
           const characterCount = node.data.characters?.length ?? 0;
@@ -248,12 +240,24 @@ const Node: React.FC<NodeProps> = ({
           if (Math.abs((node.data.minimizedHeight ?? 0) - clampedHeight) > 0.5) {
               onUpdateData(node.id, { minimizedHeight: clampedHeight });
           }
-          attachObserver();
         };
 
-        const rafId = window.requestAnimationFrame(updateHeight);
-        const timeoutId = window.setTimeout(updateHeight, 16);
-        attachObserver();
+        const ensureObserver = () => {
+          if (resizeObserver || typeof ResizeObserver === 'undefined') return;
+          const container = minimizedCharactersPreviewRef.current;
+          if (!container) return;
+          resizeObserver = new ResizeObserver(() => updateHeight());
+          resizeObserver.observe(container);
+        };
+
+        const measure = () => {
+          updateHeight();
+          ensureObserver();
+        };
+
+        const rafId = window.requestAnimationFrame(measure);
+        const timeoutId = window.setTimeout(measure, 0);
+        ensureObserver();
 
         return () => {
           window.cancelAnimationFrame(rafId);
@@ -429,7 +433,7 @@ const Node: React.FC<NodeProps> = ({
       });
     };
 
-    const timeoutId = window.setTimeout(scheduleMeasure, 60);
+    scheduleMeasure();
 
     let resizeObserver: ResizeObserver | null = null;
     if (typeof ResizeObserver !== 'undefined') {
@@ -438,7 +442,6 @@ const Node: React.FC<NodeProps> = ({
     }
 
     return () => {
-      window.clearTimeout(timeoutId);
       if (rafId !== null) {
         window.cancelAnimationFrame(rafId);
       }
@@ -504,7 +507,7 @@ const Node: React.FC<NodeProps> = ({
               ? (node.data.minimizedHandleYOffsets?.[handle.id] ?? getMinimizedHandleY(node, handle.id, side))
               : (node.data.handleYOffsets?.[handle.id] ?? '50%'),
             transform: 'translateY(-50%)',
-            transition: 'top 0.3s ease-in-out',
+            transition: isMinimized ? 'top 0s linear' : 'top 0.25s ease-in-out',
           }}
         />
       );
