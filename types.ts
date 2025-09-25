@@ -58,9 +58,11 @@ export interface NodeData {
     videoModel?: string;
     videoUrl?: string;
     generationProgressMessage?: string;
+    generationStartTimeMs?: number;
+    generationElapsedMs?: number;
     // `inputImageUrl` is shared
     // `editDescription` is used for the video prompt
-    
+
     // For Image Node
     // `imageUrl` is used for the uploaded image
 

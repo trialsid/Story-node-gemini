@@ -920,19 +920,41 @@ const App: React.FC = () => {
         updateNodeData(nodeId, { error: 'Please provide a video prompt.' });
         return;
     }
-  
-    updateNodeData(nodeId, { isLoading: true, error: undefined, videoUrl: undefined, generationProgressMessage: 'Initializing...'});
-  
+
+    const startTime = Date.now();
+    updateNodeData(nodeId, {
+        isLoading: true,
+        error: undefined,
+        videoUrl: undefined,
+        generationProgressMessage: 'Initializing...',
+        generationStartTimeMs: startTime,
+        generationElapsedMs: undefined,
+    });
+
     try {
         const onProgress = (message: string) => {
             updateNodeData(nodeId, { generationProgressMessage: message });
         };
         const videoUrl = await generateVideoFromPrompt(editDescription, inputImageUrl, videoModel || 'veo-2.0-generate-001', onProgress);
-        updateNodeData(nodeId, { videoUrl, isLoading: false, generationProgressMessage: undefined });
+        const elapsed = Date.now() - startTime;
+        updateNodeData(nodeId, {
+            videoUrl,
+            isLoading: false,
+            generationProgressMessage: undefined,
+            generationElapsedMs: elapsed,
+            generationStartTimeMs: undefined,
+        });
     } catch (error) {
         console.error(error);
         const errorMessage = error instanceof Error ? error.message : String(error);
-        updateNodeData(nodeId, { error: errorMessage, isLoading: false, generationProgressMessage: undefined });
+        const elapsed = Date.now() - startTime;
+        updateNodeData(nodeId, {
+            error: errorMessage,
+            isLoading: false,
+            generationProgressMessage: undefined,
+            generationElapsedMs: elapsed,
+            generationStartTimeMs: undefined,
+        });
     }
   }, [nodes, updateNodeData]);
 

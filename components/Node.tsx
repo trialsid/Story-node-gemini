@@ -92,6 +92,23 @@ const NodeHeader: React.FC<NodeHeaderProps> = ({ title, icon, isMinimized, onTog
 
 const SLICE_HEIGHT_PX = 32; // Corresponds to h-8 in TailwindCSS
 
+const formatDuration = (ms?: number | null) => {
+  if (ms === undefined || ms === null || Number.isNaN(ms)) {
+    return '--:--';
+  }
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const seconds = totalSeconds % 60;
+  const minutes = Math.floor(totalSeconds / 60);
+
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours}:${String(remainingMinutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
 const Node: React.FC<NodeProps> = ({
   node,
   allNodes,
@@ -118,6 +135,7 @@ const Node: React.FC<NodeProps> = ({
   const { styles } = useTheme();
   const isMinimized = !!node.data.isMinimized;
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [videoElapsedMs, setVideoElapsedMs] = useState<number | null>(null);
   const nodeSpec = NODE_SPEC[node.type];
 
   const selectClassName = `w-full p-1 ${styles.node.inputBg} border ${styles.node.inputBorder} rounded-md text-sm ${styles.node.text} focus:outline-none focus:ring-2 ${styles.node.inputFocusRing}`;
@@ -160,6 +178,23 @@ const Node: React.FC<NodeProps> = ({
   const previewImage = node.data.imageUrl || node.data.inputImageUrl || node.data.imageUrls?.[0];
   const previewVideo = node.data.videoUrl;
   const hasVisuals = !!(previewImage || previewVideo);
+
+  useEffect(() => {
+    if (node.type !== NodeType.VideoGenerator) {
+      setVideoElapsedMs(null);
+      return;
+    }
+
+    const startTime = node.data.generationStartTimeMs;
+    if (node.data.isLoading && startTime) {
+      const tick = () => setVideoElapsedMs(Date.now() - startTime);
+      tick();
+      const interval = window.setInterval(tick, 1000);
+      return () => window.clearInterval(interval);
+    }
+
+    setVideoElapsedMs(null);
+  }, [node.type, node.data.isLoading, node.data.generationStartTimeMs]);
 
   // Effect for calculating minimized node's preview height
   useEffect(() => {
@@ -877,12 +912,19 @@ const Node: React.FC<NodeProps> = ({
                             <div className="text-center">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-400 mx-auto"></div>
                                 <p className="text-xs mt-2 text-green-300 animate-pulse">{node.data.generationProgressMessage || 'Generating...'}</p>
+                                <p className="text-xs mt-1 text-gray-300">Elapsed: {formatDuration(videoElapsedMs)}</p>
                             </div>
                         )
                         : node.data.error ? <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
                         : node.data.videoUrl ? <video src={node.data.videoUrl} controls autoPlay muted loop className="w-full h-full object-cover rounded-md" />
                         : <VideoIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
                     </div>
+                    {!node.data.isLoading && node.data.generationElapsedMs !== undefined && !node.data.error && (
+                        <p className="text-xs mt-1 text-center text-gray-300">Completed in {formatDuration(node.data.generationElapsedMs)}</p>
+                    )}
+                    {!node.data.isLoading && node.data.generationElapsedMs !== undefined && node.data.error && (
+                        <p className="text-xs mt-1 text-center text-gray-300">Attempt took {formatDuration(node.data.generationElapsedMs)}</p>
+                    )}
                 </div>
                 <button onClick={() => onGenerateVideo(node.id)} disabled={node.data.isLoading} className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-green-600 hover:bg-green-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`} >
                     <SparklesIcon className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
