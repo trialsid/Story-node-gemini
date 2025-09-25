@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { NodeData, NodeType, Connection, CanvasState, HandleType } from './types';
+import { NodeData, NodeType, Connection, CanvasState, HandleType, GalleryItem, GalleryStatus } from './types';
 import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
 import ImageModal from './components/ImageModal';
@@ -8,6 +8,7 @@ import { generateCharacterSheet, editImageWithPrompt, generateVideoFromPrompt, g
 import { useTheme } from './contexts/ThemeContext';
 import ThemeSwitcher from './components/ThemeSwitcher';
 import GalleryPanel from './components/GalleryPanel';
+import GalleryPreviewModal from './components/GalleryPreviewModal';
 import WelcomeModal from './components/WelcomeModal';
 import { templates } from './utils/templates';
 import ContextMenu, { ContextMenuAction } from './components/ContextMenu';
@@ -22,6 +23,7 @@ import { useHistory } from './hooks/useHistory';
 import { NODE_SPEC, areHandlesCompatible } from './utils/node-spec';
 import BotIcon from './components/icons/BotIcon';
 import MixerIcon from './components/icons/MixerIcon';
+import { fetchGalleryItems, createGalleryItem, deleteGalleryItem } from './services/galleryApi';
 
 
 const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } } = {
@@ -93,6 +95,11 @@ const App: React.FC = () => {
   const [projectFileContent, setProjectFileContent] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [lastAddedNodePosition, setLastAddedNodePosition] = useState<{ x: number, y: number } | null>(null);
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+  const [galleryStatus, setGalleryStatus] = useState<GalleryStatus>('loading');
+  const [galleryError, setGalleryError] = useState<string | null>(null);
+  const [isGalleryLoading, setIsGalleryLoading] = useState(false);
+  const [selectedGalleryItem, setSelectedGalleryItem] = useState<GalleryItem | null>(null);
 
   const [showWelcomeOnStartup, setShowWelcomeOnStartup] = useState(() => {
     const setting = localStorage.getItem('showWelcomeOnStartup');
@@ -101,6 +108,14 @@ const App: React.FC = () => {
 
 
   const { styles } = useTheme();
+
+  const updateGalleryState = useCallback((updater: GalleryItem[] | ((prev: GalleryItem[]) => GalleryItem[])) => {
+    setGalleryItems(prevItems => (
+      typeof updater === 'function'
+        ? (updater as (items: GalleryItem[]) => GalleryItem[])(prevItems)
+        : updater
+    ));
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('showWelcomeOnStartup', String(showWelcomeOnStartup));
@@ -111,6 +126,16 @@ const App: React.FC = () => {
       setShowWelcomeModal(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (!selectedGalleryItem) return;
+    const updated = galleryItems.find(item => item.id === selectedGalleryItem.id);
+    if (!updated) {
+      setSelectedGalleryItem(null);
+    } else if (updated !== selectedGalleryItem) {
+      setSelectedGalleryItem(updated);
+    }
+  }, [galleryItems, selectedGalleryItem]);
 
   // Sync localNodes with history state when not dragging
   useEffect(() => {
@@ -142,6 +167,68 @@ const App: React.FC = () => {
 
   const handleOpenSettingsModal = () => setIsSettingsModalOpen(true);
   const handleCloseSettingsModal = () => setIsSettingsModalOpen(false);
+
+  const handleGalleryError = useCallback((error: unknown) => {
+    console.error('Gallery error', error);
+    setGalleryStatus('error');
+    setGalleryError(error instanceof Error ? error.message : 'Unknown error occurred.');
+    setIsGalleryLoading(false);
+  }, []);
+
+  const handleDeleteGalleryItem = useCallback(async (id: string) => {
+    try {
+      await deleteGalleryItem(id);
+      updateGalleryState(prevItems => prevItems.filter(item => item.id !== id));
+      setSelectedGalleryItem(prev => (prev && prev.id === id ? null : prev));
+    } catch (error) {
+      handleGalleryError(error);
+    }
+  }, [handleGalleryError, updateGalleryState]);
+
+  const refreshGalleryItems = useCallback(async () => {
+    setGalleryStatus('loading');
+    setIsGalleryLoading(true);
+    setGalleryError(null);
+    try {
+      const items = await fetchGalleryItems();
+      updateGalleryState(items);
+      setGalleryStatus('ready');
+      setGalleryError(null);
+    } catch (error) {
+      handleGalleryError(error);
+    } finally {
+      setIsGalleryLoading(false);
+    }
+  }, [handleGalleryError, updateGalleryState]);
+
+  const persistGalleryItem = useCallback(async (params: {
+    dataUrl: string;
+    type: 'image' | 'video';
+    prompt?: string;
+    nodeType?: NodeType;
+    nodeId?: string;
+  }) => {
+    try {
+      const item = await createGalleryItem(params);
+      updateGalleryState(prevItems => [item, ...prevItems]);
+      setGalleryStatus('ready');
+      setGalleryError(null);
+    } catch (error) {
+      handleGalleryError(error);
+    }
+  }, [handleGalleryError, updateGalleryState]);
+
+  const handleSelectGalleryItem = useCallback((item: GalleryItem) => {
+    setSelectedGalleryItem(item);
+  }, []);
+
+  const handleCloseGalleryItem = useCallback(() => {
+    setSelectedGalleryItem(null);
+  }, []);
+
+  useEffect(() => {
+    refreshGalleryItems();
+  }, [refreshGalleryItems]);
 
   const handleStartFresh = useCallback(() => {
     resetHistory({ nodes: [], connections: [] });
@@ -813,12 +900,19 @@ const App: React.FC = () => {
       const { characterDescription, style, layout, aspectRatio } = sourceNode.data;
       const imageUrl = await generateCharacterSheet(characterDescription!, style!, layout!, aspectRatio!);
       updateNodeData(nodeId, { imageUrl, isLoading: false });
+      await persistGalleryItem({
+        dataUrl: imageUrl,
+        type: 'image',
+        prompt: characterDescription,
+        nodeType: NodeType.CharacterGenerator,
+        nodeId,
+      });
     } catch (error) {
       console.error(error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       updateNodeData(nodeId, { error: errorMessage, isLoading: false });
     }
-  }, [nodes, updateNodeData]);
+  }, [nodes, updateNodeData, persistGalleryItem]);
   
   const handleGenerateImages = useCallback(async (nodeId: string) => {
     const sourceNode = nodes.find(n => n.id === nodeId);
@@ -832,12 +926,21 @@ const App: React.FC = () => {
       const { prompt, numberOfImages, aspectRatio } = sourceNode.data;
       const imageUrls = await generateImages(prompt, numberOfImages || 1, aspectRatio || '1:1');
       updateNodeData(nodeId, { imageUrls, isLoading: false });
+      for (const imageUrl of imageUrls) {
+        await persistGalleryItem({
+          dataUrl: imageUrl,
+          type: 'image',
+          prompt,
+          nodeType: NodeType.ImageGenerator,
+          nodeId,
+        });
+      }
     } catch (error) {
       console.error(error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       updateNodeData(nodeId, { error: errorMessage, isLoading: false });
     }
-  }, [nodes, updateNodeData]);
+  }, [nodes, updateNodeData, persistGalleryItem]);
 
   const handleEditImage = useCallback(async (nodeId: string) => {
     const sourceNode = nodes.find(n => n.id === nodeId);
@@ -858,12 +961,19 @@ const App: React.FC = () => {
     try {
         const editedImageUrl = await editImageWithPrompt(inputImageUrl, editDescription);
         updateNodeData(nodeId, { imageUrl: editedImageUrl, isLoading: false });
+        await persistGalleryItem({
+          dataUrl: editedImageUrl,
+          type: 'image',
+          prompt: editDescription,
+          nodeType: NodeType.ImageEditor,
+          nodeId,
+        });
     } catch (error) {
         console.error(error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         updateNodeData(nodeId, { error: errorMessage, isLoading: false });
     }
-  }, [nodes, updateNodeData]);
+  }, [nodes, updateNodeData, persistGalleryItem]);
 
   const handleMixImages = useCallback(async (nodeId: string) => {
     const sourceNode = nodes.find(n => n.id === nodeId);
@@ -903,12 +1013,19 @@ const App: React.FC = () => {
     try {
         const mixedImageUrl = await mixImagesWithPrompt(inputImageUrls, editDescription);
         updateNodeData(nodeId, { imageUrl: mixedImageUrl, isLoading: false });
+        await persistGalleryItem({
+          dataUrl: mixedImageUrl,
+          type: 'image',
+          prompt: editDescription,
+          nodeType: NodeType.ImageMixer,
+          nodeId,
+        });
     } catch (error) {
         console.error(error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         updateNodeData(nodeId, { error: errorMessage, isLoading: false });
     }
-  }, [nodes, connections, updateNodeData]);
+  }, [nodes, connections, updateNodeData, persistGalleryItem]);
 
   const handleGenerateVideo = useCallback(async (nodeId: string) => {
     const sourceNode = nodes.find(n => n.id === nodeId);
@@ -944,6 +1061,13 @@ const App: React.FC = () => {
             generationElapsedMs: elapsed,
             generationStartTimeMs: undefined,
         });
+        await persistGalleryItem({
+          dataUrl: videoUrl,
+          type: 'video',
+          prompt: editDescription,
+          nodeType: NodeType.VideoGenerator,
+          nodeId,
+        });
     } catch (error) {
         console.error(error);
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -956,7 +1080,7 @@ const App: React.FC = () => {
             generationStartTimeMs: undefined,
         });
     }
-  }, [nodes, updateNodeData]);
+  }, [nodes, updateNodeData, persistGalleryItem]);
 
   const handleGenerateText = useCallback(async (nodeId: string) => {
     const sourceNode = nodes.find(n => n.id === nodeId);
@@ -1092,7 +1216,15 @@ const App: React.FC = () => {
           <SettingsIcon className="w-6 h-6" />
         </button>
       </div>
-      <GalleryPanel />
+      <GalleryPanel
+        items={galleryItems}
+        status={galleryStatus}
+        onDeleteItem={handleDeleteGalleryItem}
+        onRefresh={refreshGalleryItems}
+        onSelectItem={handleSelectGalleryItem}
+        isLoading={isGalleryLoading}
+        errorMessage={galleryError}
+      />
       {isSettingsModalOpen && <SettingsModal 
         isOpen={isSettingsModalOpen} 
         onClose={handleCloseSettingsModal}
@@ -1132,6 +1264,7 @@ const App: React.FC = () => {
         setHoveredInputHandle={setHoveredInputHandle}
       />
 
+      <GalleryPreviewModal item={selectedGalleryItem} onClose={handleCloseGalleryItem} />
       {modalImageUrl && <ImageModal imageUrl={modalImageUrl} onClose={handleCloseModal} />}
       {nodeToDelete && (
         <ConfirmationModal

@@ -1,5 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
-
 export enum NodeType {
   CharacterGenerator = 'CHARACTER_GENERATOR',
   ImageGenerator = 'IMAGE_GENERATOR',
@@ -77,4 +75,20 @@ export interface NodeData {
 export interface CanvasState {
   nodes: NodeData[];
   connections: Connection[];
+}
+
+export type GalleryMediaType = 'image' | 'video';
+
+export type GalleryStatus = 'loading' | 'ready' | 'error';
+
+export interface GalleryItem {
+  id: string;
+  type: GalleryMediaType;
+  fileName: string;
+  createdAt: number;
+  prompt?: string;
+  nodeType?: NodeType;
+  nodeId?: string;
+  mimeType: string;
+  url: string;
 }

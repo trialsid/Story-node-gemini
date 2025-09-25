@@ -18,3 +18,5 @@ View your app in AI Studio: https://ai.studio/apps/drive/1h2NVMN1Kj8VkoWwByhLeN5
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+The dev command now launches both the Vite frontend (http://localhost:3000) and a lightweight Express backend that stores generated media under the local `generated/` folder. Your gallery history persists across browsers because files and metadata are written to disk.
