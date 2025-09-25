@@ -394,6 +394,13 @@ const Node: React.FC<NodeProps> = ({
   useLayoutEffect(() => {
     if (!nodeRef.current || !isMinimized) return;
 
+    if (node.type === NodeType.StoryCharacterCreator) {
+      if (node.data.minimizedHandleYOffsets) {
+        onUpdateData(node.id, { minimizedHandleYOffsets: undefined });
+      }
+      return;
+    }
+
     const nodeElement = nodeRef.current;
 
     const calculateMinimizedOffsets = () => {
