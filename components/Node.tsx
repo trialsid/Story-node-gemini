@@ -11,9 +11,11 @@ import ChevronDownIcon from './icons/ChevronDownIcon';
 import ChevronUpIcon from './icons/ChevronUpIcon';
 import VideoIcon from './icons/VideoIcon';
 import UploadIcon from './icons/UploadIcon';
-import { NODE_SPEC, areHandlesCompatible, NodeHandleSpec } from '../utils/node-spec';
+import { areHandlesCompatible, NodeHandleSpec } from '../utils/node-spec';
 import BotIcon from './icons/BotIcon';
 import MixerIcon from './icons/MixerIcon';
+import UsersIcon from './icons/UsersIcon';
+import { getHandlesForSide, getMinimizedHandleY, SLICE_HEIGHT_PX, DEFAULT_MINIMIZED_PREVIEW_HEIGHT } from '../utils/handlePositions';
 
 interface TempConnectionInfo {
   startNodeId: string;
@@ -36,6 +38,7 @@ interface NodeProps {
   onMixImages: (nodeId: string) => void;
   onGenerateVideo: (nodeId: string) => void;
   onGenerateText: (nodeId: string) => void;
+  onGenerateCharacters: (nodeId: string) => void;
   onImageClick: (imageUrl: string) => void;
   onOutputMouseDown: (nodeId: string, handleId: string) => void;
   onInputMouseDown: (nodeId: string, handleId: string) => void;
@@ -46,6 +49,7 @@ interface NodeProps {
   tempConnectionInfo: TempConnectionInfo | null;
   hoveredInputHandle: HoveredInputInfo | null;
   setHoveredInputHandle: (info: HoveredInputInfo | null) => void;
+  zoom: number;
 }
 
 interface NodeHeaderProps {
@@ -90,8 +94,6 @@ const NodeHeader: React.FC<NodeHeaderProps> = ({ title, icon, isMinimized, onTog
   );
 };
 
-const SLICE_HEIGHT_PX = 32; // Corresponds to h-8 in TailwindCSS
-
 const formatDuration = (ms?: number | null) => {
   if (ms === undefined || ms === null || Number.isNaN(ms)) {
     return '--:--';
@@ -109,6 +111,8 @@ const formatDuration = (ms?: number | null) => {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
 
+const CHARACTER_BLOCK_HEIGHT_PX = 128;
+
 const Node: React.FC<NodeProps> = ({
   node,
   allNodes,
@@ -121,6 +125,7 @@ const Node: React.FC<NodeProps> = ({
   onMixImages,
   onGenerateVideo,
   onGenerateText,
+  onGenerateCharacters,
   onImageClick,
   onOutputMouseDown,
   onInputMouseDown,
@@ -131,12 +136,14 @@ const Node: React.FC<NodeProps> = ({
   tempConnectionInfo,
   hoveredInputHandle,
   setHoveredInputHandle,
+  zoom,
 }) => {
   const { styles } = useTheme();
   const isMinimized = !!node.data.isMinimized;
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [videoElapsedMs, setVideoElapsedMs] = useState<number | null>(null);
-  const nodeSpec = NODE_SPEC[node.type];
+  const inputHandles = getHandlesForSide(node, 'input');
+  const outputHandles = getHandlesForSide(node, 'output');
 
   const selectClassName = `w-full p-1 ${styles.node.inputBg} border ${styles.node.inputBorder} rounded-md text-sm ${styles.node.text} focus:outline-none focus:ring-2 ${styles.node.inputFocusRing}`;
   const labelClassName = `text-xs font-semibold ${styles.node.labelText}`;
@@ -162,6 +169,8 @@ const Node: React.FC<NodeProps> = ({
         onGenerateVideo(node.id);
       } else if (nodeType === NodeType.TextGenerator) {
         onGenerateText(node.id);
+      } else if (nodeType === NodeType.StoryCharacterCreator) {
+        onGenerateCharacters(node.id);
       }
     }
   };
@@ -171,6 +180,8 @@ const Node: React.FC<NodeProps> = ({
 
   // Refs for handle anchor elements
   const handleAnchorRefs = useRef<{ [handleId: string]: HTMLElement | null }>({});
+  const minimizedHandleAnchorRefs = useRef<{ [handleId: string]: HTMLElement | null }>({});
+  const minimizedCharactersPreviewRef = useRef<HTMLDivElement | null>(null);
   const minimizedImageRef = useRef<HTMLImageElement>(null);
   const minimizedVideoRef = useRef<HTMLVideoElement>(null);
   const prevIsMinimizedRef = useRef(isMinimized);
@@ -212,6 +223,43 @@ const Node: React.FC<NodeProps> = ({
             onUpdateData(node.id, { minimizedHeight: newHeight });
         }
         return;
+    }
+
+    if (node.type === NodeType.StoryCharacterCreator) {
+        let resizeObserver: ResizeObserver | null = null;
+
+        const attachObserver = () => {
+          if (resizeObserver || typeof ResizeObserver === 'undefined') return;
+          const container = minimizedCharactersPreviewRef.current;
+          if (!container) return;
+          resizeObserver = new ResizeObserver(updateHeight);
+          resizeObserver.observe(container);
+        };
+
+        const updateHeight = () => {
+          const container = minimizedCharactersPreviewRef.current;
+          const characterCount = node.data.characters?.length ?? 0;
+          const measuredHeight = container
+            ? container.scrollHeight
+            : characterCount > 0
+              ? characterCount * 48
+              : DEFAULT_MINIMIZED_PREVIEW_HEIGHT;
+          const clampedHeight = Math.max(DEFAULT_MINIMIZED_PREVIEW_HEIGHT, measuredHeight);
+          if (Math.abs((node.data.minimizedHeight ?? 0) - clampedHeight) > 0.5) {
+              onUpdateData(node.id, { minimizedHeight: clampedHeight });
+          }
+          attachObserver();
+        };
+
+        const rafId = window.requestAnimationFrame(updateHeight);
+        const timeoutId = window.setTimeout(updateHeight, 16);
+        attachObserver();
+
+        return () => {
+          window.cancelAnimationFrame(rafId);
+          window.clearTimeout(timeoutId);
+          resizeObserver?.disconnect();
+        };
     }
 
     let isMounted = true;
@@ -270,7 +318,7 @@ const Node: React.FC<NodeProps> = ({
             element.removeEventListener(eventName, setHeightFromElement);
         }
     };
-  }, [isMinimized, hasVisuals, previewImage, previewVideo, node.type, node.data.aspectRatio, dimensions.width, node.id, onUpdateData, node.data.minimizedHeight, node.data.imageUrls, node.data.numberOfImages]);
+  }, [isMinimized, hasVisuals, previewImage, previewVideo, node.type, node.data.aspectRatio, dimensions.width, node.id, onUpdateData, node.data.minimizedHeight, node.data.imageUrls, node.data.numberOfImages, node.data.characters]);
 
   // Effect for calculating handle positions
   useEffect(() => {
@@ -282,37 +330,122 @@ const Node: React.FC<NodeProps> = ({
     const calculateOffsets = () => {
       if (!nodeRef.current) return;
       const nodeElement = nodeRef.current;
-      
+
+      const nodeRect = nodeElement.getBoundingClientRect();
       let needsUpdate = false;
       const newOffsets: { [handleId: string]: number } = {};
 
-      [...nodeSpec.inputs, ...nodeSpec.outputs].forEach(handle => {
-          const handleElement = handleAnchorRefs.current[handle.id];
-          if (handleElement) {
-              const nodeRect = nodeElement.getBoundingClientRect();
-              const targetRect = handleElement.getBoundingClientRect();
-              const yPosition = (targetRect.top - nodeRect.top) + (targetRect.height / 2);
-              
-              newOffsets[handle.id] = yPosition;
-              if (Math.abs((node.data.handleYOffsets?.[handle.id] || 0) - yPosition) > 1) {
-                  needsUpdate = true;
-              }
-          }
+      [...inputHandles, ...outputHandles].forEach(handle => {
+        const handleElement = handleAnchorRefs.current[handle.id];
+        if (!handleElement) return;
+
+        const targetRect = handleElement.getBoundingClientRect();
+        const yPosition = ((targetRect.top - nodeRect.top) + (targetRect.height / 2)) / zoom;
+
+        newOffsets[handle.id] = yPosition;
+        if (Math.abs((node.data.handleYOffsets?.[handle.id] || 0) - yPosition) > 0.5) {
+          needsUpdate = true;
+        }
       });
 
       if (needsUpdate) {
-          onUpdateData(node.id, { handleYOffsets: { ...node.data.handleYOffsets, ...newOffsets }});
+        onUpdateData(node.id, { handleYOffsets: { ...node.data.handleYOffsets, ...newOffsets } });
       }
     };
-    
-    if (wasMinimized && !isMinimized) {
-        const timeoutId = setTimeout(calculateOffsets, 310); // 300ms transition + 10ms buffer
-        return () => clearTimeout(timeoutId);
-    } else {
+
+    let rafId: number | null = null;
+    const scheduleMeasure = () => {
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
         calculateOffsets();
+      });
+    };
+
+    let cleanupTimeout: number | null = null;
+    if (wasMinimized && !isMinimized) {
+      cleanupTimeout = window.setTimeout(scheduleMeasure, 320);
+    } else {
+      scheduleMeasure();
     }
 
-  }, [node.id, node.type, onUpdateData, isMinimized, nodeSpec, node.data.handleYOffsets, node.data.text, node.data.imageUrl, node.data.imageUrls, node.data.prompt, node.data.numberOfImages]);
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(scheduleMeasure);
+      resizeObserver.observe(nodeRef.current);
+    }
+
+    return () => {
+      if (cleanupTimeout) {
+        window.clearTimeout(cleanupTimeout);
+      }
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+      resizeObserver?.disconnect();
+    };
+
+  }, [node.id, node.type, onUpdateData, isMinimized, inputHandles, outputHandles, node.data.handleYOffsets, node.data.text, node.data.imageUrl, node.data.imageUrls, node.data.prompt, node.data.numberOfImages, node.data.characters, zoom]);
+
+  useEffect(() => {
+    if (!nodeRef.current || !isMinimized) return;
+
+    const nodeElement = nodeRef.current;
+
+    const calculateMinimizedOffsets = () => {
+      const nodeRect = nodeElement.getBoundingClientRect();
+      let needsUpdate = false;
+      const newOffsets: { [handleId: string]: number } = {};
+
+      outputHandles.forEach(handle => {
+        const anchor = minimizedHandleAnchorRefs.current[handle.id];
+        if (!anchor) return;
+
+        const anchorRect = anchor.getBoundingClientRect();
+        const yPosition = ((anchorRect.top - nodeRect.top) + (anchorRect.height / 2)) / zoom;
+
+        newOffsets[handle.id] = yPosition;
+        if (Math.abs((node.data.minimizedHandleYOffsets?.[handle.id] || 0) - yPosition) > 0.5) {
+          needsUpdate = true;
+        }
+      });
+
+      if (needsUpdate) {
+        onUpdateData(node.id, {
+          minimizedHandleYOffsets: {
+            ...node.data.minimizedHandleYOffsets,
+            ...newOffsets,
+          },
+        });
+      }
+    };
+
+    let rafId: number | null = null;
+    const scheduleMeasure = () => {
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        calculateMinimizedOffsets();
+      });
+    };
+
+    const timeoutId = window.setTimeout(scheduleMeasure, 60);
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(scheduleMeasure);
+      resizeObserver.observe(nodeElement);
+    }
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+      resizeObserver?.disconnect();
+    };
+
+  }, [isMinimized, node.id, node.type, node.data.characters, node.data.minimizedHandleYOffsets, outputHandles, onUpdateData, zoom]);
   
   const handleFileChange = (file: File | null) => {
     if (file && file.type.startsWith('image/')) {
@@ -344,44 +477,6 @@ const Node: React.FC<NodeProps> = ({
       }
   };
   
-  const getMinimizedHandleTop = (handleId: string, side: 'input' | 'output') => {
-    const headerHeight = 40;
-    
-    const spec = NODE_SPEC[node.type];
-    const allHandlesForSide = side === 'input' ? spec.inputs : spec.outputs;
-
-    let visibleHandles: NodeHandleSpec[];
-    if (node.type === NodeType.ImageGenerator && side === 'output') {
-      visibleHandles = allHandlesForSide.slice(0, node.data.numberOfImages || 1);
-    } else {
-      visibleHandles = allHandlesForSide;
-    }
-
-    const totalVisibleHandles = visibleHandles.length;
-    const currentHandleIndex = visibleHandles.findIndex(h => h.id === handleId);
-
-    if (node.type === NodeType.ImageGenerator && side === 'output') {
-        const generatedImagesCount = (node.data.imageUrls || []).length;
-        
-        // Use slice-based positioning ONLY if more than one image has been generated
-        // AND all the expected (visible) images have also been generated.
-        if (generatedImagesCount > 1 && generatedImagesCount >= totalVisibleHandles) {
-            if (currentHandleIndex !== -1) {
-                return headerHeight + (SLICE_HEIGHT_PX * currentHandleIndex) + (SLICE_HEIGHT_PX / 2);
-            }
-        }
-    }
-
-    // Fallback logic for all other cases (including single image, no images, or partially generated images)
-    const previewHeight = node.data.minimizedHeight || 64;
-    
-    if (currentHandleIndex === -1 || totalVisibleHandles === 0) {
-        return headerHeight + (previewHeight / 2);
-    }
-    
-    return headerHeight + (previewHeight * (currentHandleIndex + 1)) / (totalVisibleHandles + 1);
-  };
-
   const renderHandles = (handles: NodeHandleSpec[], side: 'input' | 'output') => {
     return handles.map(handle => {
       const isConnected = connections.some(c =>
@@ -405,7 +500,9 @@ const Node: React.FC<NodeProps> = ({
           isValidTarget={isCompatible}
           style={{
             [side === 'input' ? 'left' : 'right']: '-8px',
-            top: isMinimized ? getMinimizedHandleTop(handle.id, side) : (node.data.handleYOffsets?.[handle.id] ?? '50%'),
+            top: isMinimized
+              ? (node.data.minimizedHandleYOffsets?.[handle.id] ?? getMinimizedHandleY(node, handle.id, side))
+              : (node.data.handleYOffsets?.[handle.id] ?? '50%'),
             transform: 'translateY(-50%)',
             transition: 'top 0.3s ease-in-out',
           }}
@@ -425,11 +522,8 @@ const Node: React.FC<NodeProps> = ({
         height: dimensions.height && !isMinimized ? `${dimensions.height}px` : undefined,
       }}
     >
-      {renderHandles(nodeSpec.inputs, 'input')}
-      {node.type === NodeType.ImageGenerator ?
-        renderHandles(nodeSpec.outputs.slice(0, node.data.numberOfImages || 1), 'output')
-        : renderHandles(nodeSpec.outputs, 'output')
-      }
+      {renderHandles(inputHandles, 'input')}
+      {renderHandles(outputHandles, 'output')}
       
       {node.type === NodeType.Text && (
         <>
@@ -514,6 +608,116 @@ const Node: React.FC<NodeProps> = ({
                   {node.data.text || "No generated text."}
               </div>
             )}
+        </>
+      )}
+
+      {node.type === NodeType.StoryCharacterCreator && (
+        <>
+          <NodeHeader
+            title='Story Character Creator'
+            icon={<UsersIcon className="w-4 h-4 text-teal-400" />}
+            isMinimized={isMinimized}
+            onToggleMinimize={() => onToggleMinimize(node.id)}
+            onDelete={() => onDelete(node.id)}
+            onMouseDown={handleHeaderMouseDown}
+          />
+          <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1200px] opacity-100'}`}>
+            <div className="p-2 space-y-3">
+              <div ref={el => handleAnchorRefs.current['prompt_input'] = el}>
+                <label htmlFor={`story-prompt-${node.id}`} className={labelClassName}>Story Prompt</label>
+                <textarea
+                  id={`story-prompt-${node.id}`}
+                  value={node.data.storyPrompt || ''}
+                  onChange={(e) => onUpdateData(node.id, { storyPrompt: e.target.value })}
+                  onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.StoryCharacterCreator)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className={`${textAreaClassName(connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input'))} h-28`}
+                  disabled={connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input')}
+                  placeholder="Describe the story beats, characters, or setting..."
+                />
+              </div>
+
+              <div>
+                <label className={labelClassName}>Generated Characters</label>
+                <div className="space-y-3">
+                  {node.data.isLoading ? (
+                    <div className="flex items-center justify-center py-6 border rounded-md border-dashed border-teal-400/60">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-400"></div>
+                    </div>
+                  ) : node.data.error ? (
+                    <div className="text-red-400 text-xs text-center px-2 py-4 border rounded-md border-red-500/40" role="alert">
+                      {node.data.error}
+                    </div>
+                  ) : node.data.characters && node.data.characters.length > 0 ? (
+                    node.data.characters.map((character, index) => (
+                      <div
+                        key={index}
+                        ref={el => handleAnchorRefs.current[`character_output_${index + 1}`] = el}
+                        className={`rounded-md border ${styles.node.border} ${styles.node.inputBg} p-2 flex flex-col`}
+                        style={{ height: `${CHARACTER_BLOCK_HEIGHT_PX}px` }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                      >
+                        <p className="text-sm font-semibold mb-1 truncate" title={character.name}>{character.name || `Character ${index + 1}`}</p>
+                        <div
+                          className="flex-1 overflow-y-auto text-xs leading-relaxed opacity-80 whitespace-pre-wrap pr-1 custom-scrollbar"
+                          onWheel={(e) => {
+                            if (e.currentTarget.scrollHeight > e.currentTarget.clientHeight) {
+                              e.stopPropagation();
+                            }
+                          }}
+                        >
+                          {character.description}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-xs text-center italic opacity-70 py-6 border rounded-md border-dashed">
+                      Character names and descriptions will appear here.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <button
+                onClick={() => onGenerateCharacters(node.id)}
+                disabled={node.data.isLoading}
+                className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-teal-600 hover:bg-teal-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`}
+              >
+                <SparklesIcon className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                {node.data.isLoading ? 'Extracting Characters...' : 'Generate Characters'}
+              </button>
+            </div>
+          </div>
+          {isMinimized && (
+            <div
+              ref={minimizedCharactersPreviewRef}
+              className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden p-2`}
+              style={{
+                height: node.data.minimizedHeight
+                  ? `${Math.max(node.data.minimizedHeight, DEFAULT_MINIMIZED_PREVIEW_HEIGHT)}px`
+                  : `${DEFAULT_MINIMIZED_PREVIEW_HEIGHT}px`,
+              }}
+            >
+              {node.data.characters && node.data.characters.length > 0 ? (
+                <div className="text-xs space-y-1">
+                  {node.data.characters.map((character, index) => (
+                    <div
+                      key={index}
+                      ref={el => { minimizedHandleAnchorRefs.current[`character_output_${index + 1}`] = el; }}
+                      className="truncate"
+                      title={`${character.name || `Character ${index + 1}`}: ${character.description}`}
+                    >
+                      <span className="font-semibold">{character.name || `Character ${index + 1}`}:</span> {character.description}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="h-full flex items-center justify-center text-xs italic opacity-70">
+                  No characters generated yet.
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
 
