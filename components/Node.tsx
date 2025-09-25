@@ -861,21 +861,26 @@ const Node: React.FC<NodeProps> = ({
                 </div>
                 <div>
                     <label htmlFor={`video-model-${node.id}`} className={labelClassName}>Video Model</label>
-                    <select id={`video-model-${node.id}`} className={selectClassName} value={node.data.videoModel || 'veo-2.0-generate-001'} onChange={(e) => onUpdateData(node.id, { videoModel: e.target.value })} onMouseDown={(e) => e.stopPropagation()} >
-                        <option value="veo-2.0-generate-001">Veo 2 (Standard)</option>
-                        <option value="veo-3-fast">Veo 3 (Fast)</option>
+                    <select id={`video-model-${node.id}`} className={selectClassName} value={node.data.videoModel || 'veo-3.0-fast-generate-001'} onChange={(e) => onUpdateData(node.id, { videoModel: e.target.value })} onMouseDown={(e) => e.stopPropagation()} >
+                        <option value="veo-3.0-fast-generate-001">Veo 3.0 (Fast)</option>
+                        <option value="veo-2.0-generate-001">Veo 2.0</option>
                     </select>
                 </div>
                 <div ref={el => handleAnchorRefs.current['prompt_input'] = el}>
-                    <label htmlFor={`prompt-${node.id}`} className={labelClassName}>Video Prompt</label>
-                    <textarea id={`prompt-${node.id}`} value={node.data.editDescription || ''} onChange={(e) => onUpdateData(node.id, { editDescription: e.target.value })} onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.VideoGenerator)} onMouseDown={(e) => e.stopPropagation()} className={`${textAreaClassName(connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input'))} h-20`} disabled={connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input')} placeholder="e.g., A majestic eagle soaring over mountains" />
+                    <label htmlFor={`video-desc-${node.id}`} className={labelClassName}>Video Prompt</label>
+                    <textarea id={`video-desc-${node.id}`} value={node.data.editDescription || ''} onChange={(e) => onUpdateData(node.id, { editDescription: e.target.value })} onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.VideoGenerator)} onMouseDown={(e) => e.stopPropagation()} className={`${textAreaClassName(connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input'))} h-20`} disabled={connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input')} placeholder="e.g., A majestic eagle soaring" />
                 </div>
                 <div ref={el => handleAnchorRefs.current['video_output'] = el}>
                     <label className={labelClassName}>Output Video</label>
                     <div className={`${imagePreviewBaseClassName} h-40`}>
-                        {node.data.isLoading ? <div className="flex flex-col items-center justify-center text-center p-2"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-400 mb-2"></div><span className="text-xs text-gray-400">{node.data.generationProgressMessage || 'Generating...'}</span></div>
+                        {node.data.isLoading ? (
+                            <div className="text-center">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-400 mx-auto"></div>
+                                <p className="text-xs mt-2 text-green-300 animate-pulse">{node.data.generationProgressMessage || 'Generating...'}</p>
+                            </div>
+                        )
                         : node.data.error ? <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
-                        : node.data.videoUrl ? <video src={node.data.videoUrl} controls className="w-full h-full object-cover rounded-md" />
+                        : node.data.videoUrl ? <video src={node.data.videoUrl} controls autoPlay muted loop className="w-full h-full object-cover rounded-md" />
                         : <VideoIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
                     </div>
                 </div>
@@ -885,10 +890,10 @@ const Node: React.FC<NodeProps> = ({
                 </button>
               </div>
             </div>
-            {isMinimized && ( <div className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md flex items-center justify-center border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`} style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }} >
-                {!hasVisuals ? <VideoIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} /> :
-                previewVideo ? <video key={previewVideo} ref={minimizedVideoRef} src={previewVideo} controls className="w-full h-full object-contain" />
-                : <img key={previewImage} ref={minimizedImageRef} src={previewImage!} alt="Preview" className="w-full h-full object-contain" />}
+             {isMinimized && ( <div className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md flex items-center justify-center border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`} style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }} >
+                {previewVideo ? <video key={previewVideo} ref={minimizedVideoRef} src={previewVideo} muted loop autoPlay playsInline className="w-full h-full object-contain" />
+                : previewImage ? <img key={previewImage} ref={minimizedImageRef} src={previewImage} alt="Preview" className="w-full h-full object-contain" />
+                : <VideoIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
             </div> )}
         </>
       )}

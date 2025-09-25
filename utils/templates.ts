@@ -56,7 +56,7 @@ export const templates: { [key: string]: Template } = {
                 position: { x: 400, y: 100 },
                 data: {
                     editDescription: 'A cinematic zoom in, with dust particles floating in the air',
-                    videoModel: 'veo-2.0-generate-001',
+                    videoModel: 'veo-3.0-fast-generate-001',
                 },
             }
         ],
@@ -86,7 +86,7 @@ export const templates: { [key: string]: Template } = {
                 id: 'vid_gen_2',
                 type: NodeType.VideoGenerator,
                 position: { x: 400, y: 50 },
-                data: { videoModel: 'veo-2.0-generate-001' },
+                data: { videoModel: 'veo-3.0-fast-generate-001' },
             }
         ],
         connections: [

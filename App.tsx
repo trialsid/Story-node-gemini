@@ -476,7 +476,7 @@ const App: React.FC = () => {
       position: newNodePosition,
       data: {
         editDescription: 'A majestic eagle soaring over mountains',
-        videoModel: 'veo-2.0-generate-001',
+        videoModel: 'veo-3.0-fast-generate-001',
       },
     };
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
