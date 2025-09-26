@@ -15,6 +15,7 @@ import { areHandlesCompatible, NodeHandleSpec } from '../utils/node-spec';
 import BotIcon from './icons/BotIcon';
 import MixerIcon from './icons/MixerIcon';
 import UsersIcon from './icons/UsersIcon';
+import ExpandableTextArea from './ExpandableTextArea';
 import { getHandlesForSide, getMinimizedHandleY, SLICE_HEIGHT_PX, DEFAULT_MINIMIZED_PREVIEW_HEIGHT } from '../utils/handlePositions';
 
 interface TempConnectionInfo {
@@ -40,6 +41,7 @@ interface NodeProps {
   onGenerateText: (nodeId: string) => void;
   onGenerateCharacters: (nodeId: string) => void;
   onExpandStory: (nodeId: string) => void;
+  onOpenTextModal: (title: string, text: string) => void;
   onImageClick: (imageUrl: string) => void;
   onOutputMouseDown: (nodeId: string, handleId: string) => void;
   onInputMouseDown: (nodeId: string, handleId: string) => void;
@@ -128,6 +130,7 @@ const Node: React.FC<NodeProps> = ({
   onGenerateText,
   onGenerateCharacters,
   onExpandStory,
+  onOpenTextModal,
   onImageClick,
   onOutputMouseDown,
   onInputMouseDown,
@@ -601,11 +604,13 @@ const Node: React.FC<NodeProps> = ({
                         <div className={`${imagePreviewBaseClassName} h-32 items-start`}>
                           {node.data.isLoading ? <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-400 mt-12"></div>
                           : node.data.error ? <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
-                          : <textarea
-                                readOnly
+                          : <ExpandableTextArea
                                 value={node.data.text || ''}
-                                className={`w-full h-full p-1 bg-transparent border-0 focus:outline-none focus:ring-0 resize-none custom-scrollbar`}
                                 placeholder="Output will appear here..."
+                                className={`w-full h-full p-1 bg-transparent border-0 focus:outline-none focus:ring-0 resize-none custom-scrollbar`}
+                                title="Generated Text"
+                                containerClassName="w-full h-full"
+                                onOpenModal={onOpenTextModal}
                             />
                           }
                         </div>
@@ -804,11 +809,13 @@ const Node: React.FC<NodeProps> = ({
                   ) : node.data.error ? (
                     <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
                   ) : (
-                    <textarea
-                      readOnly
+                    <ExpandableTextArea
                       value={node.data.text || ''}
-                      className={`w-full h-full p-2 bg-transparent border-0 focus:outline-none focus:ring-0 resize-none custom-scrollbar text-xs leading-relaxed`}
                       placeholder="Your expanded story will appear here..."
+                      className={`w-full h-full p-2 bg-transparent border-0 focus:outline-none focus:ring-0 resize-none custom-scrollbar text-xs leading-relaxed`}
+                      title="Generated Story"
+                      containerClassName="w-full h-full"
+                      onOpenModal={onOpenTextModal}
                     />
                   )}
                 </div>

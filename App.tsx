@@ -4,6 +4,7 @@ import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
 import ImageModal from './components/ImageModal';
 import ConfirmationModal from './components/ConfirmationModal';
+import TextModal from './components/TextModal';
 import { generateCharacterSheet, editImageWithPrompt, generateVideoFromPrompt, generateTextFromPrompt, generateImages, mixImagesWithPrompt, generateCharactersFromStory, expandStoryFromPremise } from './services/geminiService';
 import { useTheme } from './contexts/ThemeContext';
 import ThemeSwitcher from './components/ThemeSwitcher';
@@ -70,6 +71,7 @@ const App: React.FC = () => {
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [dragStartInfo, setDragStartInfo] = useState<DragStartInfo | null>(null);
   const [modalImageUrl, setModalImageUrl] = useState<string | null>(null);
+  const [textModalData, setTextModalData] = useState<{ title: string; text: string } | null>(null);
   const [tempConnectionInfo, setTempConnectionInfo] = useState<TempConnectionInfo | null>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [hoveredInputHandle, setHoveredInputHandle] = useState<HoveredInputInfo | null>(null);
@@ -1272,6 +1274,12 @@ const App: React.FC = () => {
   const handleImageClick = useCallback((imageUrl: string) => setModalImageUrl(imageUrl), []);
   const handleCloseModal = useCallback(() => setModalImageUrl(null), []);
 
+  const handleOpenTextModal = useCallback((title: string, text: string) => {
+    setTextModalData({ title, text });
+  }, []);
+
+  const handleCloseTextModal = useCallback(() => setTextModalData(null), []);
+
   const isDragging = draggingNodeId !== null || tempConnectionInfo !== null;
 
   const contextMenuCategories = useMemo(() => {
@@ -1388,6 +1396,7 @@ const App: React.FC = () => {
         onGenerateText={handleGenerateText}
         onGenerateCharacters={handleGenerateCharacters}
         onExpandStory={handleExpandStory}
+        onOpenTextModal={handleOpenTextModal}
         onEditImage={handleEditImage}
         onMixImages={handleMixImages}
         onGenerateVideo={handleGenerateVideo}
@@ -1408,6 +1417,7 @@ const App: React.FC = () => {
 
       <GalleryPreviewModal item={selectedGalleryItem} onClose={handleCloseGalleryItem} />
       {modalImageUrl && <ImageModal imageUrl={modalImageUrl} onClose={handleCloseModal} />}
+      {textModalData && <TextModal isOpen={true} title={textModalData.title} text={textModalData.text} onClose={handleCloseTextModal} />}
       {nodeToDelete && (
         <ConfirmationModal
           isOpen={!!nodeToDelete}
