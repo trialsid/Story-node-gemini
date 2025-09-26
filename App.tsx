@@ -1,29 +1,24 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { NodeData, NodeType, Connection, CanvasState, HandleType, GalleryItem, GalleryStatus } from './types';
 import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
 import ImageModal from './components/ImageModal';
 import ConfirmationModal from './components/ConfirmationModal';
-import { generateCharacterSheet, editImageWithPrompt, generateVideoFromPrompt, generateTextFromPrompt, generateImages, mixImagesWithPrompt } from './services/geminiService';
+import { generateCharacterSheet, editImageWithPrompt, generateVideoFromPrompt, generateTextFromPrompt, generateImages, mixImagesWithPrompt, generateCharactersFromStory } from './services/geminiService';
 import { useTheme } from './contexts/ThemeContext';
 import ThemeSwitcher from './components/ThemeSwitcher';
 import GalleryPanel from './components/GalleryPanel';
 import GalleryPreviewModal from './components/GalleryPreviewModal';
 import WelcomeModal from './components/WelcomeModal';
 import { templates } from './utils/templates';
-import ContextMenu, { ContextMenuAction } from './components/ContextMenu';
-import ImageIcon from './components/icons/ImageIcon';
-import TextIcon from './components/icons/TextIcon';
-import EditIcon from './components/icons/EditIcon';
-import VideoIcon from './components/icons/VideoIcon';
-import UploadIcon from './components/icons/UploadIcon';
+import ContextMenu from './components/ContextMenu';
 import SettingsModal from './components/SettingsModal';
 import SettingsIcon from './components/icons/SettingsIcon';
 import { useHistory } from './hooks/useHistory';
-import { NODE_SPEC, areHandlesCompatible } from './utils/node-spec';
-import BotIcon from './components/icons/BotIcon';
-import MixerIcon from './components/icons/MixerIcon';
+import { areHandlesCompatible } from './utils/node-spec';
 import { fetchGalleryItems, createGalleryItem, deleteGalleryItem } from './services/galleryApi';
+import { getHandleSpec } from './utils/handlePositions';
+import { buildNodeMenuCategories } from './utils/nodeMenuConfig';
 
 
 const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } } = {
@@ -35,6 +30,7 @@ const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } }
   [NodeType.Image]: { width: 256 },
   [NodeType.TextGenerator]: { width: 256 },
   [NodeType.ImageMixer]: { width: 256 },
+  [NodeType.StoryCharacterCreator]: { width: 256 },
 };
 
 interface DragStartInfo {
@@ -281,12 +277,25 @@ const App: React.FC = () => {
               dataToUpdate = { editDescription: fromNode.data.text };
           } else if (toNode.type === NodeType.TextGenerator && conn.toHandleId === 'prompt_input') {
               dataToUpdate = { prompt: fromNode.data.text };
+          } else if (toNode.type === NodeType.StoryCharacterCreator && conn.toHandleId === 'prompt_input') {
+              dataToUpdate = { storyPrompt: fromNode.data.text };
           }
         }
         
         if ((fromNode.type === NodeType.CharacterGenerator || fromNode.type === NodeType.ImageEditor || fromNode.type === NodeType.Image) && 'imageUrl' in fromNode.data) {
           if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator || toNode.type === NodeType.ImageMixer) && conn.toHandleId === 'image_input') {
               dataToUpdate = { inputImageUrl: fromNode.data.imageUrl };
+          }
+        }
+
+        if (fromNode.type === NodeType.StoryCharacterCreator && Array.isArray(fromNode.data.characters)) {
+          const match = conn.fromHandleId.match(/^character_output_(\d+)$/);
+          if (match) {
+            const characterIndex = parseInt(match[1], 10) - 1;
+            const characterDescription = fromNode.data.characters[characterIndex]?.description;
+            if (characterDescription && toNode.type === NodeType.CharacterGenerator && conn.toHandleId === 'description_input') {
+              dataToUpdate = { characterDescription };
+            }
           }
         }
 
@@ -590,6 +599,30 @@ const App: React.FC = () => {
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
 
+  const addStoryCharacterCreatorNode = useCallback((pos?: { x: number; y: number }) => {
+    let newNodePosition: { x: number, y: number };
+    if (pos) {
+        newNodePosition = pos;
+        setLastAddedNodePosition(null);
+    } else {
+        const nextPos = lastAddedNodePosition
+            ? { x: lastAddedNodePosition.x + 32, y: lastAddedNodePosition.y + 32 }
+            : { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom };
+        newNodePosition = nextPos;
+        setLastAddedNodePosition(nextPos);
+    }
+
+    const newNode: NodeData = {
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type: NodeType.StoryCharacterCreator,
+      position: newNodePosition,
+      data: {
+        storyPrompt: 'A brave knight and a wise dragon meet in a forest to discuss an ancient prophecy.',
+      },
+    };
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+  }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
+
   const toggleNodeMinimization = useCallback((nodeId: string) => {
     setCanvasState(prevState => ({
         ...prevState,
@@ -610,6 +643,8 @@ const App: React.FC = () => {
         const updatedNode = { ...newNodes[nodeIndex], data: { ...newNodes[nodeIndex].data, ...data } };
         newNodes[nodeIndex] = updatedNode;
 
+        let newConnections = prevState.connections;
+
         prevState.connections.forEach(conn => {
             if (conn.fromNodeId === nodeId) {
                 const toNodeIndex = newNodes.findIndex(n => n.id === conn.toNodeId);
@@ -627,6 +662,8 @@ const App: React.FC = () => {
                         dataToUpdate = { editDescription: data.text };
                     } else if (toNode.type === NodeType.TextGenerator && conn.toHandleId === 'prompt_input') {
                       dataToUpdate = { prompt: data.text };
+                    } else if (toNode.type === NodeType.StoryCharacterCreator && conn.toHandleId === 'prompt_input') {
+                        dataToUpdate = { storyPrompt: data.text };
                     }
                 }
                 
@@ -648,12 +685,31 @@ const App: React.FC = () => {
                     }
                 }
 
+                if (updatedNode.type === NodeType.StoryCharacterCreator && 'characters' in data && Array.isArray(data.characters)) {
+                    const match = conn.fromHandleId.match(/^character_output_(\d+)$/);
+                    if (match) {
+                        const characterIndex = parseInt(match[1], 10) - 1;
+                        const characterDescription = data.characters?.[characterIndex]?.description;
+                        if (characterDescription && toNode.type === NodeType.CharacterGenerator && conn.toHandleId === 'description_input') {
+                            dataToUpdate = { characterDescription };
+                        }
+                    }
+                }
+
                 if (Object.keys(dataToUpdate).length > 0) {
                     newNodes[toNodeIndex] = { ...toNode, data: { ...toNode.data, ...dataToUpdate }};
                 }
             }
         });
-        return { ...prevState, nodes: newNodes };
+
+        if (updatedNode.type === NodeType.StoryCharacterCreator && 'characters' in data && Array.isArray(data.characters)) {
+            const validHandles = new Set(data.characters.map((_, index) => `character_output_${index + 1}`));
+            newConnections = newConnections.filter(conn => {
+                if (conn.fromNodeId !== nodeId) return true;
+                return validHandles.has(conn.fromHandleId);
+            });
+        }
+        return { ...prevState, nodes: newNodes, connections: newConnections };
     });
   }, [setCanvasState]);
 
@@ -765,11 +821,11 @@ const App: React.FC = () => {
   const handleOutputMouseDown = useCallback((nodeId: string, handleId: string) => {
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
-    const handleSpec = NODE_SPEC[node.type].outputs.find(h => h.id === handleId);
+    const handleSpec = getHandleSpec(node, handleId, 'output');
     if (!handleSpec) return;
 
     setCanvasState(prev => ({ ...prev, connections: prev.connections.filter(c => !(c.fromNodeId === nodeId && c.fromHandleId === handleId)) }));
-    
+
     setTempConnectionInfo({
       startNodeId: nodeId,
       startHandleId: handleId,
@@ -797,7 +853,7 @@ const App: React.FC = () => {
         
         const fromNode = nodes.find(n => n.id === connection.fromNodeId);
         if (!fromNode) return;
-        const fromHandleSpec = NODE_SPEC[fromNode.type].outputs.find(h => h.id === connection.fromHandleId);
+        const fromHandleSpec = getHandleSpec(fromNode, connection.fromHandleId, 'output');
         if (!fromHandleSpec) return;
 
         setTempConnectionInfo({
@@ -820,7 +876,7 @@ const App: React.FC = () => {
         return;
     }
 
-    const toHandleSpec = NODE_SPEC[toNode.type].inputs.find(h => h.id === toHandleId);
+    const toHandleSpec = getHandleSpec(toNode, toHandleId, 'input');
     if (!toHandleSpec || !areHandlesCompatible(startHandleType, toHandleSpec.type)) {
         setTempConnectionInfo(null);
         return;
@@ -863,6 +919,8 @@ const App: React.FC = () => {
                     dataToUpdate = { editDescription: fromNode.data.text };
                 } else if (toNode.type === NodeType.TextGenerator && toHandleId === 'prompt_input') {
                     dataToUpdate = { prompt: fromNode.data.text };
+                } else if (toNode.type === NodeType.StoryCharacterCreator && toHandleId === 'prompt_input') {
+                    dataToUpdate = { storyPrompt: fromNode.data.text };
                 }
             } else if ((fromNode.type === NodeType.CharacterGenerator || fromNode.type === NodeType.ImageEditor || fromNode.type === NodeType.Image) && 'imageUrl' in fromNode.data) {
                  if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && toHandleId === 'image_input') {
@@ -875,6 +933,15 @@ const App: React.FC = () => {
                     const imageUrlToPropagate = fromNode.data.imageUrls?.[imageIndex];
                     if (imageUrlToPropagate && (toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && toHandleId === 'image_input') {
                         dataToUpdate = { inputImageUrl: imageUrlToPropagate };
+                    }
+                }
+            } else if (fromNode.type === NodeType.StoryCharacterCreator && fromNode.data.characters) {
+                const match = startHandleId.match(/^character_output_(\d+)$/);
+                if (match) {
+                    const characterIndex = parseInt(match[1], 10) - 1;
+                    const characterDescription = fromNode.data.characters[characterIndex]?.description;
+                    if (characterDescription && toNode.type === NodeType.CharacterGenerator && toHandleId === 'description_input') {
+                        dataToUpdate = { characterDescription };
                     }
                 }
             }
@@ -941,6 +1008,30 @@ const App: React.FC = () => {
       updateNodeData(nodeId, { error: errorMessage, isLoading: false });
     }
   }, [nodes, updateNodeData, persistGalleryItem]);
+
+  const handleGenerateCharacters = useCallback(async (nodeId: string) => {
+    const sourceNode = nodes.find(n => n.id === nodeId);
+    if (!sourceNode || sourceNode.type !== NodeType.StoryCharacterCreator) {
+      return;
+    }
+
+    const storyPrompt = sourceNode.data.storyPrompt?.trim();
+    if (!storyPrompt) {
+      updateNodeData(nodeId, { error: 'Story prompt cannot be empty.' });
+      return;
+    }
+
+    updateNodeData(nodeId, { isLoading: true, error: undefined, characters: [] });
+
+    try {
+      const characters = await generateCharactersFromStory(storyPrompt);
+      updateNodeData(nodeId, { characters, isLoading: false });
+    } catch (error) {
+      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      updateNodeData(nodeId, { error: errorMessage, isLoading: false });
+    }
+  }, [nodes, updateNodeData]);
 
   const handleEditImage = useCallback(async (nodeId: string) => {
     const sourceNode = nodes.find(n => n.id === nodeId);
@@ -1123,51 +1214,36 @@ const App: React.FC = () => {
 
   const isDragging = draggingNodeId !== null || tempConnectionInfo !== null;
 
-  const contextMenuActions: ContextMenuAction[] = contextMenu ? [
-    // Basic Input
-    {
-      label: 'Text',
-      icon: <TextIcon className="w-5 h-5 text-yellow-400" />,
-      action: () => addTextNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
-    },
-    {
-      label: 'Text Generator',
-      icon: <BotIcon className="w-5 h-5 text-indigo-400" />,
-      action: () => addTextGeneratorNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
-    },
-    // Image-related
-    {
-      label: 'Image',
-      icon: <UploadIcon className="w-5 h-5 text-orange-400" />,
-      action: () => addImageNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
-    },
-    {
-      label: 'Image Gen',
-      icon: <ImageIcon className="w-5 h-5 text-blue-400" />,
-      action: () => addImageGeneratorNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
-    },
-    {
-      label: 'Character Gen',
-      icon: <ImageIcon className="w-5 h-5 text-cyan-400" />,
-      action: () => addNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
-    },
-    {
-      label: 'Image Editor',
-      icon: <EditIcon className="w-5 h-5 text-purple-400" />,
-      action: () => addImageEditorNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
-    },
-    {
-        label: 'Image Mixer',
-        icon: <MixerIcon className="w-5 h-5 text-pink-400" />,
-        action: () => addImageMixerNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
-    },
-    // Video-related
-    {
-      label: 'Video Gen',
-      icon: <VideoIcon className="w-5 h-5 text-green-400" />,
-      action: () => addVideoGeneratorNode({ x: contextMenu.canvasX, y: contextMenu.canvasY }),
-    },
-  ] : [];
+  const contextMenuCategories = useMemo(() => {
+    if (!contextMenu) {
+      return [];
+    }
+
+    const position = { x: contextMenu.canvasX, y: contextMenu.canvasY };
+
+    return buildNodeMenuCategories({
+      onAddTextNode: () => addTextNode(position),
+      onAddTextGeneratorNode: () => addTextGeneratorNode(position),
+      onAddImageNode: () => addImageNode(position),
+      onAddImageGeneratorNode: () => addImageGeneratorNode(position),
+      onAddCharacterGeneratorNode: () => addNode(position),
+      onAddStoryCharacterCreatorNode: () => addStoryCharacterCreatorNode(position),
+      onAddImageEditorNode: () => addImageEditorNode(position),
+      onAddImageMixerNode: () => addImageMixerNode(position),
+      onAddVideoGeneratorNode: () => addVideoGeneratorNode(position),
+    });
+  }, [
+    contextMenu,
+    addTextNode,
+    addTextGeneratorNode,
+    addImageNode,
+    addImageGeneratorNode,
+    addNode,
+    addStoryCharacterCreatorNode,
+    addImageEditorNode,
+    addImageMixerNode,
+    addVideoGeneratorNode,
+  ]);
 
   return (
     <div className={`w-screen h-screen ${styles.app.bg} ${styles.app.text} overflow-hidden flex flex-col font-sans ${isDragging ? 'select-none' : ''}`}>
@@ -1183,10 +1259,11 @@ const App: React.FC = () => {
         onSaveProject={handleSaveProject}
         onLoadProject={handleLoadProject}
         onClearCanvas={handleClearCanvasRequest}
-        onAddNode={() => addNode()}
+        onAddCharacterGeneratorNode={() => addNode()}
         onAddImageGeneratorNode={() => addImageGeneratorNode()}
         onAddTextNode={() => addTextNode()}
         onAddTextGeneratorNode={() => addTextGeneratorNode()}
+        onAddStoryCharacterCreatorNode={() => addStoryCharacterCreatorNode()}
         onAddImageNode={() => addImageNode()}
         onAddImageEditorNode={() => addImageEditorNode()}
         onAddImageMixerNode={() => addImageMixerNode()}
@@ -1246,6 +1323,7 @@ const App: React.FC = () => {
         onGenerateCharacterImage={handleGenerateCharacterImage}
         onGenerateImages={handleGenerateImages}
         onGenerateText={handleGenerateText}
+        onGenerateCharacters={handleGenerateCharacters}
         onEditImage={handleEditImage}
         onMixImages={handleMixImages}
         onGenerateVideo={handleGenerateVideo}
@@ -1311,7 +1389,7 @@ const App: React.FC = () => {
         <ContextMenu 
           isOpen={contextMenu.isOpen} 
           position={{ x: contextMenu.x, y: contextMenu.y }} 
-          actions={contextMenuActions} 
+          categories={contextMenuCategories} 
           onClose={handleCloseContextMenu}
         />
       )}

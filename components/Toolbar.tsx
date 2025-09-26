@@ -1,30 +1,25 @@
-import React, { useState, useRef, useEffect } from 'react';
-import ImageIcon from './icons/ImageIcon';
-import TextIcon from './icons/TextIcon';
-import EditIcon from './icons/EditIcon';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import VideoIcon from './icons/VideoIcon';
-import UploadIcon from './icons/UploadIcon';
 import HomeIcon from './icons/HomeIcon';
 import ClearCanvasIcon from './icons/ClearCanvasIcon';
 import UndoIcon from './icons/UndoIcon';
 import RedoIcon from './icons/RedoIcon';
 import SaveIcon from './icons/SaveIcon';
 import LoadIcon from './icons/LoadIcon';
-import BotIcon from './icons/BotIcon';
 import PlusIcon from './icons/PlusIcon';
 import ChevronDownIcon from './icons/ChevronDownIcon';
-import MixerIcon from './icons/MixerIcon';
+import { buildNodeMenuCategories } from '../utils/nodeMenuConfig';
 
 interface ToolbarProps {
   onNavigateHome: () => void;
   onClearCanvas: () => void;
   onSaveProject: () => void;
   onLoadProject: () => void;
-  onAddNode: () => void;
+  onAddCharacterGeneratorNode: () => void;
   onAddImageGeneratorNode: () => void;
   onAddTextNode: () => void;
   onAddTextGeneratorNode: () => void;
+  onAddStoryCharacterCreatorNode: () => void;
   onAddImageNode: () => void;
   onAddImageEditorNode: () => void;
   onAddImageMixerNode: () => void;
@@ -63,11 +58,12 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onClearCanvas, 
     onSaveProject,
     onLoadProject,
-    onAddNode, 
+    onAddCharacterGeneratorNode, 
     onAddImageGeneratorNode,
-    onAddTextNode, 
+    onAddTextNode,
     onAddTextGeneratorNode,
-    onAddImageNode, 
+    onAddStoryCharacterCreatorNode,
+    onAddImageNode,
     onAddImageEditorNode, 
     onAddImageMixerNode,
     onAddVideoGeneratorNode,
@@ -90,19 +86,27 @@ const Toolbar: React.FC<ToolbarProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const nodeTypes = [
-    // Basic Input
-    { label: 'Text', icon: <TextIcon className="w-5 h-5 text-yellow-400" />, action: onAddTextNode },
-    { label: 'Text Generator', icon: <BotIcon className="w-5 h-5 text-indigo-400" />, action: onAddTextGeneratorNode },
-    // Image-related
-    { label: 'Image', icon: <UploadIcon className="w-5 h-5 text-orange-400" />, action: onAddImageNode },
-    { label: 'Image Gen', icon: <ImageIcon className="w-5 h-5 text-blue-400" />, action: onAddImageGeneratorNode },
-    { label: 'Character Gen', icon: <ImageIcon className="w-5 h-5 text-cyan-400" />, action: onAddNode },
-    { label: 'Image Editor', icon: <EditIcon className="w-5 h-5 text-purple-400" />, action: onAddImageEditorNode },
-    { label: 'Image Mixer', icon: <MixerIcon className="w-5 h-5 text-pink-400" />, action: onAddImageMixerNode },
-    // Video-related
-    { label: 'Video Gen', icon: <VideoIcon className="w-5 h-5 text-green-400" />, action: onAddVideoGeneratorNode },
-  ];
+  const menuCategories = useMemo(() => buildNodeMenuCategories({
+    onAddTextNode,
+    onAddTextGeneratorNode,
+    onAddImageNode,
+    onAddImageGeneratorNode,
+    onAddCharacterGeneratorNode,
+    onAddStoryCharacterCreatorNode,
+    onAddImageEditorNode,
+    onAddImageMixerNode,
+    onAddVideoGeneratorNode,
+  }), [
+    onAddTextNode,
+    onAddTextGeneratorNode,
+    onAddImageNode,
+    onAddImageGeneratorNode,
+    onAddCharacterGeneratorNode,
+    onAddStoryCharacterCreatorNode,
+    onAddImageEditorNode,
+    onAddImageMixerNode,
+    onAddVideoGeneratorNode,
+  ]);
 
   return (
     <div className={`absolute top-4 left-4 z-20 p-2 ${styles.toolbar.bg} border ${styles.toolbar.border} rounded-lg shadow-lg`}>
@@ -148,19 +152,29 @@ const Toolbar: React.FC<ToolbarProps> = ({
                     className={`absolute top-full mt-2 w-56 p-1 ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-lg shadow-lg z-10`}
                     role="menu"
                 >
-                    {nodeTypes.map((nodeType) => (
-                        <button
-                            key={nodeType.label}
-                            onClick={() => {
-                                nodeType.action();
-                                setIsAddMenuOpen(false);
-                            }}
-                            className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium`}
-                            role="menuitem"
-                        >
-                            {nodeType.icon}
-                            <span>{nodeType.label}</span>
-                        </button>
+                    {menuCategories.map((category, categoryIndex) => (
+                        <div key={category.title}>
+                            <div className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-400/80">
+                                {category.title}
+                            </div>
+                            {category.items.map((item) => (
+                                <button
+                                    key={item.label}
+                                    onClick={() => {
+                                        item.action();
+                                        setIsAddMenuOpen(false);
+                                    }}
+                                    className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium`}
+                                    role="menuitem"
+                                >
+                                    {item.icon}
+                                    <span>{item.label}</span>
+                                </button>
+                            ))}
+                            {categoryIndex < menuCategories.length - 1 && (
+                                <div className="h-px bg-gray-500/20 my-1" aria-hidden="true" />
+                            )}
+                        </div>
                     ))}
                 </div>
             )}
