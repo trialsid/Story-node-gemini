@@ -1,6 +1,6 @@
 
 
-import { GoogleGenAI, Modality } from "@google/genai";
+import { GoogleGenAI, Modality, Type } from "@google/genai";
 
 // The API key is loaded from env.js, which should be created in the project root.
 const getApiKey = (): string | undefined => {
@@ -79,6 +79,64 @@ const dataUrlToPart = (dataUrl: string) => {
     };
 };
 
+export const expandStoryFromPremise = async (
+    premise: string,
+    length: 'short' | 'medium' = 'short',
+    genre?: string
+): Promise<string> => {
+    if (!ai) {
+        throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
+    }
+
+    const trimmedPremise = premise?.trim();
+    if (!trimmedPremise) {
+        throw new Error('Please provide a story premise.');
+    }
+
+    const wordCounts = { short: '400-600', medium: '800-1200' };
+    const wordTarget = wordCounts[length];
+
+    const genreInstruction = genre && genre !== 'any' && genre !== ''
+        ? `Genre: ${genre}. Follow ${genre} conventions and tropes.`
+        : '';
+
+    const fullPrompt = `You are a skilled storyteller. Expand this premise into a complete short story with:
+
+PREMISE: "${trimmedPremise}"
+
+REQUIREMENTS:
+- Length: ${wordTarget} words
+- Structure: Clear beginning, middle, and end (3-act structure)
+- Characters: 2-4 well-developed characters with distinct personalities
+- Setting: Vivid, immersive world-building
+- Conflict: Compelling central conflict with satisfying resolution
+- Dialogue: Natural, character-revealing conversations
+- Pacing: Engaging flow from setup through climax to resolution
+${genreInstruction}
+
+Write the story in prose format. Focus on showing rather than telling. Create memorable characters the reader will care about.`;
+
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: fullPrompt,
+            });
+            return response.text;
+        } catch (error) {
+            lastError = error;
+            console.error(`Attempt ${attempt} failed:`, error);
+            if (attempt < MAX_RETRIES) {
+                await sleep(INITIAL_DELAY_MS * Math.pow(2, attempt - 1));
+            }
+        }
+    }
+
+    throw new Error(getFriendlyErrorMessage(lastError));
+};
+
 export const generateTextFromPrompt = async (
     prompt: string
 ): Promise<string> => {
@@ -95,6 +153,85 @@ export const generateTextFromPrompt = async (
                 contents: prompt,
             });
             return response.text;
+        } catch (error) {
+            lastError = error;
+            console.error(`Attempt ${attempt} failed:`, error);
+            if (attempt < MAX_RETRIES) {
+                await sleep(INITIAL_DELAY_MS * Math.pow(2, attempt - 1));
+            }
+        }
+    }
+
+    throw new Error(getFriendlyErrorMessage(lastError));
+};
+
+export const generateCharactersFromStory = async (
+    storyPrompt: string,
+): Promise<Array<{ name: string; description: string }>> => {
+    if (!ai) {
+        throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
+    }
+
+    const trimmedPrompt = storyPrompt?.trim();
+    if (!trimmedPrompt) {
+        throw new Error('Please provide a story prompt.');
+    }
+
+    const schema = {
+        type: Type.ARRAY,
+        items: {
+            type: Type.OBJECT,
+            properties: {
+                name: {
+                    type: Type.STRING,
+                    description: "The character's name.",
+                },
+                description: {
+                    type: Type.STRING,
+                    description: 'A detailed physical and personality description for the character, suitable for generating a character sheet image.',
+                },
+            },
+            required: ['name', 'description'],
+        },
+    };
+
+    const fullPrompt = `Based on the following story, identify or create the main characters that appear in it. Provide a name and a detailed description for each character.\nStory: "${trimmedPrompt}"`;
+
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: fullPrompt,
+                config: {
+                    responseMimeType: 'application/json',
+                    responseSchema: schema,
+                },
+            });
+
+            const rawText = response.text;
+            if (!rawText) {
+                throw new Error('The API returned an empty response.');
+            }
+
+            const parsed = JSON.parse(rawText);
+            if (!Array.isArray(parsed)) {
+                throw new Error('The API returned an unexpected format.');
+            }
+
+            const sanitized = parsed
+                .filter((item: any) => item && typeof item.name === 'string' && typeof item.description === 'string')
+                .map((item: any) => ({
+                    name: item.name.trim(),
+                    description: item.description.trim(),
+                }));
+
+            if (sanitized.length === 0) {
+                throw new Error('No characters were returned. Please try rephrasing your story.');
+            }
+
+            return sanitized;
         } catch (error) {
             lastError = error;
             console.error(`Attempt ${attempt} failed:`, error);

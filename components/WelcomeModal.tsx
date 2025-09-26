@@ -4,6 +4,8 @@ import { templates } from '../utils/templates';
 import ImageIcon from './icons/ImageIcon';
 import TextIcon from './icons/TextIcon';
 import VideoIcon from './icons/VideoIcon';
+import UsersIcon from './icons/UsersIcon';
+import MixerIcon from './icons/MixerIcon';
 import PlusIcon from './icons/PlusIcon';
 import CloseIcon from './icons/CloseIcon';
 import SettingsIcon from './icons/SettingsIcon';
@@ -33,9 +35,9 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ onStartFresh, onLoadTemplat
   }, [onClose]);
   
   const templateIcons: { [key in keyof typeof templates]: React.ReactNode } = {
-    characterConcept: <ImageIcon className="w-6 h-6 text-cyan-400" />,
-    quickVideo: <VideoIcon className="w-6 h-6 text-green-400" />,
-    textToVideo: <TextIcon className="w-6 h-6 text-yellow-400" />,
+    storyCharacterPipeline: <UsersIcon className="w-6 h-6 text-teal-300" />,
+    cinematicStoryboard: <VideoIcon className="w-6 h-6 text-indigo-300" />,
+    worldMoodboard: <MixerIcon className="w-6 h-6 text-fuchsia-300" />,
   };
 
   const SidebarItem: React.FC<{

@@ -4,7 +4,7 @@ import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
 import ImageModal from './components/ImageModal';
 import ConfirmationModal from './components/ConfirmationModal';
-import { generateCharacterSheet, editImageWithPrompt, generateVideoFromPrompt, generateTextFromPrompt, generateImages, mixImagesWithPrompt, generateCharactersFromStory } from './services/geminiService';
+import { generateCharacterSheet, editImageWithPrompt, generateVideoFromPrompt, generateTextFromPrompt, generateImages, mixImagesWithPrompt, generateCharactersFromStory, expandStoryFromPremise } from './services/geminiService';
 import { useTheme } from './contexts/ThemeContext';
 import ThemeSwitcher from './components/ThemeSwitcher';
 import GalleryPanel from './components/GalleryPanel';
@@ -31,6 +31,7 @@ const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } }
   [NodeType.TextGenerator]: { width: 256 },
   [NodeType.ImageMixer]: { width: 256 },
   [NodeType.StoryCharacterCreator]: { width: 256 },
+  [NodeType.StoryExpander]: { width: 256 },
 };
 
 interface DragStartInfo {
@@ -279,6 +280,8 @@ const App: React.FC = () => {
               dataToUpdate = { prompt: fromNode.data.text };
           } else if (toNode.type === NodeType.StoryCharacterCreator && conn.toHandleId === 'prompt_input') {
               dataToUpdate = { storyPrompt: fromNode.data.text };
+          } else if (toNode.type === NodeType.StoryExpander && conn.toHandleId === 'premise_input') {
+              dataToUpdate = { premise: fromNode.data.text };
           }
         }
         
@@ -623,6 +626,31 @@ const App: React.FC = () => {
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
 
+  const addStoryExpanderNode = useCallback((pos?: { x: number; y: number }) => {
+    let newNodePosition: { x: number, y: number };
+    if (pos) {
+        newNodePosition = pos;
+        setLastAddedNodePosition(null);
+    } else {
+        const nextPos = lastAddedNodePosition
+            ? { x: lastAddedNodePosition.x + 32, y: lastAddedNodePosition.y + 32 }
+            : { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom };
+        newNodePosition = nextPos;
+        setLastAddedNodePosition(nextPos);
+    }
+    const newNode: NodeData = {
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type: NodeType.StoryExpander,
+      position: newNodePosition,
+      data: {
+        premise: 'A detective finds a mysterious key',
+        length: 'short',
+        genre: 'any',
+      },
+    };
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+  }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
+
   const toggleNodeMinimization = useCallback((nodeId: string) => {
     setCanvasState(prevState => ({
         ...prevState,
@@ -664,6 +692,8 @@ const App: React.FC = () => {
                       dataToUpdate = { prompt: data.text };
                     } else if (toNode.type === NodeType.StoryCharacterCreator && conn.toHandleId === 'prompt_input') {
                         dataToUpdate = { storyPrompt: data.text };
+                    } else if (toNode.type === NodeType.StoryExpander && conn.toHandleId === 'premise_input') {
+                        dataToUpdate = { premise: data.text };
                     }
                 }
                 
@@ -921,6 +951,8 @@ const App: React.FC = () => {
                     dataToUpdate = { prompt: fromNode.data.text };
                 } else if (toNode.type === NodeType.StoryCharacterCreator && toHandleId === 'prompt_input') {
                     dataToUpdate = { storyPrompt: fromNode.data.text };
+                } else if (toNode.type === NodeType.StoryExpander && toHandleId === 'premise_input') {
+                    dataToUpdate = { premise: fromNode.data.text };
                 }
             } else if ((fromNode.type === NodeType.CharacterGenerator || fromNode.type === NodeType.ImageEditor || fromNode.type === NodeType.Image) && 'imageUrl' in fromNode.data) {
                  if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && toHandleId === 'image_input') {
@@ -1026,6 +1058,34 @@ const App: React.FC = () => {
     try {
       const characters = await generateCharactersFromStory(storyPrompt);
       updateNodeData(nodeId, { characters, isLoading: false });
+    } catch (error) {
+      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      updateNodeData(nodeId, { error: errorMessage, isLoading: false });
+    }
+  }, [nodes, updateNodeData]);
+
+  const handleExpandStory = useCallback(async (nodeId: string) => {
+    const sourceNode = nodes.find(n => n.id === nodeId);
+    if (!sourceNode || sourceNode.type !== NodeType.StoryExpander) {
+      return;
+    }
+
+    const premise = sourceNode.data.premise?.trim();
+    if (!premise) {
+      updateNodeData(nodeId, { error: 'Story premise cannot be empty.' });
+      return;
+    }
+
+    updateNodeData(nodeId, { isLoading: true, error: undefined, text: undefined });
+
+    try {
+      const expandedStory = await expandStoryFromPremise(
+        premise,
+        sourceNode.data.length || 'short',
+        sourceNode.data.genre
+      );
+      updateNodeData(nodeId, { text: expandedStory, isLoading: false });
     } catch (error) {
       console.error(error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1228,6 +1288,7 @@ const App: React.FC = () => {
       onAddImageGeneratorNode: () => addImageGeneratorNode(position),
       onAddCharacterGeneratorNode: () => addNode(position),
       onAddStoryCharacterCreatorNode: () => addStoryCharacterCreatorNode(position),
+      onAddStoryExpanderNode: () => addStoryExpanderNode(position),
       onAddImageEditorNode: () => addImageEditorNode(position),
       onAddImageMixerNode: () => addImageMixerNode(position),
       onAddVideoGeneratorNode: () => addVideoGeneratorNode(position),
@@ -1240,6 +1301,7 @@ const App: React.FC = () => {
     addImageGeneratorNode,
     addNode,
     addStoryCharacterCreatorNode,
+    addStoryExpanderNode,
     addImageEditorNode,
     addImageMixerNode,
     addVideoGeneratorNode,
@@ -1264,6 +1326,7 @@ const App: React.FC = () => {
         onAddTextNode={() => addTextNode()}
         onAddTextGeneratorNode={() => addTextGeneratorNode()}
         onAddStoryCharacterCreatorNode={() => addStoryCharacterCreatorNode()}
+        onAddStoryExpanderNode={() => addStoryExpanderNode()}
         onAddImageNode={() => addImageNode()}
         onAddImageEditorNode={() => addImageEditorNode()}
         onAddImageMixerNode={() => addImageMixerNode()}
@@ -1324,6 +1387,7 @@ const App: React.FC = () => {
         onGenerateImages={handleGenerateImages}
         onGenerateText={handleGenerateText}
         onGenerateCharacters={handleGenerateCharacters}
+        onExpandStory={handleExpandStory}
         onEditImage={handleEditImage}
         onMixImages={handleMixImages}
         onGenerateVideo={handleGenerateVideo}

@@ -39,6 +39,7 @@ interface NodeProps {
   onGenerateVideo: (nodeId: string) => void;
   onGenerateText: (nodeId: string) => void;
   onGenerateCharacters: (nodeId: string) => void;
+  onExpandStory: (nodeId: string) => void;
   onImageClick: (imageUrl: string) => void;
   onOutputMouseDown: (nodeId: string, handleId: string) => void;
   onInputMouseDown: (nodeId: string, handleId: string) => void;
@@ -126,6 +127,7 @@ const Node: React.FC<NodeProps> = ({
   onGenerateVideo,
   onGenerateText,
   onGenerateCharacters,
+  onExpandStory,
   onImageClick,
   onOutputMouseDown,
   onInputMouseDown,
@@ -171,6 +173,8 @@ const Node: React.FC<NodeProps> = ({
         onGenerateText(node.id);
       } else if (nodeType === NodeType.StoryCharacterCreator) {
         onGenerateCharacters(node.id);
+      } else if (nodeType === NodeType.StoryExpander) {
+        onExpandStory(node.id);
       }
     }
   };
@@ -726,6 +730,104 @@ const Node: React.FC<NodeProps> = ({
                   No characters generated yet.
                 </div>
               )}
+            </div>
+          )}
+        </>
+      )}
+
+      {node.type === NodeType.StoryExpander && (
+        <>
+          <NodeHeader
+            title='Story Expander'
+            icon={<TextIcon className="w-4 h-4 text-purple-400" />}
+            isMinimized={isMinimized}
+            onToggleMinimize={() => onToggleMinimize(node.id)}
+            onDelete={() => onDelete(node.id)}
+            onMouseDown={handleHeaderMouseDown}
+          />
+          <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1200px] opacity-100'}`}>
+            <div className="p-2 space-y-3">
+              <div ref={el => handleAnchorRefs.current['premise_input'] = el}>
+                <label htmlFor={`premise-${node.id}`} className={labelClassName}>Story Premise</label>
+                <textarea
+                  id={`premise-${node.id}`}
+                  value={node.data.premise || ''}
+                  onChange={(e) => onUpdateData(node.id, { premise: e.target.value })}
+                  onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.StoryExpander)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className={`${textAreaClassName(connections.some(c => c.toNodeId === node.id && c.toHandleId === 'premise_input'))} h-20`}
+                  disabled={connections.some(c => c.toNodeId === node.id && c.toHandleId === 'premise_input')}
+                  placeholder="e.g., A detective finds a mysterious key"
+                />
+              </div>
+
+              <div className='flex space-x-2'>
+                <div className='flex-1'>
+                  <label htmlFor={`length-${node.id}`} className={labelClassName}>Length</label>
+                  <select
+                    id={`length-${node.id}`}
+                    className={selectClassName}
+                    value={node.data.length || 'short'}
+                    onChange={(e) => onUpdateData(node.id, { length: e.target.value as 'short' | 'medium' })}
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    <option value="short">Short (400-600 words)</option>
+                    <option value="medium">Medium (800-1200 words)</option>
+                  </select>
+                </div>
+                <div className='flex-1'>
+                  <label htmlFor={`genre-${node.id}`} className={labelClassName}>Genre</label>
+                  <select
+                    id={`genre-${node.id}`}
+                    className={selectClassName}
+                    value={node.data.genre || 'any'}
+                    onChange={(e) => onUpdateData(node.id, { genre: e.target.value })}
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    <option value="any">Any Genre</option>
+                    <option value="sci-fi">Sci-Fi</option>
+                    <option value="fantasy">Fantasy</option>
+                    <option value="mystery">Mystery</option>
+                    <option value="thriller">Thriller</option>
+                    <option value="romance">Romance</option>
+                    <option value="horror">Horror</option>
+                    <option value="drama">Drama</option>
+                  </select>
+                </div>
+              </div>
+
+              <div ref={el => handleAnchorRefs.current['story_output'] = el}>
+                <label className={labelClassName}>Generated Story</label>
+                <div className={`${imagePreviewBaseClassName} h-64 items-start`}>
+                  {node.data.isLoading ? (
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mt-28"></div>
+                  ) : node.data.error ? (
+                    <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
+                  ) : (
+                    <textarea
+                      readOnly
+                      value={node.data.text || ''}
+                      className={`w-full h-full p-2 bg-transparent border-0 focus:outline-none focus:ring-0 resize-none custom-scrollbar text-xs leading-relaxed`}
+                      placeholder="Your expanded story will appear here..."
+                    />
+                  )}
+                </div>
+              </div>
+
+              <button
+                onClick={() => onExpandStory(node.id)}
+                disabled={node.data.isLoading}
+                className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-purple-600 hover:bg-purple-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`}
+              >
+                <SparklesIcon className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                {node.data.isLoading ? 'Expanding Story...' : 'Expand Story'}
+              </button>
+            </div>
+          </div>
+
+          {isMinimized && (
+            <div className={`p-2 h-16 text-xs italic ${styles.node.labelText} truncate rounded-b-md flex items-center border-t ${styles.node.border}`}>
+              {node.data.text || "No expanded story."}
             </div>
           )}
         </>

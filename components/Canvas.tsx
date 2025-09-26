@@ -3,7 +3,7 @@ import { NodeData, Connection, NodeType, HandleType } from '../types';
 import Node from './Node';
 import Connector from './Connector';
 import { useTheme } from '../contexts/ThemeContext';
-import { NODE_SPEC } from '../utils/node-spec';
+import { getHandleSpec, getMinimizedHandleY } from '../utils/handlePositions';
 
 interface TempConnectionInfo {
   startNodeId: string;
@@ -32,6 +32,8 @@ interface CanvasProps {
   onMixImages: (nodeId: string) => void;
   onGenerateVideo: (nodeId: string) => void;
   onGenerateText: (nodeId: string) => void;
+  onGenerateCharacters: (nodeId: string) => void;
+  onExpandStory: (nodeId: string) => void;
   onImageClick: (imageUrl: string) => void;
   onOutputMouseDown: (nodeId: string, handleId: string) => void;
   onInputMouseDown: (nodeId: string, handleId: string) => void;
@@ -46,10 +48,6 @@ interface CanvasProps {
   hoveredInputHandle: HoveredInputInfo | null;
   setHoveredInputHandle: (info: HoveredInputInfo | null) => void;
 }
-
-// Define minimized node heights for consistent handle positioning
-const MINIMIZED_NODE_HEADER_HEIGHT = 40; // Corresponds to p-2 padding and text size in NodeHeader
-
 
 const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
   allNodes,
@@ -67,6 +65,8 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
   onMixImages,
   onGenerateVideo,
   onGenerateText,
+  onGenerateCharacters,
+  onExpandStory,
   onImageClick,
   onOutputMouseDown,
   onInputMouseDown,
@@ -92,20 +92,10 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
     const xPos = handleSide === 'input' ? node.position.x : node.position.x + dims.width;
 
     if (isMinimized) {
-        const headerHeight = MINIMIZED_NODE_HEADER_HEIGHT;
-        const previewHeight = node.data.minimizedHeight || 64;
-        
-        const spec = NODE_SPEC[node.type];
-        const handles = handleSide === 'input' ? spec.inputs : spec.outputs;
-        const handleIndex = handles.findIndex(h => h.id === handleId);
-        const totalHandles = handles.length;
-
-        if (handleIndex === -1 || totalHandles === 0) {
-            return { x: xPos, y: node.position.y + headerHeight + (previewHeight / 2) };
-        }
-
-        const yPosition = headerHeight + (previewHeight * (handleIndex + 1)) / (totalHandles + 1);
-        return { x: xPos, y: node.position.y + yPosition };
+        return {
+          x: xPos,
+          y: node.position.y + getMinimizedHandleY(node, handleId, handleSide),
+        };
     }
     
 
@@ -164,6 +154,8 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
             onMixImages={onMixImages}
             onGenerateVideo={onGenerateVideo}
             onGenerateText={onGenerateText}
+            onGenerateCharacters={onGenerateCharacters}
+            onExpandStory={onExpandStory}
             onImageClick={onImageClick}
             onOutputMouseDown={onOutputMouseDown}
             onInputMouseDown={onInputMouseDown}
@@ -174,6 +166,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
             tempConnectionInfo={tempConnectionInfo}
             hoveredInputHandle={hoveredInputHandle}
             setHoveredInputHandle={setHoveredInputHandle}
+            zoom={zoom}
           />
         ))}
       </div>
@@ -194,7 +187,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
                     conn.toNodeId === hoveredInputHandle?.nodeId &&
                     conn.toHandleId === hoveredInputHandle?.handleId;
 
-                  const fromHandleSpec = NODE_SPEC[fromNode.type].outputs.find(h => h.id === conn.fromHandleId);
+                  const fromHandleSpec = getHandleSpec(fromNode, conn.fromHandleId, 'output');
                   if (!fromHandleSpec) return null;
                   const connectorColor = styles.handle.typeColors[fromHandleSpec.type].split(' ')[0].replace('bg-', 'border-');
 

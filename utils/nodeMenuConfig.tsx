@@ -15,6 +15,7 @@ export interface NodeMenuCallbacks {
   onAddImageGeneratorNode: () => void;
   onAddCharacterGeneratorNode: () => void;
   onAddStoryCharacterCreatorNode: () => void;
+  onAddStoryExpanderNode: () => void;
   onAddImageEditorNode: () => void;
   onAddImageMixerNode: () => void;
   onAddVideoGeneratorNode: () => void;
@@ -43,6 +44,7 @@ export const buildNodeMenuCategories = (callbacks: NodeMenuCallbacks): NodeMenuC
   {
     title: 'Story Tools',
     items: [
+      { label: 'Story Expander', icon: <TextIcon className="w-5 h-5 text-purple-400" />, action: callbacks.onAddStoryExpanderNode },
       { label: 'Story Character Creator', icon: <UsersIcon className="w-5 h-5 text-teal-400" />, action: callbacks.onAddStoryCharacterCreatorNode },
       { label: 'Character Generator', icon: <ImageIcon className="w-5 h-5 text-cyan-400" />, action: callbacks.onAddCharacterGeneratorNode },
     ],

@@ -7,6 +7,8 @@ export enum NodeType {
   VideoGenerator = 'VIDEO_GENERATOR',
   TextGenerator = 'TEXT_GENERATOR_NODE',
   ImageMixer = 'IMAGE_MIXER',
+  StoryCharacterCreator = 'STORY_CHARACTER_CREATOR_NODE',
+  StoryExpander = 'STORY_EXPANDER_NODE',
 }
 
 export enum HandleType {
@@ -21,6 +23,11 @@ export interface Connection {
   fromHandleId: string;
   toNodeId: string;
   toHandleId: string;
+}
+
+export interface StoryCharacter {
+  name: string;
+  description: string;
 }
 
 export interface NodeData {
@@ -39,6 +46,7 @@ export interface NodeData {
     isMinimized?: boolean;
     minimizedHeight?: number;
     handleYOffsets?: { [handleId: string]: number };
+    minimizedHandleYOffsets?: { [handleId: string]: number };
 
     // For Text Node
     text?: string;
@@ -69,6 +77,15 @@ export interface NodeData {
     imageUrls?: string[];
     // `prompt` is shared
     // `aspectRatio` is shared
+
+    // For Story Character Creator
+    storyPrompt?: string;
+    characters?: StoryCharacter[];
+
+    // For Story Expander
+    premise?: string;
+    length?: 'short' | 'medium';
+    genre?: string;
   };
 }
 
