@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { templates } from '../utils/templates';
-import { Image, Video, Users as UsersIcon, Shuffle, Plus, X, Settings, Home, Clock } from 'lucide-react';
+import { Image, Clapperboard, Users as UsersIcon, Layers, Plus, X, Settings, Home, Clock, BookOpen, Palette } from 'lucide-react';
 
 interface WelcomeModalProps {
   onStartFresh: () => void;
@@ -26,9 +26,9 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ onStartFresh, onLoadTemplat
   }, [onClose]);
   
   const templateIcons: { [key in keyof typeof templates]: React.ReactNode } = {
-    storyCharacterPipeline: <UsersIcon className="w-6 h-6 text-teal-300" />,
-    cinematicStoryboard: <Video className="w-6 h-6 text-indigo-300" />,
-    worldMoodboard: <Shuffle className="w-6 h-6 text-fuchsia-300" />,
+    storyCharacterPipeline: <BookOpen className="w-6 h-6 text-teal-300" />,
+    cinematicStoryboard: <Clapperboard className="w-6 h-6 text-indigo-300" />,
+    worldMoodboard: <Palette className="w-6 h-6 text-fuchsia-300" />,
   };
 
   const SidebarItem: React.FC<{

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { Home, Trash2, Undo2, Redo2, Save, FolderOpen, Plus, ChevronDown } from 'lucide-react';
+import { Home, Eraser, Undo2, Redo2, FileDown, FileUp, Plus, ChevronDown } from 'lucide-react';
 import { buildNodeMenuCategories } from '../utils/nodeMenuConfig';
 
 interface ToolbarProps {
@@ -113,13 +113,13 @@ const Toolbar: React.FC<ToolbarProps> = ({
             <Home className="w-5 h-5 text-cyan-400" />
         </ToolbarButton>
         <ToolbarButton onClick={onSaveProject} tooltip="Save Project">
-            <Save className="w-5 h-5 text-gray-300" />
+            <FileDown className="w-5 h-5 text-gray-300" />
         </ToolbarButton>
         <ToolbarButton onClick={onLoadProject} tooltip="Load Project">
-            <FolderOpen className="w-5 h-5 text-gray-300" />
+            <FileUp className="w-5 h-5 text-gray-300" />
         </ToolbarButton>
         <ToolbarButton onClick={onClearCanvas} tooltip="Clear Canvas">
-            <Trash2 className="w-5 h-5 text-red-400" />
+            <Eraser className="w-5 h-5 text-red-400" />
         </ToolbarButton>
         
         <div className="w-px h-6 bg-gray-500/30 mx-1" />

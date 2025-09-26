@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useLayoutEffect } from 'react';
 import { NodeData, NodeType, Connection, HandleType } from '../types';
-import { FileText, Users as UsersIcon, PenSquare, Image, Sparkles, Trash2, ChevronDown, ChevronUp, Video, Upload, Bot, Shuffle } from 'lucide-react';
+import { FileText, ScrollText, Users as UsersIcon, UserCog, PenTool, PenSquare, Edit3, Image, ImagePlus, Wand2, Sparkles, Trash2, ChevronDown, ChevronUp, Video, Clapperboard, Upload, Bot, Shuffle, Layers } from 'lucide-react';
 import NodeHandle from './NodeHandle';
 import { useTheme } from '../contexts/ThemeContext';
 import { areHandlesCompatible, NodeHandleSpec } from '../utils/node-spec';
@@ -566,7 +566,7 @@ const Node: React.FC<NodeProps> = ({
         <>
             <NodeHeader 
                 title='Text Generator'
-                icon={<FileText className="w-4 h-4 text-indigo-400" />}
+                icon={<PenTool className="w-4 h-4 text-indigo-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={() => onDelete(node.id)}
@@ -623,7 +623,7 @@ const Node: React.FC<NodeProps> = ({
         <>
           <NodeHeader
             title='Story Character Creator'
-            icon={<UsersIcon className="w-4 h-4 text-teal-400" />}
+            icon={<UserCog className="w-4 h-4 text-teal-400" />}
             isMinimized={isMinimized}
             onToggleMinimize={() => onToggleMinimize(node.id)}
             onDelete={() => onDelete(node.id)}
@@ -733,7 +733,7 @@ const Node: React.FC<NodeProps> = ({
         <>
           <NodeHeader
             title='Story Expander'
-            icon={<FileText className="w-4 h-4 text-purple-400" />}
+            icon={<ScrollText className="w-4 h-4 text-purple-400" />}
             isMinimized={isMinimized}
             onToggleMinimize={() => onToggleMinimize(node.id)}
             onDelete={() => onDelete(node.id)}
@@ -833,7 +833,7 @@ const Node: React.FC<NodeProps> = ({
         <>
             <NodeHeader 
                 title='Image Node'
-                icon={<Upload className="w-4 h-4 text-orange-400" />}
+                icon={<ImagePlus className="w-4 h-4 text-orange-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={() => onDelete(node.id)}
@@ -892,7 +892,7 @@ const Node: React.FC<NodeProps> = ({
         <>
           <NodeHeader 
             title='Image Generator'
-            icon={<Image className="w-4 h-4 text-blue-400" />}
+            icon={<Wand2 className="w-4 h-4 text-blue-400" />}
             isMinimized={isMinimized}
             onToggleMinimize={() => onToggleMinimize(node.id)}
             onDelete={() => onDelete(node.id)}
@@ -999,7 +999,7 @@ const Node: React.FC<NodeProps> = ({
         <>
           <NodeHeader 
             title='Character Generator'
-            icon={<Image className="w-4 h-4 text-cyan-400" />}
+            icon={<UsersIcon className="w-4 h-4 text-cyan-400" />}
             isMinimized={isMinimized}
             onToggleMinimize={() => onToggleMinimize(node.id)}
             onDelete={() => onDelete(node.id)}
@@ -1076,7 +1076,7 @@ const Node: React.FC<NodeProps> = ({
         <>
             <NodeHeader 
                 title='Image Editor'
-                icon={<PenSquare className="w-4 h-4 text-purple-400" />}
+                icon={<Edit3 className="w-4 h-4 text-purple-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={() => onDelete(node.id)}
@@ -1140,7 +1140,7 @@ const Node: React.FC<NodeProps> = ({
             <>
               <NodeHeader 
                 title='Image Mixer'
-                icon={<Shuffle className="w-4 h-4 text-pink-400" />}
+                icon={<Layers className="w-4 h-4 text-pink-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={() => onDelete(node.id)}
@@ -1192,7 +1192,7 @@ const Node: React.FC<NodeProps> = ({
         <>
             <NodeHeader 
                 title='Video Generator'
-                icon={<Video className="w-4 h-4 text-green-400" />}
+                icon={<Clapperboard className="w-4 h-4 text-green-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={() => onDelete(node.id)}
