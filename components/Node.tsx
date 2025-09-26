@@ -6,6 +6,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { areHandlesCompatible, NodeHandleSpec } from '../utils/node-spec';
 import ExpandableTextArea from './ExpandableTextArea';
 import { getHandlesForSide, getMinimizedHandleY, SLICE_HEIGHT_PX, DEFAULT_MINIMIZED_PREVIEW_HEIGHT } from '../utils/handlePositions';
+import NodeContextMenu from './NodeContextMenu';
 
 interface TempConnectionInfo {
   startNodeId: string;
@@ -36,6 +37,8 @@ interface NodeProps {
   onInputMouseDown: (nodeId: string, handleId: string) => void;
   onInputMouseUp: (nodeId: string, handleId: string) => void;
   onDelete: (nodeId: string) => void;
+  onDuplicate: (nodeId: string) => void;
+  onReset: (nodeId: string) => void;
   onToggleMinimize: (nodeId: string) => void;
   dimensions: { width: number; height?: number };
   tempConnectionInfo: TempConnectionInfo | null;
@@ -51,14 +54,16 @@ interface NodeHeaderProps {
   onToggleMinimize: () => void;
   onDelete: () => void;
   onMouseDown: (e: React.MouseEvent) => void;
+  onContextMenu: (e: React.MouseEvent) => void;
 }
 
-const NodeHeader: React.FC<NodeHeaderProps> = ({ title, icon, isMinimized, onToggleMinimize, onDelete, onMouseDown }) => {
+const NodeHeader: React.FC<NodeHeaderProps> = ({ title, icon, isMinimized, onToggleMinimize, onDelete, onMouseDown, onContextMenu }) => {
   const { styles } = useTheme();
   return (
     <div 
       className={`flex items-center justify-between p-2 ${styles.node.headerBg} rounded-t-lg cursor-move`}
       onMouseDown={onMouseDown}
+      onContextMenu={onContextMenu}
     >
       <div className="flex items-center space-x-2">
         {icon}
@@ -125,6 +130,8 @@ const Node: React.FC<NodeProps> = ({
   onInputMouseDown,
   onInputMouseUp,
   onDelete,
+  onDuplicate,
+  onReset,
   onToggleMinimize,
   dimensions,
   tempConnectionInfo,
@@ -138,6 +145,7 @@ const Node: React.FC<NodeProps> = ({
   const [videoElapsedMs, setVideoElapsedMs] = useState<number | null>(null);
   const inputHandles = getHandlesForSide(node, 'input');
   const outputHandles = getHandlesForSide(node, 'output');
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
 
   const selectClassName = `w-full p-1 ${styles.node.inputBg} border ${styles.node.inputBorder} rounded-md text-sm ${styles.node.text} focus:outline-none focus:ring-2 ${styles.node.inputFocusRing}`;
   const labelClassName = `text-xs font-semibold ${styles.node.labelText}`;
@@ -146,6 +154,29 @@ const Node: React.FC<NodeProps> = ({
   
   const handleHeaderMouseDown = (e: React.MouseEvent) => {
     onDragStart(node.id, e);
+  };
+
+  const handleHeaderContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenuPosition({ x: e.clientX, y: e.clientY });
+  };
+
+  const closeContextMenu = () => setContextMenuPosition(null);
+
+  const handleDuplicate = () => {
+    onDuplicate(node.id);
+    closeContextMenu();
+  };
+
+  const handleReset = () => {
+    onReset(node.id);
+    closeContextMenu();
+  };
+
+  const handleDelete = () => {
+    onDelete(node.id);
+    closeContextMenu();
   };
 
   const handleTextAreaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>, nodeType: NodeType) => {
@@ -538,8 +569,9 @@ const Node: React.FC<NodeProps> = ({
                 icon={<FileText className="w-4 h-4 text-yellow-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
-                onDelete={() => onDelete(node.id)}
+                onDelete={handleDelete}
                 onMouseDown={handleHeaderMouseDown}
+                onContextMenu={handleHeaderContextMenu}
             />
             <div
                 className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0' : 'max-h-96'}`}>
@@ -569,8 +601,9 @@ const Node: React.FC<NodeProps> = ({
                 icon={<PenTool className="w-4 h-4 text-indigo-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
-                onDelete={() => onDelete(node.id)}
+                onDelete={handleDelete}
                 onMouseDown={handleHeaderMouseDown}
+                onContextMenu={handleHeaderContextMenu}
             />
             <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
                 <div className="p-2 space-y-2">
@@ -626,8 +659,9 @@ const Node: React.FC<NodeProps> = ({
             icon={<UserCog className="w-4 h-4 text-teal-400" />}
             isMinimized={isMinimized}
             onToggleMinimize={() => onToggleMinimize(node.id)}
-            onDelete={() => onDelete(node.id)}
+            onDelete={handleDelete}
             onMouseDown={handleHeaderMouseDown}
+            onContextMenu={handleHeaderContextMenu}
           />
           <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1200px] opacity-100'}`}>
             <div className="p-2 space-y-3">
@@ -736,8 +770,9 @@ const Node: React.FC<NodeProps> = ({
             icon={<ScrollText className="w-4 h-4 text-purple-400" />}
             isMinimized={isMinimized}
             onToggleMinimize={() => onToggleMinimize(node.id)}
-            onDelete={() => onDelete(node.id)}
+            onDelete={handleDelete}
             onMouseDown={handleHeaderMouseDown}
+            onContextMenu={handleHeaderContextMenu}
           />
           <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1200px] opacity-100'}`}>
             <div className="p-2 space-y-3">
@@ -836,8 +871,9 @@ const Node: React.FC<NodeProps> = ({
                 icon={<ImagePlus className="w-4 h-4 text-orange-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
-                onDelete={() => onDelete(node.id)}
+                onDelete={handleDelete}
                 onMouseDown={handleHeaderMouseDown}
+                onContextMenu={handleHeaderContextMenu}
             />
             <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
                 <div className="p-2">
@@ -895,8 +931,9 @@ const Node: React.FC<NodeProps> = ({
             icon={<Wand2 className="w-4 h-4 text-blue-400" />}
             isMinimized={isMinimized}
             onToggleMinimize={() => onToggleMinimize(node.id)}
-            onDelete={() => onDelete(node.id)}
+            onDelete={handleDelete}
             onMouseDown={handleHeaderMouseDown}
+            onContextMenu={handleHeaderContextMenu}
           />
           <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[2000px] opacity-100'}`}>
             <div className="p-2 space-y-2">
@@ -1002,8 +1039,9 @@ const Node: React.FC<NodeProps> = ({
             icon={<UsersIcon className="w-4 h-4 text-cyan-400" />}
             isMinimized={isMinimized}
             onToggleMinimize={() => onToggleMinimize(node.id)}
-            onDelete={() => onDelete(node.id)}
+            onDelete={handleDelete}
             onMouseDown={handleHeaderMouseDown}
+            onContextMenu={handleHeaderContextMenu}
           />
           <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
             <div className="p-2 space-y-2">
@@ -1079,8 +1117,9 @@ const Node: React.FC<NodeProps> = ({
                 icon={<Edit3 className="w-4 h-4 text-purple-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
-                onDelete={() => onDelete(node.id)}
+                onDelete={handleDelete}
                 onMouseDown={handleHeaderMouseDown}
+                onContextMenu={handleHeaderContextMenu}
             />
             <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
               <div className="p-2 space-y-2">
@@ -1143,8 +1182,9 @@ const Node: React.FC<NodeProps> = ({
                 icon={<Layers className="w-4 h-4 text-pink-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
-                onDelete={() => onDelete(node.id)}
+                onDelete={handleDelete}
                 onMouseDown={handleHeaderMouseDown}
+                onContextMenu={handleHeaderContextMenu}
               />
               <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
                 <div className="p-2 space-y-2">
@@ -1195,8 +1235,9 @@ const Node: React.FC<NodeProps> = ({
                 icon={<Clapperboard className="w-4 h-4 text-green-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
-                onDelete={() => onDelete(node.id)}
+                onDelete={handleDelete}
                 onMouseDown={handleHeaderMouseDown}
+                onContextMenu={handleHeaderContextMenu}
             />
             <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
               <div className="p-2 space-y-2">
@@ -1250,6 +1291,15 @@ const Node: React.FC<NodeProps> = ({
                 : <Video className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
             </div> )}
         </>
+      )}
+      {contextMenuPosition && (
+        <NodeContextMenu
+          position={contextMenuPosition}
+          onClose={closeContextMenu}
+          onDuplicate={handleDuplicate}
+          onReset={handleReset}
+          onDelete={handleDelete}
+        />
       )}
     </div>
   );

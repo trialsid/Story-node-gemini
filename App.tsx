@@ -53,6 +53,90 @@ interface HoveredInputInfo {
   handleId: string;
 }
 
+const createDefaultDataForType = (type: NodeType): NodeData['data'] => {
+  switch (type) {
+    case NodeType.CharacterGenerator:
+      return {
+        characterDescription: 'A brave knight with a scar over his left eye',
+        style: 'Studio Portrait Photo',
+        layout: 'T-pose reference sheet',
+        aspectRatio: '1:1',
+      } as NodeData['data'];
+    case NodeType.ImageGenerator:
+      return {
+        prompt: 'A photorealistic cat astronaut on Mars',
+        numberOfImages: 1,
+        aspectRatio: '1:1',
+      } as NodeData['data'];
+    case NodeType.Text:
+      return { text: 'A futuristic cityscape at dusk.' } as NodeData['data'];
+    case NodeType.Image:
+      return {} as NodeData['data'];
+    case NodeType.ImageEditor:
+      return { editDescription: 'Add a golden crown' } as NodeData['data'];
+    case NodeType.ImageMixer:
+      return { editDescription: 'A photorealistic blend of the input images' } as NodeData['data'];
+    case NodeType.VideoGenerator:
+      return {
+        editDescription: 'A majestic eagle soaring over mountains',
+        videoModel: 'veo-3.0-fast-generate-001',
+      } as NodeData['data'];
+    case NodeType.TextGenerator:
+      return { prompt: 'Write a short story about a robot who discovers music.' } as NodeData['data'];
+    case NodeType.StoryCharacterCreator:
+      return {
+        storyPrompt: 'A brave knight and a wise dragon meet in a forest to discuss an ancient prophecy.',
+      } as NodeData['data'];
+    case NodeType.StoryExpander:
+      return {
+        premise: 'A detective finds a mysterious key',
+        length: 'short',
+        genre: 'any',
+      } as NodeData['data'];
+    default:
+      return {} as NodeData['data'];
+  }
+};
+
+const sanitizeNodeDataForDuplication = (node: NodeData): NodeData['data'] => {
+  const clone = JSON.parse(JSON.stringify(node.data || {})) as NodeData['data'];
+
+  delete (clone as any).isLoading;
+  delete (clone as any).error;
+  delete (clone as any).generationProgressMessage;
+  delete (clone as any).generationElapsedMs;
+  delete (clone as any).generationStartTimeMs;
+  delete (clone as any).minimizedHeight;
+  delete (clone as any).handleYOffsets;
+  delete (clone as any).minimizedHandleYOffsets;
+
+  switch (node.type) {
+    case NodeType.CharacterGenerator:
+    case NodeType.ImageEditor:
+    case NodeType.ImageMixer:
+      delete (clone as any).imageUrl;
+      break;
+    case NodeType.ImageGenerator:
+      delete (clone as any).imageUrls;
+      delete (clone as any).imageUrl;
+      break;
+    case NodeType.VideoGenerator:
+      delete (clone as any).videoUrl;
+      break;
+    case NodeType.TextGenerator:
+    case NodeType.StoryExpander:
+      delete (clone as any).text;
+      break;
+    case NodeType.StoryCharacterCreator:
+      delete (clone as any).characters;
+      break;
+    default:
+      break;
+  }
+
+  return clone;
+};
+
 const App: React.FC = () => {
   const {
     state: canvasState,
@@ -667,6 +751,63 @@ const App: React.FC = () => {
             : node
         ),
     }));
+  }, [setCanvasState]);
+
+  const duplicateNode = useCallback((nodeId: string) => {
+    let duplicatedPosition: { x: number; y: number } | null = null;
+
+    setCanvasState(prevState => {
+      const node = prevState.nodes.find(n => n.id === nodeId);
+      if (!node) return prevState;
+
+      const newId = `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      const position = {
+        x: node.position.x + 48,
+        y: node.position.y + 48,
+      };
+      duplicatedPosition = position;
+
+      const duplicatedNode: NodeData = {
+        ...node,
+        id: newId,
+        position,
+        data: sanitizeNodeDataForDuplication(node),
+      };
+
+      return {
+        ...prevState,
+        nodes: [...prevState.nodes, duplicatedNode],
+      };
+    });
+
+    if (duplicatedPosition) {
+      setLastAddedNodePosition(duplicatedPosition);
+    }
+  }, [setCanvasState, setLastAddedNodePosition]);
+
+  const resetNode = useCallback((nodeId: string) => {
+    setCanvasState(prevState => {
+      const nodeIndex = prevState.nodes.findIndex(n => n.id === nodeId);
+      if (nodeIndex === -1) return prevState;
+
+      const node = prevState.nodes[nodeIndex];
+      const defaultData = createDefaultDataForType(node.type);
+      const preservedState = node.data.isMinimized !== undefined ? { isMinimized: node.data.isMinimized } : {};
+
+      const updatedNodes = [...prevState.nodes];
+      updatedNodes[nodeIndex] = {
+        ...node,
+        data: {
+          ...defaultData,
+          ...preservedState,
+        },
+      };
+
+      return {
+        ...prevState,
+        nodes: updatedNodes,
+      };
+    });
   }, [setCanvasState]);
 
   const updateNodeData = useCallback((nodeId: string, data: Partial<NodeData['data']>) => {
@@ -1420,6 +1561,8 @@ const App: React.FC = () => {
         onInputMouseDown={handleInputMouseDown}
         onInputMouseUp={handleInputMouseUp}
         onDeleteNode={requestDeleteNode}
+        onDuplicateNode={duplicateNode}
+        onResetNode={resetNode}
         onToggleNodeMinimization={toggleNodeMinimization}
         nodeDimensions={NODE_DIMENSIONS}
         canvasOffset={canvasOffset}

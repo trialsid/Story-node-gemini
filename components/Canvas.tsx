@@ -40,6 +40,8 @@ interface CanvasProps {
   onInputMouseDown: (nodeId: string, handleId: string) => void;
   onInputMouseUp: (nodeId: string, handleId: string) => void;
   onDeleteNode: (nodeId: string) => void;
+  onDuplicateNode: (nodeId: string) => void;
+  onResetNode: (nodeId: string) => void;
   onToggleNodeMinimization: (nodeId: string) => void;
   nodeDimensions: { [key in NodeType]: { width: number; height?: number } };
   canvasOffset: { x: number; y: number };
@@ -74,6 +76,8 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
   onInputMouseDown,
   onInputMouseUp,
   onDeleteNode,
+  onDuplicateNode,
+  onResetNode,
   onToggleNodeMinimization,
   nodeDimensions,
   canvasOffset,
@@ -164,6 +168,8 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
             onInputMouseDown={onInputMouseDown}
             onInputMouseUp={onInputMouseUp}
             onDelete={onDeleteNode}
+            onDuplicate={onDuplicateNode}
+            onReset={onResetNode}
             onToggleMinimize={onToggleNodeMinimization}
             dimensions={nodeDimensions[node.type]}
             tempConnectionInfo={tempConnectionInfo}
