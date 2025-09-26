@@ -11,10 +11,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
     "@google/genai": "^1.16.0",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "lucide-react": "^0.484.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

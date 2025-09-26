@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import CloseIcon from './icons/CloseIcon';
-import SettingsIcon from './icons/SettingsIcon';
-import KeyboardIcon from './icons/KeyboardIcon';
+import { X, Settings, Keyboard } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -128,8 +126,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, showWelc
       >
         <nav className={`w-56 flex-shrink-0 ${styles.sidebar.bg} p-4`}>
           <div className="space-y-2">
-            <SidebarItem label="General" icon={<SettingsIcon className="w-5 h-5" />} tab="general" />
-            <SidebarItem label="Keyboard" icon={<KeyboardIcon className="w-5 h-5" />} tab="shortcuts" />
+            <SidebarItem label="General" icon={<Settings className="w-5 h-5" />} tab="general" />
+            <SidebarItem label="Keyboard" icon={<Keyboard className="w-5 h-5" />} tab="shortcuts" />
           </div>
         </nav>
         <div className="flex-1 flex flex-col relative">
@@ -138,7 +136,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, showWelc
             className="absolute top-3 right-3 p-2 rounded-full text-gray-400 hover:bg-gray-600/50 hover:text-white transition-colors z-10"
             aria-label="Close settings"
           >
-            <CloseIcon className="w-5 h-5" />
+            <X className="w-5 h-5" />
           </button>
           <main className="flex-grow p-8 overflow-y-auto custom-scrollbar">
             <h1 id="settings-title" className={`text-2xl font-bold ${styles.modal.text} mb-6`}>

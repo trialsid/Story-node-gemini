@@ -1,16 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { templates } from '../utils/templates';
-import ImageIcon from './icons/ImageIcon';
-import TextIcon from './icons/TextIcon';
-import VideoIcon from './icons/VideoIcon';
-import UsersIcon from './icons/UsersIcon';
-import MixerIcon from './icons/MixerIcon';
-import PlusIcon from './icons/PlusIcon';
-import CloseIcon from './icons/CloseIcon';
-import SettingsIcon from './icons/SettingsIcon';
-import HomeIcon from './icons/HomeIcon';
-import ClockIcon from './icons/ClockIcon';
+import { Image, Video, Users as UsersIcon, Shuffle, Plus, X, Settings, Home, Clock } from 'lucide-react';
 
 interface WelcomeModalProps {
   onStartFresh: () => void;
@@ -36,8 +27,8 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ onStartFresh, onLoadTemplat
   
   const templateIcons: { [key in keyof typeof templates]: React.ReactNode } = {
     storyCharacterPipeline: <UsersIcon className="w-6 h-6 text-teal-300" />,
-    cinematicStoryboard: <VideoIcon className="w-6 h-6 text-indigo-300" />,
-    worldMoodboard: <MixerIcon className="w-6 h-6 text-fuchsia-300" />,
+    cinematicStoryboard: <Video className="w-6 h-6 text-indigo-300" />,
+    worldMoodboard: <Shuffle className="w-6 h-6 text-fuchsia-300" />,
   };
 
   const SidebarItem: React.FC<{
@@ -65,7 +56,7 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ onStartFresh, onLoadTemplat
             className={`w-full text-left p-4 rounded-lg flex items-center space-x-4 transition-colors ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg}`}
           >
             <div className={`p-3 rounded-md ${styles.node.bg}`}>
-              <PlusIcon className="w-6 h-6" />
+              <Plus className="w-6 h-6" />
             </div>
             <div>
               <p className="font-semibold">New Blank Canvas</p>
@@ -130,8 +121,8 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ onStartFresh, onLoadTemplat
                 <h1 className={`text-lg font-bold ${styles.modal.text}`}>Gemini Node Canvas</h1>
             </div>
             <div className="mt-6 space-y-2">
-                <SidebarItem label="Start" icon={<HomeIcon className="w-5 h-5" />} tabName="start" />
-                <SidebarItem label="Recent" icon={<ClockIcon className="w-5 h-5" />} tabName="recent" />
+                <SidebarItem label="Start" icon={<Home className="w-5 h-5" />} tabName="start" />
+                <SidebarItem label="Recent" icon={<Clock className="w-5 h-5" />} tabName="recent" />
             </div>
           </div>
           <div className="mt-auto p-3">
@@ -150,7 +141,7 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ onStartFresh, onLoadTemplat
             <div className="flex items-center space-x-1.5 text-xs text-gray-400">
               <span>Access settings via the</span>
               <div className={`${styles.toolbar.buttonBg} p-1 rounded-sm`}>
-                  <SettingsIcon className="w-3 h-3" />
+                  <Settings className="w-3 h-3" />
               </div>
               <span>icon.</span>
             </div>
@@ -164,7 +155,7 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ onStartFresh, onLoadTemplat
                 className="absolute top-3 right-3 p-2 rounded-full text-gray-400 hover:bg-gray-600/50 hover:text-white transition-colors z-10"
                 aria-label="Close welcome screen"
             >
-                <CloseIcon className="w-5 h-5" />
+                <X className="w-5 h-5" />
             </button>
             <main className="flex-grow p-8 overflow-y-auto custom-scrollbar">
                 <h1 id="welcome-title-main" className={`text-2xl font-bold ${styles.modal.text} mb-1`}>

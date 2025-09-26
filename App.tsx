@@ -14,7 +14,7 @@ import WelcomeModal from './components/WelcomeModal';
 import { templates } from './utils/templates';
 import ContextMenu from './components/ContextMenu';
 import SettingsModal from './components/SettingsModal';
-import SettingsIcon from './components/icons/SettingsIcon';
+import { Settings } from 'lucide-react';
 import { useHistory } from './hooks/useHistory';
 import { areHandlesCompatible } from './utils/node-spec';
 import { fetchGalleryItems, createGalleryItem, deleteGalleryItem } from './services/galleryApi';
@@ -271,7 +271,12 @@ const App: React.FC = () => {
         const toNode = propagatedNodes[toNodeIndex];
         let dataToUpdate: Partial<NodeData['data']> = {};
         
-        if ((fromNode.type === NodeType.Text || fromNode.type === NodeType.TextGenerator) && 'text' in fromNode.data) {
+        const fromNodeProducesText =
+          (fromNode.type === NodeType.Text ||
+            fromNode.type === NodeType.TextGenerator ||
+            fromNode.type === NodeType.StoryExpander);
+
+        if (fromNodeProducesText && 'text' in fromNode.data) {
           if (toNode.type === NodeType.CharacterGenerator && conn.toHandleId === 'description_input') {
               dataToUpdate = { characterDescription: fromNode.data.text };
           } else if (toNode.type === NodeType.ImageGenerator && conn.toHandleId === 'prompt_input') {
@@ -683,7 +688,12 @@ const App: React.FC = () => {
                 const toNode = newNodes[toNodeIndex];
                 let dataToUpdate: Partial<NodeData['data']> = {};
                 
-                if ((updatedNode.type === NodeType.Text || updatedNode.type === NodeType.TextGenerator) && 'text' in data) {
+                const updatedNodeProducesText =
+                  (updatedNode.type === NodeType.Text ||
+                    updatedNode.type === NodeType.TextGenerator ||
+                    updatedNode.type === NodeType.StoryExpander);
+
+                if (updatedNodeProducesText && 'text' in data) {
                     if (toNode.type === NodeType.CharacterGenerator && conn.toHandleId === 'description_input') {
                         dataToUpdate = { characterDescription: data.text };
                     } else if (toNode.type === NodeType.ImageGenerator && conn.toHandleId === 'prompt_input') {
@@ -942,7 +952,12 @@ const App: React.FC = () => {
             let dataToUpdate: Partial<NodeData['data']> = {};
             const toNode = newNodes[toNodeIndex];
 
-            if ((fromNode.type === NodeType.Text || fromNode.type === NodeType.TextGenerator) && 'text' in fromNode.data) {
+            const fromNodeProducesText =
+              (fromNode.type === NodeType.Text ||
+                fromNode.type === NodeType.TextGenerator ||
+                fromNode.type === NodeType.StoryExpander);
+
+            if (fromNodeProducesText && 'text' in fromNode.data) {
                 if (toNode.type === NodeType.CharacterGenerator && toHandleId === 'description_input') {
                     dataToUpdate = { characterDescription: fromNode.data.text };
                 } else if (toNode.type === NodeType.ImageGenerator && toHandleId === 'prompt_input') {
@@ -1361,7 +1376,7 @@ const App: React.FC = () => {
           className={`w-12 h-12 flex items-center justify-center ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-full shadow-lg text-gray-400 ${styles.toolbar.buttonHoverBg}`}
           aria-label="Open settings"
         >
-          <SettingsIcon className="w-6 h-6" />
+          <Settings className="w-6 h-6" />
         </button>
       </div>
       <GalleryPanel

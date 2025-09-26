@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { GalleryItem } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
-import CloseIcon from './icons/CloseIcon';
+import { X } from 'lucide-react';
 
 interface GalleryPreviewModalProps {
   item: GalleryItem | null;
@@ -55,7 +55,7 @@ const GalleryPreviewModal: React.FC<GalleryPreviewModalProps> = ({ item, onClose
           className="absolute top-3 right-3 p-2 rounded-full text-gray-300 hover:text-white hover:bg-black/40 transition"
           aria-label="Close gallery preview"
         >
-          <CloseIcon className="w-5 h-5" />
+          <X className="w-5 h-5" />
         </button>
         <div className="flex-1 bg-black/40 flex items-center justify-center p-4">
           {type === 'video' ? (

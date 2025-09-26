@@ -1,20 +1,9 @@
 import React, { useRef, useEffect, useState, useLayoutEffect } from 'react';
 import { NodeData, NodeType, Connection, HandleType } from '../types';
-import ImageIcon from './icons/ImageIcon';
-import SparklesIcon from './icons/SparklesIcon';
-import TextIcon from './icons/TextIcon';
-import EditIcon from './icons/EditIcon';
-import TrashIcon from './icons/TrashIcon';
+import { FileText, Users as UsersIcon, PenSquare, Image, Sparkles, Trash2, ChevronDown, ChevronUp, Video, Upload, Bot, Shuffle } from 'lucide-react';
 import NodeHandle from './NodeHandle';
 import { useTheme } from '../contexts/ThemeContext';
-import ChevronDownIcon from './icons/ChevronDownIcon';
-import ChevronUpIcon from './icons/ChevronUpIcon';
-import VideoIcon from './icons/VideoIcon';
-import UploadIcon from './icons/UploadIcon';
 import { areHandlesCompatible, NodeHandleSpec } from '../utils/node-spec';
-import BotIcon from './icons/BotIcon';
-import MixerIcon from './icons/MixerIcon';
-import UsersIcon from './icons/UsersIcon';
 import ExpandableTextArea from './ExpandableTextArea';
 import { getHandlesForSide, getMinimizedHandleY, SLICE_HEIGHT_PX, DEFAULT_MINIMIZED_PREVIEW_HEIGHT } from '../utils/handlePositions';
 
@@ -82,7 +71,7 @@ const NodeHeader: React.FC<NodeHeaderProps> = ({ title, icon, isMinimized, onTog
           className="p-1 rounded-full text-gray-400 hover:bg-gray-600/50 hover:text-white transition-colors z-10"
           aria-label={isMinimized ? 'Expand node' : 'Minimize node'}
         >
-          {isMinimized ? <ChevronDownIcon className="w-4 h-4" /> : <ChevronUpIcon className="w-4 h-4" />}
+          {isMinimized ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
         </button>
         <button
           onMouseDown={(e) => e.stopPropagation()}
@@ -90,7 +79,7 @@ const NodeHeader: React.FC<NodeHeaderProps> = ({ title, icon, isMinimized, onTog
           className="p-1 rounded-full text-gray-400 hover:bg-red-500/50 hover:text-white transition-colors z-10"
           aria-label="Delete node"
         >
-          <TrashIcon className="w-4 h-4" />
+          <Trash2 className="w-4 h-4" />
         </button>
       </div>
     </div>
@@ -546,7 +535,7 @@ const Node: React.FC<NodeProps> = ({
         <>
             <NodeHeader 
                 title='Text Node'
-                icon={<TextIcon className="w-4 h-4 text-yellow-400" />}
+                icon={<FileText className="w-4 h-4 text-yellow-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={() => onDelete(node.id)}
@@ -577,7 +566,7 @@ const Node: React.FC<NodeProps> = ({
         <>
             <NodeHeader 
                 title='Text Generator'
-                icon={<BotIcon className="w-4 h-4 text-indigo-400" />}
+                icon={<FileText className="w-4 h-4 text-indigo-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={() => onDelete(node.id)}
@@ -616,7 +605,7 @@ const Node: React.FC<NodeProps> = ({
                         </div>
                     </div>
                     <button onClick={() => onGenerateText(node.id)} disabled={node.data.isLoading} className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-indigo-600 hover:bg-indigo-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`} >
-                      <SparklesIcon className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                      <Sparkles className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
                       {node.data.isLoading ? 'Generating...' : 'Generate Text'}
                     </button>
                 </div>
@@ -702,7 +691,7 @@ const Node: React.FC<NodeProps> = ({
                 disabled={node.data.isLoading}
                 className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-teal-600 hover:bg-teal-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`}
               >
-                <SparklesIcon className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                <Sparkles className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
                 {node.data.isLoading ? 'Extracting Characters...' : 'Generate Characters'}
               </button>
             </div>
@@ -744,7 +733,7 @@ const Node: React.FC<NodeProps> = ({
         <>
           <NodeHeader
             title='Story Expander'
-            icon={<TextIcon className="w-4 h-4 text-purple-400" />}
+            icon={<FileText className="w-4 h-4 text-purple-400" />}
             isMinimized={isMinimized}
             onToggleMinimize={() => onToggleMinimize(node.id)}
             onDelete={() => onDelete(node.id)}
@@ -826,7 +815,7 @@ const Node: React.FC<NodeProps> = ({
                 disabled={node.data.isLoading}
                 className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-purple-600 hover:bg-purple-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`}
               >
-                <SparklesIcon className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                <Sparkles className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
                 {node.data.isLoading ? 'Expanding Story...' : 'Expand Story'}
               </button>
             </div>
@@ -844,7 +833,7 @@ const Node: React.FC<NodeProps> = ({
         <>
             <NodeHeader 
                 title='Image Node'
-                icon={<UploadIcon className="w-4 h-4 text-orange-400" />}
+                icon={<Upload className="w-4 h-4 text-orange-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={() => onDelete(node.id)}
@@ -876,7 +865,7 @@ const Node: React.FC<NodeProps> = ({
                                 />
                             ) : (
                                 <div className="text-center">
-                                    <UploadIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon} mx-auto mb-1`} />
+                                    <Upload className={`w-8 h-8 ${styles.node.imagePlaceholderIcon} mx-auto mb-1`} />
                                     <span className="text-xs">Click or drag & drop</span>
                                 </div>
                             )}
@@ -892,7 +881,7 @@ const Node: React.FC<NodeProps> = ({
               >
                   {node.data.imageUrl ? 
                       <img key={node.data.imageUrl} ref={minimizedImageRef} src={node.data.imageUrl} alt="Preview" className="w-full h-full object-contain" />
-                      : <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
+                      : <Image className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
                   }
               </div>
             )}
@@ -903,7 +892,7 @@ const Node: React.FC<NodeProps> = ({
         <>
           <NodeHeader 
             title='Image Generator'
-            icon={<ImageIcon className="w-4 h-4 text-blue-400" />}
+            icon={<Image className="w-4 h-4 text-blue-400" />}
             isMinimized={isMinimized}
             onToggleMinimize={() => onToggleMinimize(node.id)}
             onDelete={() => onDelete(node.id)}
@@ -966,7 +955,7 @@ const Node: React.FC<NodeProps> = ({
                                         />
                                     ) : (
                                         <div className={`${imagePreviewBaseClassName} h-40`}>
-                                            <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
+                                            <Image className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
                                         </div>
                                     )}
                                 </div>
@@ -977,7 +966,7 @@ const Node: React.FC<NodeProps> = ({
               </div>
 
               <button onClick={() => onGenerateImages(node.id)} disabled={node.data.isLoading} className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-blue-600 hover:bg-blue-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`} >
-                <SparklesIcon className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                <Sparkles className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
                 {node.data.isLoading ? 'Generating...' : 'Generate Images'}
               </button>
             </div>
@@ -999,7 +988,7 @@ const Node: React.FC<NodeProps> = ({
                     </div>
                 ) : (
                     <div className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md flex items-center justify-center border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`} style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }} >
-                        {previewImage ? <img key={previewImage} ref={minimizedImageRef} src={previewImage} alt="Preview" className="w-full h-full object-contain" /> : <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+                        {previewImage ? <img key={previewImage} ref={minimizedImageRef} src={previewImage} alt="Preview" className="w-full h-full object-contain" /> : <Image className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
                     </div>
                 )
             )}
@@ -1010,7 +999,7 @@ const Node: React.FC<NodeProps> = ({
         <>
           <NodeHeader 
             title='Character Generator'
-            icon={<ImageIcon className="w-4 h-4 text-cyan-400" />}
+            icon={<Image className="w-4 h-4 text-cyan-400" />}
             isMinimized={isMinimized}
             onToggleMinimize={() => onToggleMinimize(node.id)}
             onDelete={() => onDelete(node.id)}
@@ -1068,17 +1057,17 @@ const Node: React.FC<NodeProps> = ({
                   {node.data.isLoading ? <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
                   : node.data.error ? <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
                   : node.data.imageUrl ? <img src={node.data.imageUrl} alt="Generated character" className="w-full h-full object-cover rounded-md cursor-zoom-in" onClick={() => onImageClick(node.data.imageUrl!)} />
-                  : <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+                  : <Image className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
                 </div>
               </div>
               <button onClick={() => onGenerateCharacterImage(node.id)} disabled={node.data.isLoading} className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-cyan-600 hover:bg-cyan-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`} >
-                <SparklesIcon className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                <Sparkles className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
                 {node.data.isLoading ? 'Generating...' : 'Generate Image'}
               </button>
             </div>
           </div>
           {isMinimized && ( <div className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md flex items-center justify-center border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`} style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }} >
-              {hasVisuals ? <img key={previewImage} ref={minimizedImageRef} src={previewImage!} alt="Preview" className="w-full h-full object-contain" /> : <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+              {hasVisuals ? <img key={previewImage} ref={minimizedImageRef} src={previewImage!} alt="Preview" className="w-full h-full object-contain" /> : <Image className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
           </div> )}
         </>
       )}
@@ -1087,7 +1076,7 @@ const Node: React.FC<NodeProps> = ({
         <>
             <NodeHeader 
                 title='Image Editor'
-                icon={<EditIcon className="w-4 h-4 text-purple-400" />}
+                icon={<PenSquare className="w-4 h-4 text-purple-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={() => onDelete(node.id)}
@@ -1098,7 +1087,7 @@ const Node: React.FC<NodeProps> = ({
                 <div ref={el => handleAnchorRefs.current['image_input'] = el}>
                     <label className={labelClassName}>Input Image</label>
                     <div className={`${imagePreviewBaseClassName} h-32`}>
-                        {node.data.inputImageUrl ? <img src={node.data.inputImageUrl} alt="Input for editing" className="w-full h-full object-cover rounded-md" /> : <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+                        {node.data.inputImageUrl ? <img src={node.data.inputImageUrl} alt="Input for editing" className="w-full h-full object-cover rounded-md" /> : <Image className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
                     </div>
                 </div>
                 <div>
@@ -1111,17 +1100,17 @@ const Node: React.FC<NodeProps> = ({
                         {node.data.isLoading ? <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
                         : node.data.error ? <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
                         : node.data.imageUrl ? <img src={node.data.imageUrl} alt="Edited image" className="w-full h-full object-cover rounded-md cursor-zoom-in" onClick={() => onImageClick(node.data.imageUrl!)} />
-                        : <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+                        : <Image className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
                     </div>
                 </div>
                 <button onClick={() => onEditImage(node.id)} disabled={node.data.isLoading} className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-purple-600 hover:bg-purple-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`} >
-                    <SparklesIcon className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                    <Sparkles className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
                     {node.data.isLoading ? 'Editing...' : 'Edit Image'}
                 </button>
               </div>
             </div>
             {isMinimized && ( <div className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md flex items-center justify-center border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`} style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }} >
-                {hasVisuals ? <img key={previewImage} ref={minimizedImageRef} src={previewImage!} alt="Preview" className="w-full h-full object-contain" /> : <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} /> }
+                {hasVisuals ? <img key={previewImage} ref={minimizedImageRef} src={previewImage!} alt="Preview" className="w-full h-full object-contain" /> : <Image className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} /> }
             </div> )}
         </>
       )}
@@ -1151,7 +1140,7 @@ const Node: React.FC<NodeProps> = ({
             <>
               <NodeHeader 
                 title='Image Mixer'
-                icon={<MixerIcon className="w-4 h-4 text-pink-400" />}
+                icon={<Shuffle className="w-4 h-4 text-pink-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={() => onDelete(node.id)}
@@ -1167,7 +1156,7 @@ const Node: React.FC<NodeProps> = ({
                           <img key={`${url}-${index}`} src={url} alt={`Input ${index + 1}`} className="w-16 h-16 object-cover rounded-md" />
                         ))
                       ) : (
-                        <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
+                        <Image className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
                       )}
                     </div>
                   </div>
@@ -1181,18 +1170,18 @@ const Node: React.FC<NodeProps> = ({
                       {node.data.isLoading ? <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-400"></div>
                       : node.data.error ? <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
                       : node.data.imageUrl ? <img src={node.data.imageUrl} alt="Mixed image" className="w-full h-full object-cover rounded-md cursor-zoom-in" onClick={() => onImageClick(node.data.imageUrl!)} />
-                      : <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+                      : <Image className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
                     </div>
                   </div>
                   <button onClick={() => onMixImages(node.id)} disabled={node.data.isLoading} className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-pink-600 hover:bg-pink-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`} >
-                    <SparklesIcon className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                    <Sparkles className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
                     {node.data.isLoading ? 'Mixing...' : 'Mix Images'}
                   </button>
                 </div>
               </div>
               {isMinimized && (
                 <div className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md flex items-center justify-center border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`} style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }}>
-                  {mixerHasVisuals ? <img key={mixerPreviewImage} ref={minimizedImageRef} src={mixerPreviewImage!} alt="Preview" className="w-full h-full object-contain" /> : <MixerIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+                  {mixerHasVisuals ? <img key={mixerPreviewImage} ref={minimizedImageRef} src={mixerPreviewImage!} alt="Preview" className="w-full h-full object-contain" /> : <Shuffle className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
                 </div>
               )}
             </>
@@ -1203,7 +1192,7 @@ const Node: React.FC<NodeProps> = ({
         <>
             <NodeHeader 
                 title='Video Generator'
-                icon={<VideoIcon className="w-4 h-4 text-green-400" />}
+                icon={<Video className="w-4 h-4 text-green-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={() => onDelete(node.id)}
@@ -1214,7 +1203,7 @@ const Node: React.FC<NodeProps> = ({
                 <div ref={el => handleAnchorRefs.current['image_input'] = el}>
                     <label className={labelClassName}>Input Image (Optional)</label>
                     <div className={`${imagePreviewBaseClassName} h-24`}>
-                        {node.data.inputImageUrl ? <img src={node.data.inputImageUrl} alt="Input for video" className="w-full h-full object-cover rounded-md" /> : <ImageIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+                        {node.data.inputImageUrl ? <img src={node.data.inputImageUrl} alt="Input for video" className="w-full h-full object-cover rounded-md" /> : <Image className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
                     </div>
                 </div>
                 <div>
@@ -1240,7 +1229,7 @@ const Node: React.FC<NodeProps> = ({
                         )
                         : node.data.error ? <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
                         : node.data.videoUrl ? <video src={node.data.videoUrl} controls autoPlay muted loop className="w-full h-full object-cover rounded-md" />
-                        : <VideoIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+                        : <Video className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
                     </div>
                     {!node.data.isLoading && node.data.generationElapsedMs !== undefined && !node.data.error && (
                         <p className="text-xs mt-1 text-center text-gray-300">Completed in {formatDuration(node.data.generationElapsedMs)}</p>
@@ -1250,7 +1239,7 @@ const Node: React.FC<NodeProps> = ({
                     )}
                 </div>
                 <button onClick={() => onGenerateVideo(node.id)} disabled={node.data.isLoading} className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-green-600 hover:bg-green-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`} >
-                    <SparklesIcon className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                    <Sparkles className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
                     {node.data.isLoading ? 'Generating...' : 'Generate Video'}
                 </button>
               </div>
@@ -1258,7 +1247,7 @@ const Node: React.FC<NodeProps> = ({
              {isMinimized && ( <div className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md flex items-center justify-center border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`} style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }} >
                 {previewVideo ? <video key={previewVideo} ref={minimizedVideoRef} src={previewVideo} muted loop autoPlay playsInline className="w-full h-full object-contain" />
                 : previewImage ? <img key={previewImage} ref={minimizedImageRef} src={previewImage} alt="Preview" className="w-full h-full object-contain" />
-                : <VideoIcon className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+                : <Video className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
             </div> )}
         </>
       )}

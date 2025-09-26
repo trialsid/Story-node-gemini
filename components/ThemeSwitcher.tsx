@@ -1,9 +1,7 @@
 
 import React from 'react';
 import { useTheme, themes } from '../contexts/ThemeContext';
-import SunIcon from './icons/SunIcon';
-import MoonIcon from './icons/MoonIcon';
-import SparkleIcon from './icons/SparkleIcon';
+import { Sun, Moon, Sparkles } from 'lucide-react';
 
 const ThemeSwitcher: React.FC = () => {
   const { theme, setTheme, styles } = useTheme();
@@ -32,9 +30,9 @@ const ThemeSwitcher: React.FC = () => {
           aria-label={`Switch to ${themeOption.name} theme`}
           title={`Switch to ${themeOption.name} theme`}
         >
-          {themeOption.key === 'dark' && <MoonIcon className="w-5 h-5" />}
-          {themeOption.key === 'modern' && <SunIcon className="w-5 h-5" />}
-          {themeOption.key === 'elegant' && <SparkleIcon className="w-5 h-5" />}
+          {themeOption.key === 'dark' && <Moon className="w-5 h-5" />}
+          {themeOption.key === 'modern' && <Sun className="w-5 h-5" />}
+          {themeOption.key === 'elegant' && <Sparkles className="w-5 h-5" />}
         </button>
       ))}
     </div>

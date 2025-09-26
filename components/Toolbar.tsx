@@ -1,13 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import HomeIcon from './icons/HomeIcon';
-import ClearCanvasIcon from './icons/ClearCanvasIcon';
-import UndoIcon from './icons/UndoIcon';
-import RedoIcon from './icons/RedoIcon';
-import SaveIcon from './icons/SaveIcon';
-import LoadIcon from './icons/LoadIcon';
-import PlusIcon from './icons/PlusIcon';
-import ChevronDownIcon from './icons/ChevronDownIcon';
+import { Home, Trash2, Undo2, Redo2, Save, FolderOpen, Plus, ChevronDown } from 'lucide-react';
 import { buildNodeMenuCategories } from '../utils/nodeMenuConfig';
 
 interface ToolbarProps {
@@ -117,26 +110,26 @@ const Toolbar: React.FC<ToolbarProps> = ({
       <div className="flex items-center space-x-1.5">
         {/* Group 1: Project & Canvas */}
         <ToolbarButton onClick={onNavigateHome} tooltip="Home" className="hover:bg-cyan-500/20">
-            <HomeIcon className="w-5 h-5 text-cyan-400" />
+            <Home className="w-5 h-5 text-cyan-400" />
         </ToolbarButton>
         <ToolbarButton onClick={onSaveProject} tooltip="Save Project">
-            <SaveIcon className="w-5 h-5 text-gray-300" />
+            <Save className="w-5 h-5 text-gray-300" />
         </ToolbarButton>
         <ToolbarButton onClick={onLoadProject} tooltip="Load Project">
-            <LoadIcon className="w-5 h-5 text-gray-300" />
+            <FolderOpen className="w-5 h-5 text-gray-300" />
         </ToolbarButton>
         <ToolbarButton onClick={onClearCanvas} tooltip="Clear Canvas">
-            <ClearCanvasIcon className="w-5 h-5 text-red-400" />
+            <Trash2 className="w-5 h-5 text-red-400" />
         </ToolbarButton>
         
         <div className="w-px h-6 bg-gray-500/30 mx-1" />
 
         {/* Group 2: History */}
         <ToolbarButton onClick={onUndo} disabled={!canUndo} tooltip="Undo (Ctrl+Z)">
-            <UndoIcon className="w-5 h-5 text-gray-300" />
+            <Undo2 className="w-5 h-5 text-gray-300" />
         </ToolbarButton>
         <ToolbarButton onClick={onRedo} disabled={!canRedo} tooltip="Redo (Ctrl+Shift+Z)">
-            <RedoIcon className="w-5 h-5 text-gray-300" />
+            <Redo2 className="w-5 h-5 text-gray-300" />
         </ToolbarButton>
         
         <div className="w-px h-6 bg-gray-500/30 mx-1" />
@@ -147,9 +140,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
                 onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
                 className={`flex items-center space-x-2 px-3 py-2 ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium`}
             >
-                <PlusIcon className="w-5 h-5 text-gray-300" />
+                <Plus className="w-5 h-5 text-gray-300" />
                 <span>Add Node</span>
-                <ChevronDownIcon className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isAddMenuOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isAddMenuOpen ? 'rotate-180' : ''}`} />
             </button>
             {isAddMenuOpen && (
                 <div 

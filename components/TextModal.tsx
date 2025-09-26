@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import CloseIcon from './icons/CloseIcon';
+import { X } from 'lucide-react';
 
 interface TextModalProps {
   isOpen: boolean;
@@ -73,7 +73,7 @@ const TextModal: React.FC<TextModalProps> = ({ isOpen, onClose, title, text }) =
               title="Close"
               aria-label="Close text modal"
             >
-              <CloseIcon className="w-4 h-4" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>

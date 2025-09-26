@@ -1,11 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import ChevronUpIcon from './icons/ChevronUpIcon';
-import ChevronDownIcon from './icons/ChevronDownIcon';
-import VideoIcon from './icons/VideoIcon';
-import StarIcon from './icons/StarIcon';
-import TrashIcon from './icons/TrashIcon';
-import SparklesIcon from './icons/SparklesIcon';
+import { ChevronUp, ChevronDown, Video, Star, Trash2, Sparkles } from 'lucide-react';
 import { GalleryItem, GalleryStatus } from '../types';
 
 interface GalleryPanelProps {
@@ -69,7 +64,7 @@ const GalleryPanel: React.FC<GalleryPanelProps> = ({
     if (!item.url) {
       return (
         <div className={`flex items-center justify-center h-full w-full ${styles.node.imagePlaceholderBg} rounded-md`}>
-          <SparklesIcon className="w-5 h-5 text-yellow-400" />
+          <Sparkles className="w-5 h-5 text-yellow-400" />
         </div>
       );
     }
@@ -87,7 +82,7 @@ const GalleryPanel: React.FC<GalleryPanelProps> = ({
           />
           {!compact && (
             <div className="absolute bottom-1 right-1 bg-black/60 p-1 rounded-full flex items-center justify-center text-white">
-              <VideoIcon className="w-3 h-3" />
+              <Video className="w-3 h-3" />
             </div>
           )}
         </div>
@@ -111,7 +106,7 @@ const GalleryPanel: React.FC<GalleryPanelProps> = ({
     if (mediaToShow.length === 0) {
       return (
         <div className={`flex items-center justify-center h-48 text-center ${styles.node.labelText}`}>
-          <StarIcon className="w-8 h-8 mx-auto mb-2 text-yellow-400" />
+          <Star className="w-8 h-8 mx-auto mb-2 text-yellow-400" />
           <p className="text-xs font-semibold">{activeTab === 'history' ? 'No history yet' : 'Starred items coming soon'}</p>
           {activeTab === 'history' && <p className="text-xs mt-1">Generate media to populate your gallery.</p>}
         </div>
@@ -147,7 +142,7 @@ const GalleryPanel: React.FC<GalleryPanelProps> = ({
               aria-label="Delete from gallery"
               type="button"
             >
-              <TrashIcon className="w-3 h-3" />
+              <Trash2 className="w-3 h-3" />
             </button>
           </div>
         ))}
@@ -171,7 +166,7 @@ const GalleryPanel: React.FC<GalleryPanelProps> = ({
       return (
         <div className="flex items-center justify-center h-16 text-center">
           <div className={`${styles.node.labelText}`}>
-            <StarIcon className="w-6 h-6 mx-auto mb-1 text-yellow-400" />
+            <Star className="w-6 h-6 mx-auto mb-1 text-yellow-400" />
             <p className="text-xs">History will appear here</p>
           </div>
         </div>
@@ -220,7 +215,7 @@ const GalleryPanel: React.FC<GalleryPanelProps> = ({
           className="p-1 rounded-full text-gray-400 hover:bg-gray-600/50 hover:text-white transition-colors"
           aria-label={isMinimized ? 'Expand gallery' : 'Collapse gallery'}
         >
-          {isMinimized ? <ChevronDownIcon className="w-4 h-4" /> : <ChevronUpIcon className="w-4 h-4" />}
+          {isMinimized ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
         </button>
       </div>
 

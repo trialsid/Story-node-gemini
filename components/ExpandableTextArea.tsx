@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import ExpandIcon from './icons/ExpandIcon';
+import { Expand } from 'lucide-react';
 
 interface ExpandableTextAreaProps {
   value: string;
@@ -63,7 +63,7 @@ const ExpandableTextArea: React.FC<ExpandableTextAreaProps> = ({
           className={`absolute bottom-1 left-1 p-1 ${styles.node.inputBg} hover:${styles.node.inputBorder} border ${styles.node.border} rounded opacity-70 hover:opacity-100 transition-opacity`}
           title={`Expand ${title.toLowerCase()}`}
         >
-          <ExpandIcon className="w-3 h-3 text-gray-400" />
+          <Expand className="w-3 h-3 text-gray-400" />
         </button>
       )}
 

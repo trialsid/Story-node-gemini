@@ -1,12 +1,5 @@
 import React from 'react';
-import TextIcon from '../components/icons/TextIcon';
-import BotIcon from '../components/icons/BotIcon';
-import UploadIcon from '../components/icons/UploadIcon';
-import UsersIcon from '../components/icons/UsersIcon';
-import ImageIcon from '../components/icons/ImageIcon';
-import EditIcon from '../components/icons/EditIcon';
-import MixerIcon from '../components/icons/MixerIcon';
-import VideoIcon from '../components/icons/VideoIcon';
+import { FileText, PenSquare, Users as UsersIcon, Bot, Upload, Image, Shuffle, Video } from 'lucide-react';
 
 export interface NodeMenuCallbacks {
   onAddTextNode: () => void;
@@ -36,31 +29,31 @@ export const buildNodeMenuCategories = (callbacks: NodeMenuCallbacks): NodeMenuC
   {
     title: 'Basic Inputs',
     items: [
-      { label: 'Text', icon: <TextIcon className="w-5 h-5 text-yellow-400" />, action: callbacks.onAddTextNode },
-      { label: 'Text Generator', icon: <BotIcon className="w-5 h-5 text-indigo-400" />, action: callbacks.onAddTextGeneratorNode },
-      { label: 'Image', icon: <UploadIcon className="w-5 h-5 text-orange-400" />, action: callbacks.onAddImageNode },
+      { label: 'Text', icon: <FileText className="w-5 h-5 text-yellow-400" />, action: callbacks.onAddTextNode },
+      { label: 'Text Generator', icon: <Bot className="w-5 h-5 text-indigo-400" />, action: callbacks.onAddTextGeneratorNode },
+      { label: 'Image', icon: <Upload className="w-5 h-5 text-orange-400" />, action: callbacks.onAddImageNode },
     ],
   },
   {
     title: 'Story Tools',
     items: [
-      { label: 'Story Expander', icon: <TextIcon className="w-5 h-5 text-purple-400" />, action: callbacks.onAddStoryExpanderNode },
+      { label: 'Story Expander', icon: <FileText className="w-5 h-5 text-purple-400" />, action: callbacks.onAddStoryExpanderNode },
       { label: 'Story Character Creator', icon: <UsersIcon className="w-5 h-5 text-teal-400" />, action: callbacks.onAddStoryCharacterCreatorNode },
-      { label: 'Character Generator', icon: <ImageIcon className="w-5 h-5 text-cyan-400" />, action: callbacks.onAddCharacterGeneratorNode },
+      { label: 'Character Generator', icon: <Image className="w-5 h-5 text-cyan-400" />, action: callbacks.onAddCharacterGeneratorNode },
     ],
   },
   {
     title: 'Image Tools',
     items: [
-      { label: 'Image Generator', icon: <ImageIcon className="w-5 h-5 text-blue-400" />, action: callbacks.onAddImageGeneratorNode },
-      { label: 'Image Editor', icon: <EditIcon className="w-5 h-5 text-purple-400" />, action: callbacks.onAddImageEditorNode },
-      { label: 'Image Mixer', icon: <MixerIcon className="w-5 h-5 text-pink-400" />, action: callbacks.onAddImageMixerNode },
+      { label: 'Image Generator', icon: <Image className="w-5 h-5 text-blue-400" />, action: callbacks.onAddImageGeneratorNode },
+      { label: 'Image Editor', icon: <PenSquare className="w-5 h-5 text-purple-400" />, action: callbacks.onAddImageEditorNode },
+      { label: 'Image Mixer', icon: <Shuffle className="w-5 h-5 text-pink-400" />, action: callbacks.onAddImageMixerNode },
     ],
   },
   {
     title: 'Video Tools',
     items: [
-      { label: 'Video Generator', icon: <VideoIcon className="w-5 h-5 text-green-400" />, action: callbacks.onAddVideoGeneratorNode },
+      { label: 'Video Generator', icon: <Video className="w-5 h-5 text-green-400" />, action: callbacks.onAddVideoGeneratorNode },
     ],
   },
 ];
