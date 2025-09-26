@@ -176,6 +176,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
             hoveredInputHandle={hoveredInputHandle}
             setHoveredInputHandle={setHoveredInputHandle}
             zoom={zoom}
+            canvasOffset={canvasOffset}
           />
         ))}
       </div>

@@ -45,6 +45,7 @@ interface NodeProps {
   hoveredInputHandle: HoveredInputInfo | null;
   setHoveredInputHandle: (info: HoveredInputInfo | null) => void;
   zoom: number;
+  canvasOffset: { x: number; y: number };
 }
 
 interface NodeHeaderProps {
@@ -60,7 +61,7 @@ interface NodeHeaderProps {
 const NodeHeader: React.FC<NodeHeaderProps> = ({ title, icon, isMinimized, onToggleMinimize, onDelete, onMouseDown, onContextMenu }) => {
   const { styles } = useTheme();
   return (
-    <div 
+    <div
       className={`flex items-center justify-between p-2 ${styles.node.headerBg} rounded-t-lg cursor-move`}
       onMouseDown={onMouseDown}
       onContextMenu={onContextMenu}
@@ -138,6 +139,7 @@ const Node: React.FC<NodeProps> = ({
   hoveredInputHandle,
   setHoveredInputHandle,
   zoom,
+  canvasOffset,
 }) => {
   const { styles } = useTheme();
   const isMinimized = !!node.data.isMinimized;
