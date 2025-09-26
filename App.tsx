@@ -12,7 +12,7 @@ import GalleryPanel from './components/GalleryPanel';
 import GalleryPreviewModal from './components/GalleryPreviewModal';
 import WelcomeModal from './components/WelcomeModal';
 import { templates } from './utils/templates';
-import ContextMenu from './components/ContextMenu';
+import ContextMenuWithSubmenu from './components/ContextMenuWithSubmenu';
 import SettingsModal from './components/SettingsModal';
 import { Settings } from 'lucide-react';
 import { useHistory } from './hooks/useHistory';
@@ -1475,10 +1475,10 @@ const App: React.FC = () => {
         />
       )}
       {contextMenu && (
-        <ContextMenu 
-          isOpen={contextMenu.isOpen} 
-          position={{ x: contextMenu.x, y: contextMenu.y }} 
-          categories={contextMenuCategories} 
+        <ContextMenuWithSubmenu
+          isOpen={contextMenu.isOpen}
+          position={{ x: contextMenu.x, y: contextMenu.y }}
+          categories={contextMenuCategories}
           onClose={handleCloseContextMenu}
         />
       )}

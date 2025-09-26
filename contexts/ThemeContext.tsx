@@ -65,6 +65,14 @@ export const themes = {
       bgOff: 'bg-gray-600',
       thumb: 'bg-white',
     },
+    gallery: {
+      accentText: 'text-cyan-300',
+      accentBadge: 'bg-cyan-500/15 text-cyan-200',
+      spinnerBorder: 'border-cyan-400',
+      itemHoverRing: 'hover:ring-cyan-400',
+      itemFocusRing: 'focus-visible:ring-cyan-400',
+      itemHoverShadow: 'hover:shadow-cyan-500/20',
+    },
     sidebar: {
       bg: 'bg-gray-900/50',
       itemText: 'text-gray-300',
@@ -134,6 +142,14 @@ export const themes = {
       bgOff: 'bg-gray-300',
       thumb: 'bg-white',
     },
+    gallery: {
+      accentText: 'text-blue-600',
+      accentBadge: 'bg-blue-500/15 text-blue-600',
+      spinnerBorder: 'border-blue-400',
+      itemHoverRing: 'hover:ring-blue-400',
+      itemFocusRing: 'focus-visible:ring-blue-400',
+      itemHoverShadow: 'hover:shadow-blue-500/20',
+    },
     sidebar: {
         bg: 'bg-gray-100',
         itemText: 'text-gray-600',
@@ -202,6 +218,14 @@ export const themes = {
         bgOn: 'bg-amber-500',
         bgOff: 'bg-stone-600',
         thumb: 'bg-white',
+    },
+    gallery: {
+        accentText: 'text-amber-300',
+        accentBadge: 'bg-amber-500/20 text-amber-200',
+        spinnerBorder: 'border-amber-400',
+        itemHoverRing: 'hover:ring-amber-400',
+        itemFocusRing: 'focus-visible:ring-amber-400',
+        itemHoverShadow: 'hover:shadow-amber-500/20',
     },
     sidebar: {
         bg: 'bg-stone-900/60',
