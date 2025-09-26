@@ -32,6 +32,8 @@ export const themes = {
       imagePlaceholderBg: 'bg-gray-900/50',
       imagePlaceholderBorder: 'border-gray-600',
       imagePlaceholderIcon: 'text-gray-600',
+      focusBorder: 'border-cyan-400',
+      focusRing: 'ring-2 ring-cyan-400/30',
     },
     connector: {
       color: '#A0AEC0',
@@ -109,6 +111,8 @@ export const themes = {
       imagePlaceholderBg: 'bg-gray-100',
       imagePlaceholderBorder: 'border-gray-300',
       imagePlaceholderIcon: 'text-gray-400',
+      focusBorder: 'border-blue-400',
+      focusRing: 'ring-2 ring-blue-400/30',
     },
     connector: {
       color: '#9CA3AF',
@@ -186,6 +190,8 @@ export const themes = {
       imagePlaceholderBg: 'bg-stone-900/50',
       imagePlaceholderBorder: 'border-stone-700',
       imagePlaceholderIcon: 'text-stone-600',
+      focusBorder: 'border-amber-400',
+      focusRing: 'ring-2 ring-amber-400/30',
     },
     connector: {
       color: '#a8a29e',

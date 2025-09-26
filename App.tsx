@@ -1427,6 +1427,13 @@ const App: React.FC = () => {
     setNodeToDelete(null);
   };
 
+  const deleteNodeDirectly = (nodeId: string) => {
+    setCanvasState(prevState => ({
+        nodes: prevState.nodes.filter(n => n.id !== nodeId),
+        connections: prevState.connections.filter(c => c.fromNodeId !== nodeId && c.toNodeId !== nodeId)
+    }));
+  };
+
   const handleImageClick = useCallback((imageUrl: string) => setModalImageUrl(imageUrl), []);
   const handleCloseModal = useCallback(() => setModalImageUrl(null), []);
 
@@ -1561,6 +1568,7 @@ const App: React.FC = () => {
         onInputMouseDown={handleInputMouseDown}
         onInputMouseUp={handleInputMouseUp}
         onDeleteNode={requestDeleteNode}
+        onDeleteNodeDirectly={deleteNodeDirectly}
         onDuplicateNode={duplicateNode}
         onResetNode={resetNode}
         onToggleNodeMinimization={toggleNodeMinimization}

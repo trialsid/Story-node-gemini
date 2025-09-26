@@ -37,6 +37,7 @@ interface NodeProps {
   onInputMouseDown: (nodeId: string, handleId: string) => void;
   onInputMouseUp: (nodeId: string, handleId: string) => void;
   onDelete: (nodeId: string) => void;
+  onDeleteDirectly: (nodeId: string) => void;
   onDuplicate: (nodeId: string) => void;
   onReset: (nodeId: string) => void;
   onToggleMinimize: (nodeId: string) => void;
@@ -54,11 +55,12 @@ interface NodeHeaderProps {
   isMinimized: boolean;
   onToggleMinimize: () => void;
   onDelete: () => void;
+  onShowDeleteConfirmation: (e: React.MouseEvent) => void;
   onMouseDown: (e: React.MouseEvent) => void;
   onContextMenu: (e: React.MouseEvent) => void;
 }
 
-const NodeHeader: React.FC<NodeHeaderProps> = ({ title, icon, isMinimized, onToggleMinimize, onDelete, onMouseDown, onContextMenu }) => {
+const NodeHeader: React.FC<NodeHeaderProps> = ({ title, icon, isMinimized, onToggleMinimize, onDelete, onShowDeleteConfirmation, onMouseDown, onContextMenu }) => {
   const { styles } = useTheme();
   return (
     <div
@@ -81,7 +83,7 @@ const NodeHeader: React.FC<NodeHeaderProps> = ({ title, icon, isMinimized, onTog
         </button>
         <button
           onMouseDown={(e) => e.stopPropagation()}
-          onClick={onDelete}
+          onClick={onShowDeleteConfirmation}
           className="p-1 rounded-full text-gray-400 hover:bg-red-500/50 hover:text-white transition-colors z-10"
           aria-label="Delete node"
         >
@@ -131,6 +133,7 @@ const Node: React.FC<NodeProps> = ({
   onInputMouseDown,
   onInputMouseUp,
   onDelete,
+  onDeleteDirectly,
   onDuplicate,
   onReset,
   onToggleMinimize,
@@ -148,6 +151,7 @@ const Node: React.FC<NodeProps> = ({
   const inputHandles = getHandlesForSide(node, 'input');
   const outputHandles = getHandlesForSide(node, 'output');
   const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenuStartsWithDelete, setContextMenuStartsWithDelete] = useState(false);
 
   const selectClassName = `w-full p-1 ${styles.node.inputBg} border ${styles.node.inputBorder} rounded-md text-sm ${styles.node.text} focus:outline-none focus:ring-2 ${styles.node.inputFocusRing}`;
   const labelClassName = `text-xs font-semibold ${styles.node.labelText}`;
@@ -162,9 +166,13 @@ const Node: React.FC<NodeProps> = ({
     e.preventDefault();
     e.stopPropagation();
     setContextMenuPosition({ x: e.clientX, y: e.clientY });
+    setContextMenuStartsWithDelete(false);
   };
 
-  const closeContextMenu = () => setContextMenuPosition(null);
+  const closeContextMenu = () => {
+    setContextMenuPosition(null);
+    setContextMenuStartsWithDelete(false);
+  };
 
   const handleDuplicate = () => {
     onDuplicate(node.id);
@@ -179,6 +187,16 @@ const Node: React.FC<NodeProps> = ({
   const handleDelete = () => {
     onDelete(node.id);
     closeContextMenu();
+  };
+
+  const handleShowDeleteConfirmation = (e: React.MouseEvent) => {
+    // Position the context menu near the delete button
+    const buttonRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setContextMenuPosition({
+      x: buttonRect.right + 8,
+      y: buttonRect.top
+    });
+    setContextMenuStartsWithDelete(true);
   };
 
   const handleTextAreaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>, nodeType: NodeType) => {
@@ -553,7 +571,7 @@ const Node: React.FC<NodeProps> = ({
   return (
     <div
       ref={nodeRef}
-      className={`absolute ${styles.node.bg} border ${styles.node.border} rounded-lg flex flex-col`}
+      className={`absolute ${styles.node.bg} border ${contextMenuPosition ? `${styles.node.focusBorder} ${styles.node.focusRing}` : styles.node.border} rounded-lg flex flex-col`}
       style={{
         left: node.position.x,
         top: node.position.y,
@@ -566,12 +584,13 @@ const Node: React.FC<NodeProps> = ({
       
       {node.type === NodeType.Text && (
         <>
-            <NodeHeader 
+            <NodeHeader
                 title='Text Node'
                 icon={<FileText className="w-4 h-4 text-yellow-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={handleDelete}
+                onShowDeleteConfirmation={handleShowDeleteConfirmation}
                 onMouseDown={handleHeaderMouseDown}
                 onContextMenu={handleHeaderContextMenu}
             />
@@ -598,12 +617,13 @@ const Node: React.FC<NodeProps> = ({
       
       {node.type === NodeType.TextGenerator && (
         <>
-            <NodeHeader 
+            <NodeHeader
                 title='Text Generator'
                 icon={<PenTool className="w-4 h-4 text-indigo-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={handleDelete}
+                onShowDeleteConfirmation={handleShowDeleteConfirmation}
                 onMouseDown={handleHeaderMouseDown}
                 onContextMenu={handleHeaderContextMenu}
             />
@@ -662,6 +682,7 @@ const Node: React.FC<NodeProps> = ({
             isMinimized={isMinimized}
             onToggleMinimize={() => onToggleMinimize(node.id)}
             onDelete={handleDelete}
+            onShowDeleteConfirmation={handleShowDeleteConfirmation}
             onMouseDown={handleHeaderMouseDown}
             onContextMenu={handleHeaderContextMenu}
           />
@@ -773,6 +794,7 @@ const Node: React.FC<NodeProps> = ({
             isMinimized={isMinimized}
             onToggleMinimize={() => onToggleMinimize(node.id)}
             onDelete={handleDelete}
+            onShowDeleteConfirmation={handleShowDeleteConfirmation}
             onMouseDown={handleHeaderMouseDown}
             onContextMenu={handleHeaderContextMenu}
           />
@@ -868,12 +890,13 @@ const Node: React.FC<NodeProps> = ({
 
       {node.type === NodeType.Image && (
         <>
-            <NodeHeader 
+            <NodeHeader
                 title='Image Node'
                 icon={<ImagePlus className="w-4 h-4 text-orange-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={handleDelete}
+                onShowDeleteConfirmation={handleShowDeleteConfirmation}
                 onMouseDown={handleHeaderMouseDown}
                 onContextMenu={handleHeaderContextMenu}
             />
@@ -928,12 +951,13 @@ const Node: React.FC<NodeProps> = ({
       
       {node.type === NodeType.ImageGenerator && (
         <>
-          <NodeHeader 
+          <NodeHeader
             title='Image Generator'
             icon={<Wand2 className="w-4 h-4 text-blue-400" />}
             isMinimized={isMinimized}
             onToggleMinimize={() => onToggleMinimize(node.id)}
             onDelete={handleDelete}
+            onShowDeleteConfirmation={handleShowDeleteConfirmation}
             onMouseDown={handleHeaderMouseDown}
             onContextMenu={handleHeaderContextMenu}
           />
@@ -1036,12 +1060,13 @@ const Node: React.FC<NodeProps> = ({
 
       {node.type === NodeType.CharacterGenerator && (
         <>
-          <NodeHeader 
+          <NodeHeader
             title='Character Generator'
             icon={<UsersIcon className="w-4 h-4 text-cyan-400" />}
             isMinimized={isMinimized}
             onToggleMinimize={() => onToggleMinimize(node.id)}
             onDelete={handleDelete}
+            onShowDeleteConfirmation={handleShowDeleteConfirmation}
             onMouseDown={handleHeaderMouseDown}
             onContextMenu={handleHeaderContextMenu}
           />
@@ -1114,12 +1139,13 @@ const Node: React.FC<NodeProps> = ({
       
       {node.type === NodeType.ImageEditor && (
         <>
-            <NodeHeader 
+            <NodeHeader
                 title='Image Editor'
                 icon={<Edit3 className="w-4 h-4 text-purple-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={handleDelete}
+                onShowDeleteConfirmation={handleShowDeleteConfirmation}
                 onMouseDown={handleHeaderMouseDown}
                 onContextMenu={handleHeaderContextMenu}
             />
@@ -1179,12 +1205,13 @@ const Node: React.FC<NodeProps> = ({
 
           return (
             <>
-              <NodeHeader 
+              <NodeHeader
                 title='Image Mixer'
                 icon={<Layers className="w-4 h-4 text-pink-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={handleDelete}
+                onShowDeleteConfirmation={handleShowDeleteConfirmation}
                 onMouseDown={handleHeaderMouseDown}
                 onContextMenu={handleHeaderContextMenu}
               />
@@ -1232,12 +1259,13 @@ const Node: React.FC<NodeProps> = ({
 
       {node.type === NodeType.VideoGenerator && (
         <>
-            <NodeHeader 
+            <NodeHeader
                 title='Video Generator'
                 icon={<Clapperboard className="w-4 h-4 text-green-400" />}
                 isMinimized={isMinimized}
                 onToggleMinimize={() => onToggleMinimize(node.id)}
                 onDelete={handleDelete}
+                onShowDeleteConfirmation={handleShowDeleteConfirmation}
                 onMouseDown={handleHeaderMouseDown}
                 onContextMenu={handleHeaderContextMenu}
             />
@@ -1297,10 +1325,12 @@ const Node: React.FC<NodeProps> = ({
       {contextMenuPosition && (
         <NodeContextMenu
           position={contextMenuPosition}
+          nodeId={node.id}
           onClose={closeContextMenu}
           onDuplicate={handleDuplicate}
           onReset={handleReset}
-          onDelete={handleDelete}
+          onDeleteDirectly={onDeleteDirectly}
+          startWithDeleteConfirmation={contextMenuStartsWithDelete}
         />
       )}
     </div>
