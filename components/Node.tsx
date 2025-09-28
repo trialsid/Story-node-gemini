@@ -1061,7 +1061,7 @@ const Node: React.FC<NodeProps> = ({
       {node.type === NodeType.CharacterGenerator && (
         <>
           <NodeHeader
-            title='Character Generator'
+            title='Character Viz'
             icon={<UsersIcon className="w-4 h-4 text-cyan-400" />}
             isMinimized={isMinimized}
             onToggleMinimize={() => onToggleMinimize(node.id)}
