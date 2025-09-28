@@ -38,7 +38,7 @@ export const buildNodeMenuCategories = (callbacks: NodeMenuCallbacks): NodeMenuC
     title: 'Story Tools',
     items: [
       { label: 'Story Expander', icon: <ScrollText className="w-5 h-5 text-purple-400" />, action: callbacks.onAddStoryExpanderNode },
-      { label: 'Story Character Creator', icon: <UserCog className="w-5 h-5 text-teal-400" />, action: callbacks.onAddStoryCharacterCreatorNode },
+      { label: 'Character Extractor', icon: <UserCog className="w-5 h-5 text-teal-400" />, action: callbacks.onAddStoryCharacterCreatorNode },
       { label: 'Character Generator', icon: <UsersIcon className="w-5 h-5 text-cyan-400" />, action: callbacks.onAddCharacterGeneratorNode },
     ],
   },

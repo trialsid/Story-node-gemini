@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Copy, RotateCcw, Trash2, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -73,7 +74,7 @@ const NodeContextMenu: React.FC<NodeContextMenuProps> = ({ position, nodeId, onC
     };
   }, [onClose]);
 
-  return (
+  const menuContent = (
     <div
       ref={menuRef}
       data-node-context-menu
@@ -146,6 +147,12 @@ const NodeContextMenu: React.FC<NodeContextMenuProps> = ({ position, nodeId, onC
       )}
     </div>
   );
+
+  if (typeof document === 'undefined') {
+    return menuContent;
+  }
+
+  return createPortal(menuContent, document.body);
 };
 
 export default NodeContextMenu;

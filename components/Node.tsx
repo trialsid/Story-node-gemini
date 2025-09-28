@@ -677,7 +677,7 @@ const Node: React.FC<NodeProps> = ({
       {node.type === NodeType.StoryCharacterCreator && (
         <>
           <NodeHeader
-            title='Story Character Creator'
+            title='Character Extractor'
             icon={<UserCog className="w-4 h-4 text-teal-400" />}
             isMinimized={isMinimized}
             onToggleMinimize={() => onToggleMinimize(node.id)}
