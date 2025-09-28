@@ -58,9 +58,9 @@ const createDefaultDataForType = (type: NodeType): NodeData['data'] => {
     case NodeType.CharacterGenerator:
       return {
         characterDescription: 'A brave knight with a scar over his left eye',
-        style: 'Studio Portrait Photo',
-        layout: 'T-pose reference sheet',
-        aspectRatio: '1:1',
+        style: 'Candid Photo',
+        layout: '6-panel grid',
+        aspectRatio: '16:9',
       } as NodeData['data'];
     case NodeType.ImageGenerator:
       return {
@@ -529,12 +529,7 @@ const App: React.FC = () => {
       id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: NodeType.CharacterGenerator,
       position: newNodePosition,
-      data: {
-        characterDescription: 'A brave knight with a scar over his left eye',
-        style: 'Studio Portrait Photo',
-        layout: 'T-pose reference sheet',
-        aspectRatio: '1:1',
-      },
+      data: createDefaultDataForType(NodeType.CharacterGenerator),
     };
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
@@ -555,11 +550,7 @@ const App: React.FC = () => {
       id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: NodeType.ImageGenerator,
       position: newNodePosition,
-      data: {
-        prompt: 'A photorealistic cat astronaut on Mars',
-        numberOfImages: 1,
-        aspectRatio: '1:1',
-      },
+      data: createDefaultDataForType(NodeType.ImageGenerator),
     };
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
@@ -580,7 +571,7 @@ const App: React.FC = () => {
       id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: NodeType.Text,
       position: newNodePosition,
-      data: { text: 'A futuristic cityscape at dusk.' },
+      data: createDefaultDataForType(NodeType.Text),
     };
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
@@ -601,7 +592,7 @@ const App: React.FC = () => {
       id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: NodeType.Image,
       position: newNodePosition,
-      data: { },
+      data: createDefaultDataForType(NodeType.Image),
     };
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
@@ -622,7 +613,7 @@ const App: React.FC = () => {
       id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: NodeType.ImageEditor,
       position: newNodePosition,
-      data: { editDescription: 'Add a golden crown' },
+      data: createDefaultDataForType(NodeType.ImageEditor),
     };
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
@@ -643,7 +634,7 @@ const App: React.FC = () => {
       id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: NodeType.ImageMixer,
       position: newNodePosition,
-      data: { editDescription: 'A photorealistic blend of the input images' },
+      data: createDefaultDataForType(NodeType.ImageMixer),
     };
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
@@ -664,10 +655,7 @@ const App: React.FC = () => {
       id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: NodeType.VideoGenerator,
       position: newNodePosition,
-      data: {
-        editDescription: 'A majestic eagle soaring over mountains',
-        videoModel: 'veo-3.0-fast-generate-001',
-      },
+      data: createDefaultDataForType(NodeType.VideoGenerator),
     };
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
@@ -688,7 +676,7 @@ const App: React.FC = () => {
       id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: NodeType.TextGenerator,
       position: newNodePosition,
-      data: { prompt: 'Write a short story about a robot who discovers music.' },
+      data: createDefaultDataForType(NodeType.TextGenerator),
     };
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
@@ -710,9 +698,7 @@ const App: React.FC = () => {
       id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: NodeType.StoryCharacterCreator,
       position: newNodePosition,
-      data: {
-        storyPrompt: 'A brave knight and a wise dragon meet in a forest to discuss an ancient prophecy.',
-      },
+      data: createDefaultDataForType(NodeType.StoryCharacterCreator),
     };
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
@@ -733,11 +719,7 @@ const App: React.FC = () => {
       id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: NodeType.StoryExpander,
       position: newNodePosition,
-      data: {
-        premise: 'A detective finds a mysterious key',
-        length: 'short',
-        genre: 'any',
-      },
+      data: createDefaultDataForType(NodeType.StoryExpander),
     };
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
