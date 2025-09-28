@@ -19,7 +19,7 @@ import { useHistory } from './hooks/useHistory';
 import { areHandlesCompatible } from './utils/node-spec';
 import { fetchGalleryItems, createGalleryItem, deleteGalleryItem } from './services/galleryApi';
 import { getHandleSpec } from './utils/handlePositions';
-import { buildNodeMenuCategories } from './utils/nodeMenuConfig';
+import { buildAllNodeMenuCategories } from './utils/nodeMenuConfig';
 
 
 const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } } = {
@@ -1434,7 +1434,7 @@ const App: React.FC = () => {
 
     const position = { x: contextMenu.canvasX, y: contextMenu.canvasY };
 
-    return buildNodeMenuCategories({
+    return buildAllNodeMenuCategories({
       onAddTextNode: () => addTextNode(position),
       onAddTextGeneratorNode: () => addTextGeneratorNode(position),
       onAddImageNode: () => addImageNode(position),

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { Home, Eraser, Undo2, Redo2, FileDown, FileUp, Plus, ChevronDown } from 'lucide-react';
-import { buildNodeMenuCategories } from '../utils/nodeMenuConfig';
+import { Home, Eraser, Undo2, Redo2, FileDown, FileUp, Plus, ChevronDown, ScrollText } from 'lucide-react';
+import { buildNodeMenuCategories, buildStoryToolsCategory } from '../utils/nodeMenuConfig';
 
 interface ToolbarProps {
   onNavigateHome: () => void;
@@ -69,12 +69,17 @@ const Toolbar: React.FC<ToolbarProps> = ({
 }) => {
   const { styles } = useTheme();
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false);
+  const [isStoryToolsMenuOpen, setIsStoryToolsMenuOpen] = useState(false);
   const addMenuRef = useRef<HTMLDivElement>(null);
+  const storyToolsMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
         if (addMenuRef.current && !addMenuRef.current.contains(event.target as Node)) {
             setIsAddMenuOpen(false);
+        }
+        if (storyToolsMenuRef.current && !storyToolsMenuRef.current.contains(event.target as Node)) {
+            setIsStoryToolsMenuOpen(false);
         }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -105,6 +110,23 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddVideoGeneratorNode,
   ]);
 
+  const storyToolsCategory = useMemo(() => buildStoryToolsCategory({
+    onAddTextNode,
+    onAddTextGeneratorNode,
+    onAddImageNode,
+    onAddImageGeneratorNode,
+    onAddCharacterGeneratorNode,
+    onAddStoryCharacterCreatorNode,
+    onAddStoryExpanderNode,
+    onAddImageEditorNode,
+    onAddImageMixerNode,
+    onAddVideoGeneratorNode,
+  }), [
+    onAddCharacterGeneratorNode,
+    onAddStoryCharacterCreatorNode,
+    onAddStoryExpanderNode,
+  ]);
+
   return (
     <div className={`absolute top-4 left-4 z-20 p-2 ${styles.toolbar.bg} border ${styles.toolbar.border} rounded-lg shadow-lg`}>
       <div className="flex items-center space-x-1.5">
@@ -133,8 +155,44 @@ const Toolbar: React.FC<ToolbarProps> = ({
         </ToolbarButton>
         
         <div className="w-px h-6 bg-gray-500/30 mx-1" />
-        
-        {/* Group 3: Add Node Dropdown */}
+
+        {/* Group 3: Story Tools Dropdown */}
+        <div className="relative" ref={storyToolsMenuRef}>
+            <button
+                onClick={() => setIsStoryToolsMenuOpen(!isStoryToolsMenuOpen)}
+                className={`flex items-center space-x-2 px-3 py-2 ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium`}
+            >
+                <ScrollText className="w-5 h-5 text-purple-400" />
+                <span>Story Tools</span>
+                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isStoryToolsMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {isStoryToolsMenuOpen && (
+                <div
+                    className={`absolute top-full mt-2 w-56 p-1 ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-lg shadow-lg z-10`}
+                    role="menu"
+                >
+                    <div className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-400/80">
+                        {storyToolsCategory.title}
+                    </div>
+                    {storyToolsCategory.items.map((item) => (
+                        <button
+                            key={item.label}
+                            onClick={() => {
+                                item.action();
+                                setIsStoryToolsMenuOpen(false);
+                            }}
+                            className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium`}
+                            role="menuitem"
+                        >
+                            {item.icon}
+                            <span>{item.label}</span>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+
+        {/* Group 4: Add Node Dropdown */}
         <div className="relative" ref={addMenuRef}>
             <button
                 onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
