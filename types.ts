@@ -9,6 +9,7 @@ export enum NodeType {
   ImageMixer = 'IMAGE_MIXER',
   StoryCharacterCreator = 'STORY_CHARACTER_CREATOR_NODE',
   StoryExpander = 'STORY_EXPANDER_NODE',
+  ShortStoryWriter = 'SHORT_STORY_WRITER_NODE',
 }
 
 export enum HandleType {
@@ -86,6 +87,11 @@ export interface NodeData {
     premise?: string;
     length?: 'short' | 'medium';
     genre?: string;
+
+    // For Short Story Writer
+    storyPremise?: string;
+    pointOfView?: string;
+    fullStory?: string;
   };
 }
 

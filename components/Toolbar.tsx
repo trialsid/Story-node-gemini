@@ -14,6 +14,7 @@ interface ToolbarProps {
   onAddTextGeneratorNode: () => void;
   onAddStoryCharacterCreatorNode: () => void;
   onAddStoryExpanderNode: () => void;
+  onAddShortStoryWriterNode: () => void;
   onAddImageNode: () => void;
   onAddImageEditorNode: () => void;
   onAddImageMixerNode: () => void;
@@ -58,6 +59,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddTextGeneratorNode,
     onAddStoryCharacterCreatorNode,
     onAddStoryExpanderNode,
+    onAddShortStoryWriterNode,
     onAddImageNode,
     onAddImageEditorNode, 
     onAddImageMixerNode,
@@ -118,6 +120,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddCharacterGeneratorNode,
     onAddStoryCharacterCreatorNode,
     onAddStoryExpanderNode,
+    onAddShortStoryWriterNode,
     onAddImageEditorNode,
     onAddImageMixerNode,
     onAddVideoGeneratorNode,
@@ -125,6 +128,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddCharacterGeneratorNode,
     onAddStoryCharacterCreatorNode,
     onAddStoryExpanderNode,
+    onAddShortStoryWriterNode,
   ]);
 
   return (

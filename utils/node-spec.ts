@@ -53,6 +53,10 @@ export const NODE_SPEC: { [key in NodeType]: NodeSpec } = {
     inputs: [{ id: 'premise_input', type: HandleType.Text, label: 'Premise' }],
     outputs: [{ id: 'story_output', type: HandleType.Text, label: 'Story' }],
   },
+  [NodeType.ShortStoryWriter]: {
+    inputs: [{ id: 'premise_input', type: HandleType.Text, label: 'Story Premise' }],
+    outputs: [{ id: 'story_output', type: HandleType.Text, label: 'Full Story' }],
+  },
   [NodeType.VideoGenerator]: {
     inputs: [
       { id: 'image_input', type: HandleType.Image, label: 'Input Image (Optional)' },

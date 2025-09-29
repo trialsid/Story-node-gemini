@@ -79,6 +79,83 @@ const dataUrlToPart = (dataUrl: string) => {
     };
 };
 
+export const generateShortStory = async (
+    premise: string,
+    pointOfView: string
+): Promise<string> => {
+    if (!ai) {
+        throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
+    }
+    if (!premise) {
+        throw new Error("Please provide a story premise.");
+    }
+
+    const fullPrompt = `You are a master storyteller and creative writer. Your task is to take the following simple premise and expand it into a compelling, fully-fleshed short story of approximately 1500-2000 words. The final story must be a complete narrative with a clear beginning, middle, and end.
+
+The Premise:
+"${premise}"
+
+Part 1: Character Development
+Flesh out the characters with depth and nuance.
+The Protagonist:
+- Name & Demographics: Give them a name, an approximate age, and a profession.
+- Core Motivation (The Want): What do they desperately want to achieve or obtain by the end of this story? This will be the engine of the plot.
+- Internal Conflict (The Need): What do they actually need to learn or overcome? This often contradicts their "want." (e.g., They want revenge, but they need to find peace and let go).
+- Defining Flaw: What is their greatest weakness? (e.g., Pride, insecurity, naivety, cynicism). How does this flaw sabotage their efforts?
+- Key Skill or Strength: What are they uniquely good at? How will this help them face the story's central conflict?
+The Antagonist / Antagonistic Force:
+- Nature of the Conflict: Is the primary obstacle another person, a system/society, nature itself, or the protagonist's own inner demons? Define it clearly.
+- Motivation (if a person): Why does this character oppose the protagonist? Give them a believable reason. A good antagonist doesn't see themselves as the villain.
+- Relationship to Protagonist: How are they connected? Are they a rival, a family member, a former friend, a complete stranger?
+
+Part 2: World & Atmosphere
+Establish a vivid and immersive setting.
+Setting:
+- Location & Time Period: Be specific. Not just "a city," but "a rain-slicked, neon-lit alley in a cyberpunk Tokyo, 2077," or "a dusty, sun-baked Kansas town during the Great Depression."
+- Sensory Details: Ground the story in the five senses. What are the dominant sights, sounds, and smells of this place? Is it cold? Humid? What does the air taste like?
+Atmosphere & Tone:
+- Mood: What feeling should the story evoke in the reader? (e.g., suspenseful, melancholic, hopeful, whimsical, unnerving).
+- Tone: What is the authorial voice? (e.g., Ironic, sincere, journalistic, lyrical).
+
+Part 3: Narrative Structure (The Plot Arc)
+Structure the story using a clear three-act framework.
+Act I: The Setup
+- The Hook: Start with an engaging opening sentence that introduces the character and their world, and hints at the coming conflict.
+- The "Normal" World: Briefly show the protagonist's life before the main conflict begins.
+- The Inciting Incident: What is the specific event that kicks off the story and disrupts the protagonist's life, forcing them to act?
+Act II: The Confrontation
+- Rising Action: Create a sequence of 2-3 key events or obstacles. With each event, raise the stakes. The protagonist should try and fail, learn something new, and then try again. Show their flaw getting in their way.
+- The Midpoint/Turning Point: A moment where the protagonist makes a crucial decision, gains new information, or the nature of the conflict changes, making it impossible to turn back.
+- The Climax: This is the story's peak. The protagonist directly confronts the antagonistic force in a final, decisive showdown. The outcome here will resolve the central conflict.
+Act III: The Resolution
+- Falling Action: Describe the immediate aftermath of the climax. Show the dust settling.
+- The Resolution: What is the new normal? Show, don't just tell, how the protagonist has changed. Did they get what they wanted or what they needed? End with a powerful, resonant final image or thought that connects back to the central theme.
+
+Part 4: Writing Style & Execution
+- Point of View: Write in ${pointOfView}, staying close to the protagonist's perspective, thoughts, and feelings.
+- Show, Don't Tell: Instead of saying "she was sad," describe her "shoulders slumping and the single tear that traced a path through the dust on her cheek."
+- Dialogue: Ensure dialogue is purposeful. It should reveal character, advance the plot, or build tension. Avoid simple exposition.
+- Pacing: Vary the sentence and paragraph length. Use short, punchy sentences for action and longer, more descriptive sentences for moments of reflection.`;
+
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: fullPrompt,
+            });
+            return response.text;
+        } catch (error) {
+            lastError = error;
+            console.error(`Attempt ${attempt} failed:`, error);
+            if (attempt < MAX_RETRIES) {
+                await sleep(INITIAL_DELAY_MS * Math.pow(2, attempt - 1));
+            }
+        }
+    }
+    throw new Error(getFriendlyErrorMessage(lastError));
+};
+
 export const expandStoryFromPremise = async (
     premise: string,
     length: 'short' | 'medium' = 'short',

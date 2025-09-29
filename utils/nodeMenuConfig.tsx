@@ -9,6 +9,7 @@ export interface NodeMenuCallbacks {
   onAddCharacterGeneratorNode: () => void;
   onAddStoryCharacterCreatorNode: () => void;
   onAddStoryExpanderNode: () => void;
+  onAddShortStoryWriterNode: () => void;
   onAddImageEditorNode: () => void;
   onAddImageMixerNode: () => void;
   onAddVideoGeneratorNode: () => void;
@@ -28,6 +29,7 @@ export interface NodeMenuCategory {
 export const buildStoryToolsCategory = (callbacks: NodeMenuCallbacks): NodeMenuCategory => ({
   title: 'Story Tools',
   items: [
+    { label: 'Short Story Writer', icon: <PenTool className="w-5 h-5 text-yellow-300" />, action: callbacks.onAddShortStoryWriterNode },
     { label: 'Story Expander', icon: <ScrollText className="w-5 h-5 text-purple-400" />, action: callbacks.onAddStoryExpanderNode },
     { label: 'Character Extractor', icon: <UserCog className="w-5 h-5 text-teal-400" />, action: callbacks.onAddStoryCharacterCreatorNode },
     { label: 'Character Viz', icon: <UsersIcon className="w-5 h-5 text-cyan-400" />, action: callbacks.onAddCharacterGeneratorNode },

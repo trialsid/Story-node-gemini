@@ -5,7 +5,7 @@ import Toolbar from './components/Toolbar';
 import ImageModal from './components/ImageModal';
 import ConfirmationModal from './components/ConfirmationModal';
 import TextModal from './components/TextModal';
-import { generateCharacterSheet, editImageWithPrompt, generateVideoFromPrompt, generateTextFromPrompt, generateImages, mixImagesWithPrompt, generateCharactersFromStory, expandStoryFromPremise } from './services/geminiService';
+import { generateCharacterSheet, editImageWithPrompt, generateVideoFromPrompt, generateTextFromPrompt, generateImages, mixImagesWithPrompt, generateCharactersFromStory, expandStoryFromPremise, generateShortStory } from './services/geminiService';
 import { useTheme } from './contexts/ThemeContext';
 import ThemeSwitcher from './components/ThemeSwitcher';
 import GalleryPanel from './components/GalleryPanel';
@@ -33,6 +33,7 @@ const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } }
   [NodeType.ImageMixer]: { width: 256 },
   [NodeType.StoryCharacterCreator]: { width: 256 },
   [NodeType.StoryExpander]: { width: 256 },
+  [NodeType.ShortStoryWriter]: { width: 280 },
 };
 
 interface DragStartInfo {
@@ -92,6 +93,11 @@ const createDefaultDataForType = (type: NodeType): NodeData['data'] => {
         premise: 'A detective finds a mysterious key',
         length: 'short',
         genre: 'any',
+      } as NodeData['data'];
+    case NodeType.ShortStoryWriter:
+      return {
+        storyPremise: 'A lonely lighthouse keeper finds a mysterious creature washed ashore',
+        pointOfView: 'Third-person limited',
       } as NodeData['data'];
     default:
       return {} as NodeData['data'];
@@ -382,6 +388,8 @@ const App: React.FC = () => {
               dataToUpdate = { storyPrompt: fromNode.data.text };
           } else if (toNode.type === NodeType.StoryExpander && conn.toHandleId === 'premise_input') {
               dataToUpdate = { premise: fromNode.data.text };
+          } else if (toNode.type === NodeType.ShortStoryWriter && conn.toHandleId === 'premise_input') {
+              dataToUpdate = { storyPremise: fromNode.data.text };
           }
         }
         
@@ -733,6 +741,27 @@ const App: React.FC = () => {
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
 
+  const addShortStoryWriterNode = useCallback((pos?: { x: number; y: number }) => {
+    let newNodePosition: { x: number, y: number };
+    if (pos) {
+        newNodePosition = pos;
+        setLastAddedNodePosition(null);
+    } else {
+        const nextPos = lastAddedNodePosition
+            ? { x: lastAddedNodePosition.x + 32, y: lastAddedNodePosition.y + 32 }
+            : { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom };
+        newNodePosition = nextPos;
+        setLastAddedNodePosition(nextPos);
+    }
+    const newNode: NodeData = {
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type: NodeType.ShortStoryWriter,
+      position: newNodePosition,
+      data: createDefaultDataForType(NodeType.ShortStoryWriter),
+    };
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+  }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
+
   const toggleNodeMinimization = useCallback((nodeId: string) => {
     setCanvasState(prevState => ({
         ...prevState,
@@ -838,6 +867,8 @@ const App: React.FC = () => {
                         dataToUpdate = { storyPrompt: data.text };
                     } else if (toNode.type === NodeType.StoryExpander && conn.toHandleId === 'premise_input') {
                         dataToUpdate = { premise: data.text };
+                    } else if (toNode.type === NodeType.ShortStoryWriter && conn.toHandleId === 'premise_input') {
+                        dataToUpdate = { storyPremise: data.text };
                     }
                 }
                 
@@ -1102,6 +1133,8 @@ const App: React.FC = () => {
                     dataToUpdate = { storyPrompt: fromNode.data.text };
                 } else if (toNode.type === NodeType.StoryExpander && toHandleId === 'premise_input') {
                     dataToUpdate = { premise: fromNode.data.text };
+                } else if (toNode.type === NodeType.ShortStoryWriter && toHandleId === 'premise_input') {
+                    dataToUpdate = { storyPremise: fromNode.data.text };
                 }
             } else if ((fromNode.type === NodeType.CharacterGenerator || fromNode.type === NodeType.ImageEditor || fromNode.type === NodeType.Image) && 'imageUrl' in fromNode.data) {
                  if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && toHandleId === 'image_input') {
@@ -1235,6 +1268,33 @@ const App: React.FC = () => {
         sourceNode.data.genre
       );
       updateNodeData(nodeId, { text: expandedStory, isLoading: false });
+    } catch (error) {
+      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      updateNodeData(nodeId, { error: errorMessage, isLoading: false });
+    }
+  }, [nodes, updateNodeData]);
+
+  const handleGenerateShortStory = useCallback(async (nodeId: string) => {
+    const sourceNode = nodes.find(n => n.id === nodeId);
+    if (!sourceNode || sourceNode.type !== NodeType.ShortStoryWriter) {
+      return;
+    }
+
+    const premise = sourceNode.data.storyPremise?.trim();
+    if (!premise) {
+      updateNodeData(nodeId, { error: 'Story premise cannot be empty.' });
+      return;
+    }
+
+    updateNodeData(nodeId, { isLoading: true, error: undefined, fullStory: undefined });
+
+    try {
+      const fullStory = await generateShortStory(
+        premise,
+        sourceNode.data.pointOfView || 'Third-person limited'
+      );
+      updateNodeData(nodeId, { fullStory: fullStory, isLoading: false });
     } catch (error) {
       console.error(error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1451,6 +1511,7 @@ const App: React.FC = () => {
       onAddCharacterGeneratorNode: () => addNode(position),
       onAddStoryCharacterCreatorNode: () => addStoryCharacterCreatorNode(position),
       onAddStoryExpanderNode: () => addStoryExpanderNode(position),
+      onAddShortStoryWriterNode: () => addShortStoryWriterNode(position),
       onAddImageEditorNode: () => addImageEditorNode(position),
       onAddImageMixerNode: () => addImageMixerNode(position),
       onAddVideoGeneratorNode: () => addVideoGeneratorNode(position),
@@ -1489,6 +1550,7 @@ const App: React.FC = () => {
         onAddTextGeneratorNode={() => addTextGeneratorNode()}
         onAddStoryCharacterCreatorNode={() => addStoryCharacterCreatorNode()}
         onAddStoryExpanderNode={() => addStoryExpanderNode()}
+        onAddShortStoryWriterNode={() => addShortStoryWriterNode()}
         onAddImageNode={() => addImageNode()}
         onAddImageEditorNode={() => addImageEditorNode()}
         onAddImageMixerNode={() => addImageMixerNode()}
@@ -1553,6 +1615,7 @@ const App: React.FC = () => {
         onGenerateText={handleGenerateText}
         onGenerateCharacters={handleGenerateCharacters}
         onExpandStory={handleExpandStory}
+        onGenerateShortStory={handleGenerateShortStory}
         onOpenTextModal={handleOpenTextModal}
         onEditImage={handleEditImage}
         onMixImages={handleMixImages}

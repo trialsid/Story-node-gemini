@@ -31,6 +31,7 @@ interface NodeProps {
   onGenerateText: (nodeId: string) => void;
   onGenerateCharacters: (nodeId: string) => void;
   onExpandStory: (nodeId: string) => void;
+  onGenerateShortStory: (nodeId: string) => void;
   onOpenTextModal: (title: string, text: string) => void;
   onImageClick: (imageUrl: string) => void;
   onOutputMouseDown: (nodeId: string, handleId: string) => void;
@@ -127,6 +128,7 @@ const Node: React.FC<NodeProps> = ({
   onGenerateText,
   onGenerateCharacters,
   onExpandStory,
+  onGenerateShortStory,
   onOpenTextModal,
   onImageClick,
   onOutputMouseDown,
@@ -883,6 +885,78 @@ const Node: React.FC<NodeProps> = ({
           {isMinimized && (
             <div className={`p-2 h-16 text-xs italic ${styles.node.labelText} truncate rounded-b-md flex items-center border-t ${styles.node.border}`}>
               {node.data.text || "No expanded story."}
+            </div>
+          )}
+        </>
+      )}
+
+      {node.type === NodeType.ShortStoryWriter && (
+        <>
+          <NodeHeader
+            title='Short Story Writer'
+            icon={<PenTool className="w-4 h-4 text-yellow-300" />}
+            isMinimized={isMinimized}
+            onToggleMinimize={() => onToggleMinimize(node.id)}
+            onDelete={handleDelete}
+            onShowDeleteConfirmation={handleShowDeleteConfirmation}
+            onMouseDown={handleHeaderMouseDown}
+            onContextMenu={handleHeaderContextMenu}
+          />
+          <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
+            <div className="p-2 space-y-2">
+              <div ref={el => handleAnchorRefs.current['premise_input'] = el}>
+                <label htmlFor={`premise-${node.id}`} className={labelClassName}>Story Premise</label>
+                <textarea
+                  id={`premise-${node.id}`}
+                  value={node.data.storyPremise || ''}
+                  onChange={(e) => onUpdateData(node.id, { storyPremise: e.target.value })}
+                  onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.ShortStoryWriter)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className={`${textAreaClassName(connections.some(c => c.toNodeId === node.id && c.toHandleId === 'premise_input'))} h-24`}
+                  disabled={connections.some(c => c.toNodeId === node.id && c.toHandleId === 'premise_input')}
+                  placeholder="A lonely lighthouse keeper finds a mysterious creature washed ashore..."
+                />
+              </div>
+
+              <div>
+                <label htmlFor={`pov-${node.id}`} className={labelClassName}>Point of View</label>
+                <select
+                  id={`pov-${node.id}`}
+                  value={node.data.pointOfView || 'Third-person limited'}
+                  onChange={(e) => onUpdateData(node.id, { pointOfView: e.target.value })}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className={selectClassName}
+                >
+                  <option>Third-person limited</option>
+                  <option>First-person</option>
+                  <option>Third-person omniscient</option>
+                </select>
+              </div>
+
+              <div ref={el => handleAnchorRefs.current['story_output'] = el}>
+                <label className={labelClassName}>Full Story</label>
+                <div className={`${imagePreviewBaseClassName} h-40 items-start`}>
+                  {node.data.isLoading ? <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-300 mt-16"></div>
+                    : node.data.error ? <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
+                      : <textarea
+                        readOnly
+                        value={node.data.fullStory || ''}
+                        className={`w-full h-full p-1 bg-transparent border-0 focus:outline-none focus:ring-0 resize-none custom-scrollbar`}
+                        placeholder="Expanded story will appear here..."
+                      />
+                  }
+                </div>
+              </div>
+              <button onClick={() => onGenerateShortStory(node.id)} disabled={node.data.isLoading} className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-yellow-600 hover:bg-yellow-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`} >
+                <Sparkles className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                {node.data.isLoading ? 'Generating...' : 'Generate Story'}
+              </button>
+            </div>
+          </div>
+
+          {isMinimized && (
+            <div className={`p-2 h-16 text-xs italic ${styles.node.labelText} truncate rounded-b-md flex items-center border-t ${styles.node.border}`}>
+              {node.data.fullStory || "No story generated."}
             </div>
           )}
         </>
