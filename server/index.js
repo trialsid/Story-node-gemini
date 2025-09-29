@@ -10,6 +10,8 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..');
 const generatedDir = path.join(projectRoot, 'generated');
 const metadataFile = path.join(generatedDir, 'gallery.json');
+const projectsDir = path.join(generatedDir, 'projects');
+const projectsMetadataFile = path.join(generatedDir, 'projects.json');
 
 const app = express();
 const PORT = process.env.GALLERY_SERVER_PORT ? Number(process.env.GALLERY_SERVER_PORT) : 4000;
@@ -19,6 +21,11 @@ app.use('/generated', express.static(generatedDir, { fallthrough: true }));
 
 const ensureGeneratedDir = async () => {
   await fs.mkdir(generatedDir, { recursive: true });
+};
+
+const ensureProjectsDir = async () => {
+  await ensureGeneratedDir();
+  await fs.mkdir(projectsDir, { recursive: true });
 };
 
 const readMetadata = async () => {
@@ -39,6 +46,44 @@ const readMetadata = async () => {
 
 const writeMetadata = async (items) => {
   await fs.writeFile(metadataFile, JSON.stringify(items, null, 2), 'utf-8');
+};
+
+const readProjectsMetadata = async () => {
+  try {
+    const raw = await fs.readFile(projectsMetadataFile, 'utf-8');
+    const data = JSON.parse(raw);
+    if (Array.isArray(data)) {
+      return data;
+    }
+    return [];
+  } catch (error) {
+    if ((error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') || (error instanceof Error && error.message.includes('ENOENT'))) {
+      return [];
+    }
+    throw error;
+  }
+};
+
+const writeProjectsMetadata = async (projects) => {
+  await fs.writeFile(projectsMetadataFile, JSON.stringify(projects, null, 2), 'utf-8');
+};
+
+const readProjectState = async (projectId) => {
+  const projectFile = path.join(projectsDir, `${projectId}.json`);
+  try {
+    const raw = await fs.readFile(projectFile, 'utf-8');
+    return JSON.parse(raw);
+  } catch (error) {
+    if ((error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') || (error instanceof Error && error.message.includes('ENOENT'))) {
+      return null;
+    }
+    throw error;
+  }
+};
+
+const writeProjectState = async (projectId, state) => {
+  const projectFile = path.join(projectsDir, `${projectId}.json`);
+  await fs.writeFile(projectFile, JSON.stringify(state, null, 2), 'utf-8');
 };
 
 const dataUrlToBuffer = (dataUrl) => {
@@ -141,6 +186,129 @@ app.delete('/api/gallery/:id', async (req, res) => {
   } catch (error) {
     console.error('Failed to delete gallery item', error);
     res.status(500).send('Failed to delete gallery item');
+  }
+});
+
+app.get('/api/projects', async (_req, res) => {
+  try {
+    await ensureProjectsDir();
+    const projects = await readProjectsMetadata();
+    res.json({ projects });
+  } catch (error) {
+    console.error('Failed to read projects metadata', error);
+    res.status(500).send('Failed to read projects metadata');
+  }
+});
+
+app.get('/api/projects/:id', async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    await ensureProjectsDir();
+    const projects = await readProjectsMetadata();
+    const metadata = projects.find((project) => project.id === projectId);
+    if (!metadata) {
+      return res.status(404).send('Project not found');
+    }
+    const state = await readProjectState(projectId);
+    res.json({ project: { metadata, state: state ?? {} } });
+  } catch (error) {
+    console.error('Failed to read project', error);
+    res.status(500).send('Failed to read project');
+  }
+});
+
+app.post('/api/projects', async (req, res) => {
+  try {
+    const { name, state = null } = req.body ?? {};
+    if (!name || typeof name !== 'string') {
+      return res.status(400).send('Project name is required');
+    }
+
+    await ensureProjectsDir();
+    const projects = await readProjectsMetadata();
+    const now = Date.now();
+    const id = randomUUID();
+    const metadata = {
+      id,
+      name,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    projects.unshift(metadata);
+    await writeProjectsMetadata(projects);
+
+    if (state !== null && state !== undefined) {
+      await writeProjectState(id, state);
+    } else {
+      await writeProjectState(id, {});
+    }
+
+    res.status(201).json({ project: { metadata } });
+  } catch (error) {
+    console.error('Failed to create project', error);
+    res.status(500).send('Failed to create project');
+  }
+});
+
+app.put('/api/projects/:id', async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    const { name, state } = req.body ?? {};
+    await ensureProjectsDir();
+    const projects = await readProjectsMetadata();
+    const index = projects.findIndex((project) => project.id === projectId);
+    if (index === -1) {
+      return res.status(404).send('Project not found');
+    }
+
+    const now = Date.now();
+    const existing = projects[index];
+    const updatedMetadata = {
+      ...existing,
+      name: typeof name === 'string' && name.length > 0 ? name : existing.name,
+      updatedAt: now,
+    };
+    projects[index] = updatedMetadata;
+    await writeProjectsMetadata(projects);
+
+    if (state !== undefined) {
+      await writeProjectState(projectId, state ?? {});
+    }
+
+    res.json({ project: { metadata: updatedMetadata } });
+  } catch (error) {
+    console.error('Failed to update project', error);
+    res.status(500).send('Failed to update project');
+  }
+});
+
+app.delete('/api/projects/:id', async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    await ensureProjectsDir();
+    const projects = await readProjectsMetadata();
+    const index = projects.findIndex((project) => project.id === projectId);
+    if (index === -1) {
+      return res.status(204).end();
+    }
+
+    projects.splice(index, 1);
+    await writeProjectsMetadata(projects);
+
+    const projectFile = path.join(projectsDir, `${projectId}.json`);
+    if (existsSync(projectFile)) {
+      unlink(projectFile, (err) => {
+        if (err && err.code !== 'ENOENT') {
+          console.warn('Failed to delete project file', err);
+        }
+      });
+    }
+
+    res.status(204).end();
+  } catch (error) {
+    console.error('Failed to delete project', error);
+    res.status(500).send('Failed to delete project');
   }
 });
 

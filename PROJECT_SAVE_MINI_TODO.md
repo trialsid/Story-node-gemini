@@ -19,32 +19,32 @@ These constraints mean that a minimal project system can piggyback on the existi
 ---
 
 ## Phase 1 — Backend Basics (file-backed)
-- [ ] Ensure `generated/projects/` exists alongside `generated/gallery.json`.
-- [ ] Store project metadata in `generated/projects.json` (array of `{ id, name, updatedAt }`).
-- [ ] Store each project state in `generated/projects/{projectId}.json`.
-- [ ] Implement endpoints in `server/index.js`:
-  - [ ] `GET /api/projects` → return metadata list.
-  - [ ] `GET /api/projects/:id` → return `{ metadata, state }` from disk.
-  - [ ] `POST /api/projects` → create new project (accepts `name`, optional initial `state`, returns id).
-  - [ ] `PUT /api/projects/:id` → upsert state for existing project and refresh `updatedAt`.
-  - [ ] `DELETE /api/projects/:id` (optional but easy) → remove metadata + JSON file.
-- [ ] Keep write operations sequential (await file writes) — good enough for single-user use.
+- [x] Ensure `generated/projects/` exists alongside `generated/gallery.json`.
+- [x] Store project metadata in `generated/projects.json` (array of `{ id, name, updatedAt }`).
+- [x] Store each project state in `generated/projects/{projectId}.json`.
+- [x] Implement endpoints in `server/index.js`:
+  - [x] `GET /api/projects` → return metadata list.
+  - [x] `GET /api/projects/:id` → return `{ metadata, state }` from disk.
+  - [x] `POST /api/projects` → create new project (accepts `name`, optional initial `state`, returns id).
+  - [x] `PUT /api/projects/:id` → upsert state for existing project and refresh `updatedAt`.
+  - [x] `DELETE /api/projects/:id` (optional but easy) → remove metadata + JSON file.
+- [x] Keep write operations sequential (await file writes) — good enough for single-user use.
 
 ---
 
 ## Phase 2 — Frontend Wiring
-- [ ] Add `services/projectApi.ts` with thin wrappers for the endpoints above (mirrors `galleryApi.ts`).
-- [ ] Define lightweight types in the same file or in `types.ts`: `ProjectMetadata`, `ProjectState`.
-- [ ] Add local React state (context or simple hook) to track:
-  - [ ] Currently loaded project metadata + canvas state.
-  - [ ] Unsaved changes flag (boolean is fine; no elaborate diffing).
-  - [ ] Basic loading/error flags for UI feedback.
-- [ ] On startup: fetch project list, optionally auto-load the most recent project, or show "New Project" prompt.
-- [ ] Add simple UI affordances:
-  - [ ] Button to "Save Project" (calls `PUT` with current canvas state).
-  - [ ] Button to "Save As…" (calls `POST`, switches current id).
-  - [ ] Dropdown/list to switch projects (loads via `GET /api/projects/:id`).
-  - [ ] Optional delete button if Phase 1 `DELETE` exists.
+- [x] Add `services/projectApi.ts` with thin wrappers for the endpoints above (mirrors `galleryApi.ts`).
+- [x] Define lightweight types in the same file or in `types.ts`: `ProjectMetadata`, `ProjectState`.
+- [x] Add local React state (context or simple hook) to track:
+  - [x] Currently loaded project metadata + canvas state.
+  - [x] Unsaved changes flag (boolean is fine; no elaborate diffing).
+  - [x] Basic loading/error flags for UI feedback.
+- [x] On startup: fetch project list, optionally auto-load the most recent project, or show "New Project" prompt.
+- [x] Add simple UI affordances:
+  - [x] Button to "Save Project" (calls `PUT` with current canvas state).
+  - [x] Button to "Save As…" (calls `POST`, switches current id).
+  - [x] Dropdown/list to switch projects (loads via `GET /api/projects/:id`).
+  - [x] Optional delete button if Phase 1 `DELETE` exists.
 - [ ] Ensure gallery calls include the active project ID so each project only sees its own media (see Phase 2b).
 
 ---

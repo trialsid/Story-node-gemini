@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { NodeData, NodeType, Connection, CanvasState, HandleType, GalleryItem, GalleryStatus } from './types';
+import { NodeData, NodeType, Connection, CanvasState, HandleType, GalleryItem, GalleryStatus, ProjectMetadata, ProjectState } from './types';
 import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
 import ImageModal from './components/ImageModal';
@@ -18,6 +18,7 @@ import { Settings } from 'lucide-react';
 import { useHistory } from './hooks/useHistory';
 import { areHandlesCompatible } from './utils/node-spec';
 import { fetchGalleryItems, createGalleryItem, deleteGalleryItem } from './services/galleryApi';
+import { fetchProjects as fetchProjectsApi, fetchProject as fetchProjectApi, createProject as createProjectApi, updateProject as updateProjectApi, deleteProject as deleteProjectApi } from './services/projectApi';
 import { getHandleSpec } from './utils/handlePositions';
 import { buildAllNodeMenuCategories } from './utils/nodeMenuConfig';
 
@@ -35,6 +36,17 @@ const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } }
   [NodeType.StoryExpander]: { width: 256 },
   [NodeType.ShortStoryWriter]: { width: 280 },
 };
+
+const EMPTY_CANVAS_STATE: CanvasState = { nodes: [], connections: [] };
+
+const normalizeCanvasState = (state: CanvasState | null | undefined): CanvasState => ({
+  nodes: Array.isArray(state?.nodes) ? state!.nodes : [],
+  connections: Array.isArray(state?.connections) ? state!.connections : [],
+});
+
+const sortProjectsByUpdatedAt = (projects: ProjectMetadata[]) => (
+  [...projects].sort((a, b) => b.updatedAt - a.updatedAt)
+);
 
 interface DragStartInfo {
   startMouseX: number;
@@ -200,6 +212,15 @@ const App: React.FC = () => {
     return setting === null || setting === 'true';
   });
 
+  const [projects, setProjects] = useState<ProjectMetadata[]>([]);
+  const [currentProject, setCurrentProject] = useState<ProjectMetadata | null>(null);
+  const [isProjectListLoading, setIsProjectListLoading] = useState(false);
+  const [isProjectFetching, setIsProjectFetching] = useState(false);
+  const [isProjectSaving, setIsProjectSaving] = useState(false);
+  const [projectError, setProjectError] = useState<string | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const lastSavedStateRef = useRef<string>(JSON.stringify(EMPTY_CANVAS_STATE));
+
 
   const { styles } = useTheme();
 
@@ -211,6 +232,203 @@ const App: React.FC = () => {
     ));
   }, []);
 
+  const loadProjects = useCallback(async () => {
+    setIsProjectListLoading(true);
+    setProjectError(null);
+    try {
+      const list = await fetchProjectsApi();
+      setProjects(sortProjectsByUpdatedAt(list));
+    } catch (error) {
+      console.error('Failed to load projects', error);
+      setProjectError(error instanceof Error ? error.message : 'Failed to load projects');
+    } finally {
+      setIsProjectListLoading(false);
+    }
+  }, []);
+
+  const loadProjectById = useCallback(async (projectId: string) => {
+    setIsProjectFetching(true);
+    setProjectError(null);
+    try {
+      const project = await fetchProjectApi(projectId);
+      const canvas = normalizeCanvasState(project.state?.canvas);
+      const canvasClone = JSON.parse(JSON.stringify(canvas)) as CanvasState;
+      resetHistory(canvasClone);
+      setCurrentProject(project.metadata);
+      setProjects(prev => {
+        const filtered = prev.filter(item => item.id !== project.metadata.id);
+        return sortProjectsByUpdatedAt([project.metadata, ...filtered]);
+      });
+      lastSavedStateRef.current = JSON.stringify(canvasClone);
+      setHasUnsavedChanges(false);
+    } catch (error) {
+      console.error('Failed to load project', error);
+      setProjectError(error instanceof Error ? error.message : 'Failed to load project');
+    } finally {
+      setIsProjectFetching(false);
+    }
+  }, [resetHistory]);
+
+  const getCanvasSnapshot = useCallback((): ProjectState => ({
+    canvas: JSON.parse(JSON.stringify(canvasState)) as CanvasState,
+  }), [canvasState]);
+
+  const confirmDiscardChanges = useCallback(() => {
+    if (!hasUnsavedChanges) {
+      return true;
+    }
+    return window.confirm('You have unsaved changes. Continue anyway?');
+  }, [hasUnsavedChanges]);
+
+  const handleProjectSaveAs = useCallback(async (): Promise<boolean> => {
+    if (isProjectSaving) {
+      return false;
+    }
+    const defaultName = currentProject ? `${currentProject.name} copy` : 'New Project';
+    const nameInput = window.prompt('Project name', defaultName);
+    const trimmedName = nameInput?.trim();
+    if (!trimmedName) {
+      return false;
+    }
+
+    let success = false;
+    setIsProjectSaving(true);
+    setProjectError(null);
+    try {
+      const snapshot = getCanvasSnapshot();
+      const metadata = await createProjectApi({ name: trimmedName, state: snapshot });
+      setProjects(prev => sortProjectsByUpdatedAt([metadata, ...prev.filter(item => item.id !== metadata.id)]));
+      setCurrentProject(metadata);
+      const serialized = JSON.stringify(snapshot.canvas);
+      lastSavedStateRef.current = serialized;
+      setHasUnsavedChanges(false);
+      success = true;
+    } catch (error) {
+      console.error('Failed to save project', error);
+      setProjectError(error instanceof Error ? error.message : 'Failed to save project');
+    } finally {
+      setIsProjectSaving(false);
+    }
+    return success;
+  }, [currentProject, getCanvasSnapshot, isProjectSaving]);
+
+  const handleProjectSave = useCallback(async (): Promise<boolean> => {
+    if (isProjectSaving) {
+      return false;
+    }
+    if (!currentProject) {
+      return handleProjectSaveAs();
+    }
+
+    let success = false;
+    setIsProjectSaving(true);
+    setProjectError(null);
+    try {
+      const snapshot = getCanvasSnapshot();
+      const metadata = await updateProjectApi(currentProject.id, { state: snapshot });
+      setProjects(prev => sortProjectsByUpdatedAt(prev.map(item => (item.id === metadata.id ? metadata : item))));
+      setCurrentProject(metadata);
+      const serialized = JSON.stringify(snapshot.canvas);
+      lastSavedStateRef.current = serialized;
+      setHasUnsavedChanges(false);
+      success = true;
+    } catch (error) {
+      console.error('Failed to save project', error);
+      setProjectError(error instanceof Error ? error.message : 'Failed to save project');
+    } finally {
+      setIsProjectSaving(false);
+    }
+    return success;
+  }, [currentProject, getCanvasSnapshot, handleProjectSaveAs, isProjectSaving]);
+
+  const handleCreateNewProject = useCallback(async (): Promise<boolean> => {
+    if (!confirmDiscardChanges()) {
+      return false;
+    }
+    const nameInput = window.prompt('Name for the new project', 'Untitled Project');
+    const trimmedName = nameInput?.trim();
+    if (!trimmedName) {
+      return false;
+    }
+
+    let success = false;
+    setIsProjectSaving(true);
+    setProjectError(null);
+    try {
+      const blankSnapshot: ProjectState = { canvas: JSON.parse(JSON.stringify(EMPTY_CANVAS_STATE)) as CanvasState };
+      const metadata = await createProjectApi({ name: trimmedName, state: blankSnapshot });
+      setProjects(prev => sortProjectsByUpdatedAt([metadata, ...prev.filter(item => item.id !== metadata.id)]));
+      setCurrentProject(metadata);
+      resetHistory(JSON.parse(JSON.stringify(EMPTY_CANVAS_STATE)) as CanvasState);
+      const serialized = JSON.stringify(blankSnapshot.canvas);
+      lastSavedStateRef.current = serialized;
+      setHasUnsavedChanges(false);
+      success = true;
+    } catch (error) {
+      console.error('Failed to create project', error);
+      setProjectError(error instanceof Error ? error.message : 'Failed to create project');
+    } finally {
+      setIsProjectSaving(false);
+    }
+    return success;
+  }, [confirmDiscardChanges, resetHistory]);
+
+  const handleDeleteCurrentProject = useCallback(async (): Promise<boolean> => {
+    if (!currentProject) {
+      return false;
+    }
+    const confirmed = window.confirm(`Delete project "${currentProject.name}"? This cannot be undone.`);
+    if (!confirmed) {
+      return false;
+    }
+
+    let success = false;
+    setIsProjectSaving(true);
+    setProjectError(null);
+    try {
+      await deleteProjectApi(currentProject.id);
+      setProjects(prev => prev.filter(item => item.id !== currentProject.id));
+      resetHistory(JSON.parse(JSON.stringify(EMPTY_CANVAS_STATE)) as CanvasState);
+      lastSavedStateRef.current = JSON.stringify(EMPTY_CANVAS_STATE);
+      setCurrentProject(null);
+      setHasUnsavedChanges(false);
+      success = true;
+    } catch (error) {
+      console.error('Failed to delete project', error);
+      setProjectError(error instanceof Error ? error.message : 'Failed to delete project');
+    } finally {
+      setIsProjectSaving(false);
+    }
+    return success;
+  }, [currentProject, resetHistory]);
+
+  const handleClearCurrentProject = useCallback(async (): Promise<boolean> => {
+    const canClear = confirmDiscardChanges();
+    if (!canClear) {
+      return false;
+    }
+    setCurrentProject(null);
+    resetHistory(JSON.parse(JSON.stringify(EMPTY_CANVAS_STATE)) as CanvasState);
+    lastSavedStateRef.current = JSON.stringify(EMPTY_CANVAS_STATE);
+    setHasUnsavedChanges(false);
+    setProjectError(null);
+    return true;
+  }, [confirmDiscardChanges, resetHistory]);
+
+  const handleSelectProjectWithConfirmation = useCallback(async (projectId: string): Promise<boolean> => {
+    if (!projectId) {
+      return false;
+    }
+    if (projectId === currentProject?.id) {
+      return false;
+    }
+    if (!confirmDiscardChanges()) {
+      return false;
+    }
+    await loadProjectById(projectId);
+    return true;
+  }, [confirmDiscardChanges, currentProject, loadProjectById]);
+
   useEffect(() => {
     localStorage.setItem('showWelcomeOnStartup', String(showWelcomeOnStartup));
   }, [showWelcomeOnStartup]);
@@ -218,6 +436,15 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('videoAutoplayEnabled', String(videoAutoplayEnabled));
   }, [videoAutoplayEnabled]);
+
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
+
+  useEffect(() => {
+    const serialized = JSON.stringify(canvasState);
+    setHasUnsavedChanges(serialized !== lastSavedStateRef.current);
+  }, [canvasState, currentProject]);
 
   useEffect(() => {
     if (showWelcomeOnStartup) {
@@ -458,7 +685,7 @@ const App: React.FC = () => {
     setIsClearingCanvas(false);
   };
 
-  const handleSaveProject = useCallback(() => {
+  const handleExportProject = useCallback(() => {
     const stateToSave: CanvasState = { nodes, connections };
     const jsonString = JSON.stringify(stateToSave, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
@@ -1541,9 +1768,21 @@ const App: React.FC = () => {
       />}
       <Toolbar 
         onNavigateHome={handleNavigateHome}
-        onSaveProject={handleSaveProject}
-        onLoadProject={handleLoadProject}
         onClearCanvas={handleClearCanvasRequest}
+        onExportProject={handleExportProject}
+        onImportProject={handleLoadProject}
+        onCreateProject={handleCreateNewProject}
+        onSaveProject={handleProjectSave}
+        onSaveProjectAs={handleProjectSaveAs}
+        onDeleteProject={handleDeleteCurrentProject}
+        onClearCurrentProject={handleClearCurrentProject}
+        onSelectProject={handleSelectProjectWithConfirmation}
+        projects={projects}
+        currentProject={currentProject}
+        hasUnsavedChanges={hasUnsavedChanges}
+        isProjectBusy={isProjectSaving || isProjectFetching}
+        isProjectListLoading={isProjectListLoading}
+        projectError={projectError}
         onAddCharacterGeneratorNode={() => addNode()}
         onAddImageGeneratorNode={() => addImageGeneratorNode()}
         onAddTextNode={() => addTextNode()}

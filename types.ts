@@ -115,3 +115,19 @@ export interface GalleryItem {
   mimeType: string;
   url: string;
 }
+
+export interface ProjectMetadata {
+  id: string;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ProjectState {
+  canvas: CanvasState;
+}
+
+export interface ProjectDetail {
+  metadata: ProjectMetadata;
+  state: ProjectState | null;
+}
