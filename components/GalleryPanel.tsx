@@ -13,6 +13,7 @@ interface GalleryPanelProps {
   onSelectItem: (item: GalleryItem) => void;
   isLoading: boolean;
   errorMessage?: string | null;
+  videoAutoplayEnabled: boolean;
 }
 
 const formatRelativeTime = (timestamp: number): string => {
@@ -42,6 +43,7 @@ const GalleryPanel: React.FC<GalleryPanelProps> = ({
   onSelectItem,
   isLoading,
   errorMessage,
+  videoAutoplayEnabled,
 }) => {
   const [isMinimized, setIsMinimized] = useState(true);
   const [activeTab, setActiveTab] = useState<GalleryTab>('history');
@@ -103,7 +105,7 @@ const GalleryPanel: React.FC<GalleryPanelProps> = ({
             muted
             loop
             playsInline
-            autoPlay
+            autoPlay={videoAutoplayEnabled}
             className="w-full h-full object-contain bg-black/40 rounded-md pointer-events-none"
           />
           {!compact && (
@@ -143,10 +145,10 @@ const GalleryPanel: React.FC<GalleryPanelProps> = ({
     }
 
     return (
-      <div className="grid grid-cols-2 gap-2 overflow-y-auto max-h-[calc(100vh-260px)] custom-scrollbar px-1 pb-1">
+      <div className="grid grid-cols-2 gap-2 overflow-y-auto max-h-[calc(100vh-340px)] custom-scrollbar px-1 pb-1">
         {mediaToShow.map((item) => (
           <div
-            key={item.id}
+            key={`${item.id}-${videoAutoplayEnabled}`}
             role="button"
             tabIndex={0}
             onClick={(event) => {
@@ -231,7 +233,7 @@ const GalleryPanel: React.FC<GalleryPanelProps> = ({
       >
         {mediaToShow.slice(0, 12).map((item) => (
           <button
-            key={item.id}
+            key={`${item.id}-${videoAutoplayEnabled}`}
             type="button"
             onClick={(event) => {
               event.stopPropagation();

@@ -189,6 +189,11 @@ const App: React.FC = () => {
     return setting === null || setting === 'true';
   });
 
+  const [videoAutoplayEnabled, setVideoAutoplayEnabled] = useState(() => {
+    const setting = localStorage.getItem('videoAutoplayEnabled');
+    return setting === null || setting === 'true';
+  });
+
 
   const { styles } = useTheme();
 
@@ -203,6 +208,10 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('showWelcomeOnStartup', String(showWelcomeOnStartup));
   }, [showWelcomeOnStartup]);
+
+  useEffect(() => {
+    localStorage.setItem('videoAutoplayEnabled', String(videoAutoplayEnabled));
+  }, [videoAutoplayEnabled]);
 
   useEffect(() => {
     if (showWelcomeOnStartup) {
@@ -1517,12 +1526,15 @@ const App: React.FC = () => {
         onSelectItem={handleSelectGalleryItem}
         isLoading={isGalleryLoading}
         errorMessage={galleryError}
+        videoAutoplayEnabled={videoAutoplayEnabled}
       />
-      {isSettingsModalOpen && <SettingsModal 
-        isOpen={isSettingsModalOpen} 
+      {isSettingsModalOpen && <SettingsModal
+        isOpen={isSettingsModalOpen}
         onClose={handleCloseSettingsModal}
         showWelcomeOnStartup={showWelcomeOnStartup}
         onShowWelcomeOnStartupChange={setShowWelcomeOnStartup}
+        videoAutoplayEnabled={videoAutoplayEnabled}
+        onVideoAutoplayEnabledChange={setVideoAutoplayEnabled}
       />}
 
       <Canvas

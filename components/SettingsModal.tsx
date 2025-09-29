@@ -7,6 +7,8 @@ interface SettingsModalProps {
   onClose: () => void;
   showWelcomeOnStartup: boolean;
   onShowWelcomeOnStartupChange: (value: boolean) => void;
+  videoAutoplayEnabled: boolean;
+  onVideoAutoplayEnabledChange: (value: boolean) => void;
 }
 
 const ToggleSwitch: React.FC<{
@@ -34,7 +36,7 @@ const ToggleSwitch: React.FC<{
   );
 };
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, showWelcomeOnStartup, onShowWelcomeOnStartupChange }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, showWelcomeOnStartup, onShowWelcomeOnStartupChange, videoAutoplayEnabled, onVideoAutoplayEnabledChange }) => {
   const { styles } = useTheme();
   const [activeTab, setActiveTab] = useState<'general' | 'shortcuts'>('general');
 
@@ -71,7 +73,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, showWelc
 
   const content = {
     general: (
-      <div className={`p-4 rounded-lg ${styles.toolbar.buttonBg} border ${styles.toolbar.border}`}>
+      <div className={`p-4 rounded-lg ${styles.toolbar.buttonBg} border ${styles.toolbar.border} space-y-4`}>
         <div className="flex items-center justify-between">
           <span id="show-on-startup-label" className={styles.modal.messageText}>
             Show welcome screen on startup
@@ -81,6 +83,21 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, showWelc
             onChange={onShowWelcomeOnStartupChange}
             labelId="show-on-startup-label"
           />
+        </div>
+        <div className={`border-t ${styles.modal.border} pt-4`}>
+          <div className="flex items-center justify-between">
+            <span id="video-autoplay-label" className={styles.modal.messageText}>
+              Enable video autoplay in gallery
+            </span>
+            <ToggleSwitch
+              checked={videoAutoplayEnabled}
+              onChange={onVideoAutoplayEnabledChange}
+              labelId="video-autoplay-label"
+            />
+          </div>
+          <p className={`text-xs mt-2 ${styles.node.labelText} opacity-70`}>
+            Videos in the gallery will automatically play when autoplay is enabled
+          </p>
         </div>
       </div>
     ),
