@@ -24,3 +24,4 @@ generated/
 *.njsproj
 *.sln
 *.sw?
+.env
