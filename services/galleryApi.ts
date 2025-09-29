@@ -6,6 +6,7 @@ type CreateGalleryItemRequest = {
   prompt?: string;
   nodeType?: NodeType;
   nodeId?: string;
+  projectId?: string;
 };
 
 const handleResponse = async (response: Response) => {
@@ -20,8 +21,9 @@ const handleResponse = async (response: Response) => {
   return text ? JSON.parse(text) : undefined;
 };
 
-export const fetchGalleryItems = async (): Promise<GalleryItem[]> => {
-  const data = await handleResponse(await fetch('/api/gallery')) as { items?: GalleryItem[] } | undefined;
+export const fetchGalleryItems = async (projectId?: string): Promise<GalleryItem[]> => {
+  const url = projectId ? `/api/gallery?projectId=${encodeURIComponent(projectId)}` : '/api/gallery';
+  const data = await handleResponse(await fetch(url)) as { items?: GalleryItem[] } | undefined;
   return data?.items ?? [];
 };
 

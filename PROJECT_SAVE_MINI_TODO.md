@@ -45,18 +45,18 @@ These constraints mean that a minimal project system can piggyback on the existi
   - [x] Button to "Save As…" (calls `POST`, switches current id).
   - [x] Dropdown/list to switch projects (loads via `GET /api/projects/:id`).
   - [x] Optional delete button if Phase 1 `DELETE` exists.
-- [ ] Ensure gallery calls include the active project ID so each project only sees its own media (see Phase 2b).
+- [x] Ensure gallery calls include the active project ID so each project only sees its own media (see Phase 2b).
 
 ---
 
 ## Phase 2b — Project-Scoped Gallery
-- [ ] Update backend gallery endpoints:
-  - [ ] Accept optional `projectId` on `POST /api/gallery` and persist it in `gallery.json`.
-  - [ ] Add filtering in `GET /api/gallery` (e.g., `?projectId=...`).
-  - [ ] Consider creating per-project subfolders under `generated/` later, but start with metadata tagging.
-- [ ] Update `services/galleryApi.ts` to send/receive `projectId`.
-- [ ] Ensure UI calls include the active project ID when saving gallery items and only fetch the current project’s media.
-- [ ] Fallback: if no project is loaded, treat gallery as global (keeps current behavior during transition).
+- [x] Update backend gallery endpoints:
+  - [x] Accept optional `projectId` on `POST /api/gallery` and persist it in `gallery.json`.
+  - [x] Add filtering in `GET /api/gallery` (e.g., `?projectId=...`).
+  - [x] Create per-project media subfolders under `generated/projects/{projectId}/media/`.
+- [x] Update `services/galleryApi.ts` to send/receive `projectId`.
+- [x] Ensure UI calls include the active project ID when saving gallery items and only fetch the current project's media.
+- [x] Fallback: if no project is loaded, treat gallery as global (keeps current behavior during transition).
 
 ---
 

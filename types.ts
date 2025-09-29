@@ -114,6 +114,7 @@ export interface GalleryItem {
   nodeId?: string;
   mimeType: string;
   url: string;
+  projectId?: string;
 }
 
 export interface ProjectMetadata {

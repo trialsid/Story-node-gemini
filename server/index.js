@@ -16,6 +16,10 @@ const projectsMetadataFile = path.join(generatedDir, 'projects.json');
 const app = express();
 const PORT = process.env.GALLERY_SERVER_PORT ? Number(process.env.GALLERY_SERVER_PORT) : 4000;
 
+const INIT_PROJECT_ID = 'init';
+const INIT_PROJECT_NAME = 'Init';
+const EMPTY_CANVAS_STATE = { nodes: [], connections: [] };
+
 app.use(express.json({ limit: '25mb' }));
 app.use('/generated', express.static(generatedDir, { fallthrough: true }));
 
@@ -26,6 +30,13 @@ const ensureGeneratedDir = async () => {
 const ensureProjectsDir = async () => {
   await ensureGeneratedDir();
   await fs.mkdir(projectsDir, { recursive: true });
+};
+
+const ensureProjectMediaDir = async (projectId) => {
+  if (!projectId) {
+    return;
+  }
+  await fs.mkdir(path.join(projectsDir, projectId, 'media'), { recursive: true });
 };
 
 const readMetadata = async () => {
@@ -86,6 +97,138 @@ const writeProjectState = async (projectId, state) => {
   await fs.writeFile(projectFile, JSON.stringify(state, null, 2), 'utf-8');
 };
 
+const resolveGalleryFilePath = (projectId, fileName) => {
+  if (projectId) {
+    return path.join(projectsDir, projectId, 'media', fileName);
+  }
+  return path.join(generatedDir, fileName);
+};
+
+const buildGalleryFileUrl = (projectId, fileName) => {
+  if (projectId) {
+    return `/generated/projects/${projectId}/media/${fileName}`;
+  }
+  return `/generated/${fileName}`;
+};
+
+const moveFile = async (sourcePath, targetPath) => {
+  try {
+    await fs.rename(sourcePath, targetPath);
+    return true;
+  } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === 'ENOENT') {
+        return false;
+      }
+      if (error.code === 'EEXIST') {
+        await fs.unlink(targetPath);
+        await fs.rename(sourcePath, targetPath);
+        return true;
+      }
+      if (error.code === 'EXDEV') {
+        const data = await fs.readFile(sourcePath);
+        await fs.writeFile(targetPath, data);
+        await fs.unlink(sourcePath);
+        return true;
+      }
+    }
+    throw error;
+  }
+};
+
+const ensureInitProject = async () => {
+  await ensureProjectsDir();
+  let projects = await readProjectsMetadata();
+  let initProject = projects.find((project) => project.id === INIT_PROJECT_ID);
+  const now = Date.now();
+  let updatedProjects = false;
+
+  if (!initProject) {
+    initProject = {
+      id: INIT_PROJECT_ID,
+      name: INIT_PROJECT_NAME,
+      createdAt: now,
+      updatedAt: now,
+    };
+    projects = [initProject, ...projects];
+    updatedProjects = true;
+  } else {
+    const filtered = projects.filter((project) => project.id !== INIT_PROJECT_ID);
+    projects = [initProject, ...filtered];
+    updatedProjects = true;
+  }
+
+  if (updatedProjects) {
+    await writeProjectsMetadata(projects);
+  }
+
+  const initProjectStateFile = path.join(projectsDir, `${INIT_PROJECT_ID}.json`);
+  if (!existsSync(initProjectStateFile)) {
+    await writeProjectState(INIT_PROJECT_ID, { canvas: EMPTY_CANVAS_STATE });
+  }
+
+  await ensureProjectMediaDir(INIT_PROJECT_ID);
+};
+
+const migrateLegacyGalleryMedia = async () => {
+  await ensureGeneratedDir();
+  await ensureInitProject();
+
+  const items = await readMetadata();
+  let updated = false;
+
+  for (const item of items) {
+    if (!item || typeof item !== 'object') {
+      continue;
+    }
+
+    if (!item.projectId) {
+      const sourcePath = path.join(generatedDir, item.fileName);
+      const targetDir = path.join(projectsDir, INIT_PROJECT_ID, 'media');
+      const targetPath = path.join(targetDir, item.fileName);
+
+      await fs.mkdir(targetDir, { recursive: true });
+
+      let moved = false;
+      if (existsSync(sourcePath)) {
+        moved = await moveFile(sourcePath, targetPath);
+      } else if (existsSync(targetPath)) {
+        moved = true;
+      }
+
+      if (moved) {
+        item.projectId = INIT_PROJECT_ID;
+        item.url = buildGalleryFileUrl(INIT_PROJECT_ID, item.fileName);
+        updated = true;
+      }
+    } else {
+      const expectedPath = resolveGalleryFilePath(item.projectId, item.fileName);
+      if (!existsSync(expectedPath)) {
+        const legacyPath = path.join(generatedDir, item.fileName);
+        if (existsSync(legacyPath)) {
+          const targetDir = path.dirname(expectedPath);
+          await fs.mkdir(targetDir, { recursive: true });
+          const moved = await moveFile(legacyPath, expectedPath);
+          if (moved) {
+            item.url = buildGalleryFileUrl(item.projectId, item.fileName);
+            updated = true;
+          }
+        }
+      } else {
+        const normalizedUrl = buildGalleryFileUrl(item.projectId, item.fileName);
+        if (item.url !== normalizedUrl) {
+          item.url = normalizedUrl;
+          updated = true;
+        }
+      }
+    }
+  }
+
+  if (updated) {
+    await writeMetadata(items);
+  }
+};
+
 const dataUrlToBuffer = (dataUrl) => {
   const match = dataUrl.match(/^data:(.*?);base64,(.*)$/);
   if (!match) {
@@ -111,11 +254,21 @@ const buildFileName = (type, extension) => {
   return `${timestamp}-${type}-${randomUUID()}.${extension}`;
 };
 
-app.get('/api/gallery', async (_req, res) => {
+app.get('/api/gallery', async (req, res) => {
   try {
     await ensureGeneratedDir();
     const items = await readMetadata();
-    res.json({ items });
+    const requestedProjectId = typeof req.query.projectId === 'string' && req.query.projectId.length > 0
+      ? req.query.projectId
+      : null;
+    const filtered = requestedProjectId
+      ? items.filter((item) => item.projectId === requestedProjectId)
+      : items;
+    const normalized = filtered.map((item) => ({
+      ...item,
+      url: buildGalleryFileUrl(item.projectId, item.fileName),
+    }));
+    res.json({ items: normalized });
   } catch (error) {
     console.error('Failed to read gallery metadata', error);
     res.status(500).send('Failed to read gallery metadata');
@@ -124,16 +277,19 @@ app.get('/api/gallery', async (_req, res) => {
 
 app.post('/api/gallery', async (req, res) => {
   try {
-    const { dataUrl, type, prompt, nodeType, nodeId } = req.body ?? {};
+    const { dataUrl, type, prompt, nodeType, nodeId, projectId } = req.body ?? {};
     if (!dataUrl || !type) {
       return res.status(400).send('Missing dataUrl or type');
     }
 
     await ensureGeneratedDir();
+    if (projectId) {
+      await ensureProjectMediaDir(projectId);
+    }
     const { buffer, mimeType } = dataUrlToBuffer(dataUrl);
     const extension = extensionFromMime(mimeType);
     const fileName = buildFileName(type, extension);
-    const filePath = path.join(generatedDir, fileName);
+    const filePath = resolveGalleryFilePath(projectId, fileName);
     await fs.writeFile(filePath, buffer);
 
     const items = await readMetadata();
@@ -146,7 +302,8 @@ app.post('/api/gallery', async (req, res) => {
       nodeType,
       nodeId,
       mimeType,
-      url: `/generated/${fileName}`,
+      projectId: projectId || undefined,
+      url: buildGalleryFileUrl(projectId, fileName),
     };
     items.unshift(newItem);
     await writeMetadata(items);
@@ -172,7 +329,7 @@ app.delete('/api/gallery/:id', async (req, res) => {
     await writeMetadata(items);
 
     if (removed?.fileName) {
-      const filePath = path.join(generatedDir, removed.fileName);
+      const filePath = resolveGalleryFilePath(removed?.projectId, removed.fileName);
       if (existsSync(filePath)) {
         unlink(filePath, (err) => {
           if (err && err.code !== 'ENOENT') {
@@ -244,6 +401,8 @@ app.post('/api/projects', async (req, res) => {
       await writeProjectState(id, {});
     }
 
+    await ensureProjectMediaDir(id);
+
     res.status(201).json({ project: { metadata } });
   } catch (error) {
     console.error('Failed to create project', error);
@@ -305,6 +464,15 @@ app.delete('/api/projects/:id', async (req, res) => {
       });
     }
 
+    const projectDir = path.join(projectsDir, projectId);
+    if (existsSync(projectDir)) {
+      fs.rm(projectDir, { recursive: true, force: true }).catch((err) => {
+        if (err && err.code !== 'ENOENT') {
+          console.warn('Failed to delete project directory', err);
+        }
+      });
+    }
+
     res.status(204).end();
   } catch (error) {
     console.error('Failed to delete project', error);
@@ -312,6 +480,18 @@ app.delete('/api/projects/:id', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Gallery server listening on http://localhost:${PORT}`);
+const startServer = async () => {
+  try {
+    await migrateLegacyGalleryMedia();
+  } catch (error) {
+    console.error('Failed to migrate legacy gallery media', error);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`Gallery server listening on http://localhost:${PORT}`);
+  });
+};
+
+startServer().catch((error) => {
+  console.error('Failed to start gallery server', error);
 });

@@ -364,6 +364,34 @@ const App: React.FC = () => {
     try {
       const snapshot = getCanvasSnapshot();
       const metadata = await createProjectApi({ name, state: snapshot });
+
+      // Convert any draft gallery items to real items for this project
+      const draftItems = galleryItems.filter(item => item.projectId === 'draft');
+      const convertedItems: GalleryItem[] = [];
+
+      for (const draftItem of draftItems) {
+        try {
+          // Save draft item to the new project
+          const realItem = await createGalleryItem({
+            dataUrl: draftItem.url, // Draft items store data URLs
+            type: draftItem.type,
+            prompt: draftItem.prompt,
+            nodeType: draftItem.nodeType,
+            nodeId: draftItem.nodeId,
+            projectId: metadata.id
+          });
+          convertedItems.push(realItem);
+        } catch (error) {
+          console.error('Failed to convert draft item', error);
+        }
+      }
+
+      // Update gallery state: remove drafts, add converted items
+      updateGalleryState(prevItems => [
+        ...convertedItems,
+        ...prevItems.filter(item => item.projectId !== 'draft')
+      ]);
+
       setProjects(prev => sortProjectsByUpdatedAt([metadata, ...prev.filter(item => item.id !== metadata.id)]));
       setCurrentProject(metadata);
       const serialized = JSON.stringify(snapshot.canvas);
@@ -377,10 +405,38 @@ const App: React.FC = () => {
       setIsProjectSaving(false);
     }
     return success;
+  }, [getCanvasSnapshot, isProjectSaving, galleryItems, updateGalleryState]);
+
+  const performProjectRename = useCallback(async (projectId: string, newName: string): Promise<boolean> => {
+    if (isProjectSaving) {
+      return false;
+    }
+
+    let success = false;
+    setIsProjectSaving(true);
+    setProjectError(null);
+    try {
+      const snapshot = getCanvasSnapshot();
+      // Use the update API to rename the project and save current state
+      const metadata = await updateProjectApi(projectId, { name: newName, state: snapshot });
+      setProjects(prev => sortProjectsByUpdatedAt(prev.map(item => (item.id === metadata.id ? metadata : item))));
+      setCurrentProject(metadata);
+      const serialized = JSON.stringify(snapshot.canvas);
+      lastSavedStateRef.current = serialized;
+      setHasUnsavedChanges(false);
+      success = true;
+    } catch (error) {
+      console.error('Failed to rename project', error);
+      setProjectError(error instanceof Error ? error.message : 'Failed to rename project');
+    } finally {
+      setIsProjectSaving(false);
+    }
+    return success;
   }, [getCanvasSnapshot, isProjectSaving]);
 
   const handleProjectSaveAs = useCallback(async (): Promise<boolean> => {
     const defaultName = currentProject ? `${currentProject.name} copy` : 'New Project';
+
     const name = await requestProjectName({
       title: 'Save Project As',
       initialValue: defaultName,
@@ -389,6 +445,7 @@ const App: React.FC = () => {
     if (!name) {
       return false;
     }
+
     return performProjectSaveAs(name);
   }, [currentProject, performProjectSaveAs, requestProjectName]);
 
@@ -611,7 +668,15 @@ const App: React.FC = () => {
     setIsGalleryLoading(true);
     setGalleryError(null);
     try {
-      const items = await fetchGalleryItems();
+      if (!currentProject) {
+        // When no project is selected, keep only draft items (stored locally)
+        updateGalleryState(prevItems => prevItems.filter(item => item.projectId === 'draft'));
+        setGalleryStatus('ready');
+        setGalleryError(null);
+        return;
+      }
+
+      const items = await fetchGalleryItems(currentProject.id);
       updateGalleryState(items);
       setGalleryStatus('ready');
       setGalleryError(null);
@@ -620,7 +685,54 @@ const App: React.FC = () => {
     } finally {
       setIsGalleryLoading(false);
     }
-  }, [handleGalleryError, updateGalleryState]);
+  }, [currentProject, handleGalleryError, updateGalleryState]);
+
+
+  const persistGalleryItems = useCallback(async (itemsData: Array<{
+    dataUrl: string;
+    type: 'image' | 'video';
+    prompt?: string;
+    nodeType?: NodeType;
+    nodeId?: string;
+  }>) => {
+    if (itemsData.length === 0) return;
+
+    try {
+      const newItems: GalleryItem[] = [];
+
+      // If no project exists, store as drafts in local state only
+      if (!currentProject) {
+        for (const params of itemsData) {
+          const draftItem: GalleryItem = {
+            id: crypto.randomUUID(),
+            type: params.type,
+            fileName: `draft-${Date.now()}-${crypto.randomUUID()}.${params.type === 'image' ? 'jpg' : 'mp4'}`,
+            createdAt: Date.now(),
+            prompt: params.prompt,
+            nodeType: params.nodeType,
+            nodeId: params.nodeId,
+            mimeType: params.type === 'image' ? 'image/jpeg' : 'video/mp4',
+            url: params.dataUrl, // Use data URL directly for draft items
+            projectId: 'draft' // Special draft project ID
+          };
+          newItems.push(draftItem);
+        }
+      } else {
+        // If project exists, save all items to server
+        for (const params of itemsData) {
+          const item = await createGalleryItem({ ...params, projectId: currentProject.id });
+          newItems.push(item);
+        }
+      }
+
+      // Update gallery state with all new items at once
+      updateGalleryState(prevItems => [...newItems, ...prevItems]);
+      setGalleryStatus('ready');
+      setGalleryError(null);
+    } catch (error) {
+      handleGalleryError(error);
+    }
+  }, [currentProject, handleGalleryError, updateGalleryState]);
 
   const persistGalleryItem = useCallback(async (params: {
     dataUrl: string;
@@ -629,15 +741,8 @@ const App: React.FC = () => {
     nodeType?: NodeType;
     nodeId?: string;
   }) => {
-    try {
-      const item = await createGalleryItem(params);
-      updateGalleryState(prevItems => [item, ...prevItems]);
-      setGalleryStatus('ready');
-      setGalleryError(null);
-    } catch (error) {
-      handleGalleryError(error);
-    }
-  }, [handleGalleryError, updateGalleryState]);
+    return persistGalleryItems([params]);
+  }, [persistGalleryItems]);
 
   const handleSelectGalleryItem = useCallback((item: GalleryItem) => {
     setSelectedGalleryItem(item);
@@ -1522,15 +1627,22 @@ const App: React.FC = () => {
       const { characterDescription, style, layout, aspectRatio } = sourceNode.data;
       const imageUrl = await generateCharacterSheet(characterDescription!, style!, layout!, aspectRatio!);
       updateNodeData(nodeId, { imageUrl, isLoading: false });
-      await persistGalleryItem({
-        dataUrl: imageUrl,
-        type: 'image',
-        prompt: characterDescription,
-        nodeType: NodeType.CharacterGenerator,
-        nodeId,
-      });
+
+      // Save to gallery separately - don't let gallery errors affect node display
+      try {
+        await persistGalleryItem({
+          dataUrl: imageUrl,
+          type: 'image',
+          prompt: characterDescription,
+          nodeType: NodeType.CharacterGenerator,
+          nodeId,
+        });
+      } catch (galleryError) {
+        console.error('Failed to save to gallery:', galleryError);
+        // Don't update node with error - keep showing the successful result
+      }
     } catch (error) {
-      console.error(error);
+      console.error('Character generation failed:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       updateNodeData(nodeId, { error: errorMessage, isLoading: false });
     }
@@ -1548,21 +1660,22 @@ const App: React.FC = () => {
       const { prompt, numberOfImages, aspectRatio } = sourceNode.data;
       const imageUrls = await generateImages(prompt, numberOfImages || 1, aspectRatio || '1:1');
       updateNodeData(nodeId, { imageUrls, isLoading: false });
-      for (const imageUrl of imageUrls) {
-        await persistGalleryItem({
-          dataUrl: imageUrl,
-          type: 'image',
-          prompt,
-          nodeType: NodeType.ImageGenerator,
-          nodeId,
-        });
-      }
+      // Save all images at once to avoid race conditions
+      const galleryItemsData = imageUrls.map(imageUrl => ({
+        dataUrl: imageUrl,
+        type: 'image' as const,
+        prompt,
+        nodeType: NodeType.ImageGenerator,
+        nodeId,
+      }));
+
+      await persistGalleryItems(galleryItemsData);
     } catch (error) {
       console.error(error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       updateNodeData(nodeId, { error: errorMessage, isLoading: false });
     }
-  }, [nodes, updateNodeData, persistGalleryItem]);
+  }, [nodes, updateNodeData, persistGalleryItems]);
 
   const handleGenerateCharacters = useCallback(async (nodeId: string) => {
     const sourceNode = nodes.find(n => n.id === nodeId);
@@ -1662,15 +1775,22 @@ const App: React.FC = () => {
     try {
         const editedImageUrl = await editImageWithPrompt(inputImageUrl, editDescription);
         updateNodeData(nodeId, { imageUrl: editedImageUrl, isLoading: false });
-        await persistGalleryItem({
-          dataUrl: editedImageUrl,
-          type: 'image',
-          prompt: editDescription,
-          nodeType: NodeType.ImageEditor,
-          nodeId,
-        });
+
+        // Save to gallery separately - don't let gallery errors affect node display
+        try {
+          await persistGalleryItem({
+            dataUrl: editedImageUrl,
+            type: 'image',
+            prompt: editDescription,
+            nodeType: NodeType.ImageEditor,
+            nodeId,
+          });
+        } catch (galleryError) {
+          console.error('Failed to save to gallery:', galleryError);
+          // Don't update node with error - keep showing the successful result
+        }
     } catch (error) {
-        console.error(error);
+        console.error('Image editing failed:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         updateNodeData(nodeId, { error: errorMessage, isLoading: false });
     }
@@ -1714,15 +1834,22 @@ const App: React.FC = () => {
     try {
         const mixedImageUrl = await mixImagesWithPrompt(inputImageUrls, editDescription);
         updateNodeData(nodeId, { imageUrl: mixedImageUrl, isLoading: false });
-        await persistGalleryItem({
-          dataUrl: mixedImageUrl,
-          type: 'image',
-          prompt: editDescription,
-          nodeType: NodeType.ImageMixer,
-          nodeId,
-        });
+
+        // Save to gallery separately - don't let gallery errors affect node display
+        try {
+          await persistGalleryItem({
+            dataUrl: mixedImageUrl,
+            type: 'image',
+            prompt: editDescription,
+            nodeType: NodeType.ImageMixer,
+            nodeId,
+          });
+        } catch (galleryError) {
+          console.error('Failed to save to gallery:', galleryError);
+          // Don't update node with error - keep showing the successful result
+        }
     } catch (error) {
-        console.error(error);
+        console.error('Image mixing failed:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         updateNodeData(nodeId, { error: errorMessage, isLoading: false });
     }
@@ -1762,15 +1889,22 @@ const App: React.FC = () => {
             generationElapsedMs: elapsed,
             generationStartTimeMs: undefined,
         });
-        await persistGalleryItem({
-          dataUrl: videoUrl,
-          type: 'video',
-          prompt: editDescription,
-          nodeType: NodeType.VideoGenerator,
-          nodeId,
-        });
+
+        // Save to gallery separately - don't let gallery errors affect node display
+        try {
+          await persistGalleryItem({
+            dataUrl: videoUrl,
+            type: 'video',
+            prompt: editDescription,
+            nodeType: NodeType.VideoGenerator,
+            nodeId,
+          });
+        } catch (galleryError) {
+          console.error('Failed to save to gallery:', galleryError);
+          // Don't update node with error - keep showing the successful result
+        }
     } catch (error) {
-        console.error(error);
+        console.error('Video generation failed:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         const elapsed = Date.now() - startTime;
         updateNodeData(nodeId, {
@@ -1885,7 +2019,6 @@ const App: React.FC = () => {
         onClearCanvas={handleClearCanvasRequest}
         onExportProject={handleExportProject}
         onImportProject={handleLoadProject}
-        onCreateProject={() => runWithUnsavedChangesGuard(handleCreateNewProject, 'Creating a new project will discard unsaved changes. Continue?')}
         onSaveProject={handleProjectSave}
         onSaveProjectAs={handleProjectSaveAs}
         onDeleteProject={() => runWithUnsavedChangesGuard(

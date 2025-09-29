@@ -59,8 +59,8 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ onStartFresh, onLoadTemplat
               <Plus className="w-6 h-6" />
             </div>
             <div>
-              <p className="font-semibold">New Blank Canvas</p>
-              <p className={`text-sm ${styles.node.labelText}`}>Begin with an empty workspace.</p>
+              <p className="font-semibold">New Project</p>
+              <p className={`text-sm ${styles.node.labelText}`}>Start a new project in draft mode.</p>
             </div>
           </button>
           

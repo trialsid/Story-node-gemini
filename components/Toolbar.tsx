@@ -9,7 +9,6 @@ interface ToolbarProps {
   onClearCanvas: () => void;
   onExportProject: () => void | Promise<void> | Promise<boolean>;
   onImportProject: () => void | Promise<void> | Promise<boolean>;
-  onCreateProject: () => void | Promise<void> | Promise<boolean>;
   onSaveProject: () => void | Promise<void> | Promise<boolean>;
   onSaveProjectAs: () => void | Promise<void> | Promise<boolean>;
   onDeleteProject: () => void | Promise<void> | Promise<boolean>;
@@ -234,20 +233,12 @@ const Toolbar: React.FC<ToolbarProps> = ({
                 <span>Save As…</span>
               </button>
               <button
-                onClick={createProjectActionHandler(onCreateProject)}
+                onClick={createProjectActionHandler(onClearCurrentProject)}
                 disabled={isProjectBusy}
                 className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 <Plus className="w-4 h-4 text-cyan-300" />
                 <span>New Project</span>
-              </button>
-              <button
-                onClick={createProjectActionHandler(onClearCurrentProject)}
-                disabled={isProjectBusy}
-                className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                <Home className="w-4 h-4 text-cyan-300" />
-                <span>Blank Canvas</span>
               </button>
 
               <div className="border-t border-gray-600/40 my-1" />
