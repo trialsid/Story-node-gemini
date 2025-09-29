@@ -9,6 +9,7 @@ interface ConfirmationModalProps {
   message: string;
   confirmText?: string;
   confirmButtonClass?: string;
+  hideCancel?: boolean;
 }
 
 const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ 
@@ -18,7 +19,8 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   title, 
   message, 
   confirmText, 
-  confirmButtonClass 
+  confirmButtonClass,
+  hideCancel = false,
 }) => {
   const { styles, theme } = useTheme();
   if (!isOpen) {
@@ -40,13 +42,15 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
         <h2 id="confirmation-title" className={`text-xl font-bold ${styles.modal.text} mb-4`}>{title}</h2>
         <p className={`${styles.modal.messageText} mb-6`}>{message}</p>
         <div className="flex justify-end space-x-4">
-          <button
-            onClick={onCancel}
-            className={`px-4 py-2 ${styles.modal.cancelButton} ${theme === 'modern' ? 'text-gray-800' : 'text-white'} font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 ${styles.modal.focusRingOffset} ${styles.modal.cancelFocusRing}`}
-            aria-label="Cancel action"
-          >
-            Cancel
-          </button>
+          {!hideCancel && (
+            <button
+              onClick={onCancel}
+              className={`px-4 py-2 ${styles.modal.cancelButton} ${theme === 'modern' ? 'text-gray-800' : 'text-white'} font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 ${styles.modal.focusRingOffset} ${styles.modal.cancelFocusRing}`}
+              aria-label="Cancel action"
+            >
+              Cancel
+            </button>
+          )}
           <button
             onClick={onConfirm}
             className={`px-4 py-2 ${confirmButtonClass || 'bg-red-600 hover:bg-red-500'} text-white font-semibold rounded-md transition-colors focus:outline-none focus:ring-2 ${styles.modal.focusRingOffset} focus:ring-red-500`}

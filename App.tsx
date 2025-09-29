@@ -21,6 +21,7 @@ import { fetchGalleryItems, createGalleryItem, deleteGalleryItem } from './servi
 import { fetchProjects as fetchProjectsApi, fetchProject as fetchProjectApi, createProject as createProjectApi, updateProject as updateProjectApi, deleteProject as deleteProjectApi } from './services/projectApi';
 import { getHandleSpec } from './utils/handlePositions';
 import { buildAllNodeMenuCategories } from './utils/nodeMenuConfig';
+import ProjectNameModal from './components/ProjectNameModal';
 
 
 const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } } = {
@@ -227,6 +228,13 @@ const App: React.FC = () => {
     resolve: (result: boolean) => void;
     confirmText?: string;
     confirmButtonClass?: string;
+    hideCancel?: boolean;
+  } | null>(null);
+  const [projectNameRequest, setProjectNameRequest] = useState<{
+    title: string;
+    initialValue: string;
+    confirmText: string;
+    resolve: (value: string | null) => void;
   } | null>(null);
 
 
@@ -297,6 +305,7 @@ const App: React.FC = () => {
         resolve,
         confirmText: 'Discard Changes',
         confirmButtonClass: 'bg-red-600 hover:bg-red-500',
+        hideCancel: false,
       });
     });
   }, [hasUnsavedChanges]);
@@ -304,7 +313,7 @@ const App: React.FC = () => {
   const requestConfirmation = useCallback((
     message: string,
     action: () => Promise<boolean>,
-    options?: { confirmText?: string; confirmButtonClass?: string; title?: string }
+    options?: { confirmText?: string; confirmButtonClass?: string; title?: string; hideCancel?: boolean }
   ): Promise<boolean> => new Promise<boolean>((resolve) => {
     setPendingAction({
       title: options?.title,
@@ -313,17 +322,39 @@ const App: React.FC = () => {
       resolve,
       confirmText: options?.confirmText,
       confirmButtonClass: options?.confirmButtonClass,
+      hideCancel: options?.hideCancel ?? false,
     });
   }), []);
 
-  const handleProjectSaveAs = useCallback(async (): Promise<boolean> => {
-    if (isProjectSaving) {
-      return false;
+  const requestProjectName = useCallback((options: {
+    title: string;
+    initialValue: string;
+    confirmText: string;
+  }): Promise<string | null> => new Promise((resolve) => {
+    setProjectNameRequest({
+      title: options.title,
+      initialValue: options.initialValue,
+      confirmText: options.confirmText,
+      resolve,
+    });
+  }), []);
+
+  const handleProjectNameConfirm = useCallback((value: string) => {
+    if (projectNameRequest) {
+      projectNameRequest.resolve(value);
+      setProjectNameRequest(null);
     }
-    const defaultName = currentProject ? `${currentProject.name} copy` : 'New Project';
-    const nameInput = window.prompt('Project name', defaultName);
-    const trimmedName = nameInput?.trim();
-    if (!trimmedName) {
+  }, [projectNameRequest]);
+
+  const handleProjectNameCancel = useCallback(() => {
+    if (projectNameRequest) {
+      projectNameRequest.resolve(null);
+      setProjectNameRequest(null);
+    }
+  }, [projectNameRequest]);
+
+  const performProjectSaveAs = useCallback(async (name: string): Promise<boolean> => {
+    if (isProjectSaving) {
       return false;
     }
 
@@ -332,7 +363,7 @@ const App: React.FC = () => {
     setProjectError(null);
     try {
       const snapshot = getCanvasSnapshot();
-      const metadata = await createProjectApi({ name: trimmedName, state: snapshot });
+      const metadata = await createProjectApi({ name, state: snapshot });
       setProjects(prev => sortProjectsByUpdatedAt([metadata, ...prev.filter(item => item.id !== metadata.id)]));
       setCurrentProject(metadata);
       const serialized = JSON.stringify(snapshot.canvas);
@@ -346,7 +377,20 @@ const App: React.FC = () => {
       setIsProjectSaving(false);
     }
     return success;
-  }, [currentProject, getCanvasSnapshot, isProjectSaving]);
+  }, [getCanvasSnapshot, isProjectSaving]);
+
+  const handleProjectSaveAs = useCallback(async (): Promise<boolean> => {
+    const defaultName = currentProject ? `${currentProject.name} copy` : 'New Project';
+    const name = await requestProjectName({
+      title: 'Save Project As',
+      initialValue: defaultName,
+      confirmText: 'Save',
+    });
+    if (!name) {
+      return false;
+    }
+    return performProjectSaveAs(name);
+  }, [currentProject, performProjectSaveAs, requestProjectName]);
 
   const handleProjectSave = useCallback(async (): Promise<boolean> => {
     if (isProjectSaving) {
@@ -377,10 +421,8 @@ const App: React.FC = () => {
     return success;
   }, [currentProject, getCanvasSnapshot, handleProjectSaveAs, isProjectSaving]);
 
-  const handleCreateNewProject = useCallback(async (): Promise<boolean> => {
-    const nameInput = window.prompt('Name for the new project', 'Untitled Project');
-    const trimmedName = nameInput?.trim();
-    if (!trimmedName) {
+  const performCreateNewProject = useCallback(async (name: string): Promise<boolean> => {
+    if (isProjectSaving) {
       return false;
     }
 
@@ -389,7 +431,7 @@ const App: React.FC = () => {
     setProjectError(null);
     try {
       const blankSnapshot: ProjectState = { canvas: JSON.parse(JSON.stringify(EMPTY_CANVAS_STATE)) as CanvasState };
-      const metadata = await createProjectApi({ name: trimmedName, state: blankSnapshot });
+      const metadata = await createProjectApi({ name, state: blankSnapshot });
       setProjects(prev => sortProjectsByUpdatedAt([metadata, ...prev.filter(item => item.id !== metadata.id)]));
       setCurrentProject(metadata);
       resetHistory(JSON.parse(JSON.stringify(EMPTY_CANVAS_STATE)) as CanvasState);
@@ -404,7 +446,19 @@ const App: React.FC = () => {
       setIsProjectSaving(false);
     }
     return success;
-  }, [resetHistory]);
+  }, [isProjectSaving, resetHistory]);
+
+  const handleCreateNewProject = useCallback(async (): Promise<boolean> => {
+    const name = await requestProjectName({
+      title: 'Create New Project',
+      initialValue: 'Untitled Project',
+      confirmText: 'Create',
+    });
+    if (!name) {
+      return false;
+    }
+    return performCreateNewProject(name);
+  }, [performCreateNewProject, requestProjectName]);
 
   const handleDeleteCurrentProject = useCallback(async (): Promise<boolean> => {
     if (!currentProject) {
@@ -752,9 +806,18 @@ const App: React.FC = () => {
         throw new Error('Invalid project file format: Missing nodes or connections array.');
       }
     } catch (error) {
-      console.error("Failed to load project:", error);
+      console.error('Failed to load project:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      alert(`Failed to load project file. It may be corrupted or in an invalid format.\n\nError: ${errorMessage}`);
+      requestConfirmation(
+        `Failed to load project file. It may be corrupted or in an invalid format.\n\nError: ${errorMessage}`,
+        async () => true,
+        {
+          title: 'Load Project Failed',
+          confirmText: 'OK',
+          confirmButtonClass: 'bg-cyan-600 hover:bg-cyan-500',
+          hideCancel: true,
+        }
+      );
     }
   }, [resetHistory]);
   
@@ -788,7 +851,16 @@ const App: React.FC = () => {
       }
     };
     reader.onerror = () => {
-      alert('Error reading file.');
+      requestConfirmation(
+        'Error reading file.',
+        async () => true,
+        {
+          title: 'File Error',
+          confirmText: 'OK',
+          confirmButtonClass: 'bg-cyan-600 hover:bg-cyan-500',
+          hideCancel: true,
+        }
+      );
     };
     reader.readAsText(file);
     event.target.value = ''; // Reset to allow loading same file again
@@ -1970,6 +2042,16 @@ const App: React.FC = () => {
           confirmButtonClass="bg-cyan-600 hover:bg-cyan-500"
         />
       )}
+      {projectNameRequest && (
+        <ProjectNameModal
+          isOpen={true}
+          title={projectNameRequest.title}
+          initialValue={projectNameRequest.initialValue}
+          confirmText={projectNameRequest.confirmText}
+          onConfirm={handleProjectNameConfirm}
+          onCancel={handleProjectNameCancel}
+        />
+      )}
       {pendingAction && (
         <ConfirmationModal
           isOpen={true}
@@ -1979,6 +2061,7 @@ const App: React.FC = () => {
           message={pendingAction.message}
           confirmText={pendingAction.confirmText ?? 'Continue'}
           confirmButtonClass={pendingAction.confirmButtonClass}
+          hideCancel={pendingAction.hideCancel}
         />
       )}
       {contextMenu && (
