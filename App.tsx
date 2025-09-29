@@ -220,6 +220,14 @@ const App: React.FC = () => {
   const [projectError, setProjectError] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const lastSavedStateRef = useRef<string>(JSON.stringify(EMPTY_CANVAS_STATE));
+  const [pendingAction, setPendingAction] = useState<{
+    title?: string;
+    message: string;
+    action: () => Promise<boolean>;
+    resolve: (result: boolean) => void;
+    confirmText?: string;
+    confirmButtonClass?: string;
+  } | null>(null);
 
 
   const { styles } = useTheme();
@@ -273,12 +281,40 @@ const App: React.FC = () => {
     canvas: JSON.parse(JSON.stringify(canvasState)) as CanvasState,
   }), [canvasState]);
 
-  const confirmDiscardChanges = useCallback(() => {
+  const runWithUnsavedChangesGuard = useCallback((
+    action: () => Promise<boolean>,
+    message = 'You have unsaved changes. Continue anyway?'
+  ): Promise<boolean> => {
     if (!hasUnsavedChanges) {
-      return true;
+      return action();
     }
-    return window.confirm('You have unsaved changes. Continue anyway?');
+
+    return new Promise<boolean>((resolve) => {
+      setPendingAction({
+        title: 'Unsaved Changes',
+        message,
+        action,
+        resolve,
+        confirmText: 'Discard Changes',
+        confirmButtonClass: 'bg-red-600 hover:bg-red-500',
+      });
+    });
   }, [hasUnsavedChanges]);
+
+  const requestConfirmation = useCallback((
+    message: string,
+    action: () => Promise<boolean>,
+    options?: { confirmText?: string; confirmButtonClass?: string; title?: string }
+  ): Promise<boolean> => new Promise<boolean>((resolve) => {
+    setPendingAction({
+      title: options?.title,
+      message,
+      action,
+      resolve,
+      confirmText: options?.confirmText,
+      confirmButtonClass: options?.confirmButtonClass,
+    });
+  }), []);
 
   const handleProjectSaveAs = useCallback(async (): Promise<boolean> => {
     if (isProjectSaving) {
@@ -342,9 +378,6 @@ const App: React.FC = () => {
   }, [currentProject, getCanvasSnapshot, handleProjectSaveAs, isProjectSaving]);
 
   const handleCreateNewProject = useCallback(async (): Promise<boolean> => {
-    if (!confirmDiscardChanges()) {
-      return false;
-    }
     const nameInput = window.prompt('Name for the new project', 'Untitled Project');
     const trimmedName = nameInput?.trim();
     if (!trimmedName) {
@@ -371,14 +404,10 @@ const App: React.FC = () => {
       setIsProjectSaving(false);
     }
     return success;
-  }, [confirmDiscardChanges, resetHistory]);
+  }, [resetHistory]);
 
   const handleDeleteCurrentProject = useCallback(async (): Promise<boolean> => {
     if (!currentProject) {
-      return false;
-    }
-    const confirmed = window.confirm(`Delete project "${currentProject.name}"? This cannot be undone.`);
-    if (!confirmed) {
       return false;
     }
 
@@ -403,31 +432,44 @@ const App: React.FC = () => {
   }, [currentProject, resetHistory]);
 
   const handleClearCurrentProject = useCallback(async (): Promise<boolean> => {
-    const canClear = confirmDiscardChanges();
-    if (!canClear) {
-      return false;
-    }
     setCurrentProject(null);
     resetHistory(JSON.parse(JSON.stringify(EMPTY_CANVAS_STATE)) as CanvasState);
     lastSavedStateRef.current = JSON.stringify(EMPTY_CANVAS_STATE);
     setHasUnsavedChanges(false);
     setProjectError(null);
     return true;
-  }, [confirmDiscardChanges, resetHistory]);
+  }, [resetHistory]);
 
-  const handleSelectProjectWithConfirmation = useCallback(async (projectId: string): Promise<boolean> => {
-    if (!projectId) {
-      return false;
+  const handleSelectProject = useCallback((projectId: string): Promise<boolean> => {
+    if (!projectId || projectId === currentProject?.id) {
+      return Promise.resolve(false);
     }
-    if (projectId === currentProject?.id) {
-      return false;
+    return runWithUnsavedChangesGuard(() => loadProjectById(projectId), 'Switching projects will discard unsaved changes. Continue?');
+  }, [currentProject?.id, loadProjectById, runWithUnsavedChangesGuard]);
+
+  const confirmPendingAction = useCallback(async () => {
+    if (!pendingAction) {
+      return;
     }
-    if (!confirmDiscardChanges()) {
-      return false;
+    const { action, resolve } = pendingAction;
+    setPendingAction(null);
+    try {
+      const result = await action();
+      resolve(result);
+    } catch (error) {
+      console.error('Failed to complete pending action', error);
+      resolve(false);
     }
-    await loadProjectById(projectId);
-    return true;
-  }, [confirmDiscardChanges, currentProject, loadProjectById]);
+  }, [pendingAction]);
+
+  const cancelPendingAction = useCallback(() => {
+    if (!pendingAction) {
+      return;
+    }
+    const { resolve } = pendingAction;
+    resolve(false);
+    setPendingAction(null);
+  }, [pendingAction]);
 
   useEffect(() => {
     localStorage.setItem('showWelcomeOnStartup', String(showWelcomeOnStartup));
@@ -1771,12 +1813,19 @@ const App: React.FC = () => {
         onClearCanvas={handleClearCanvasRequest}
         onExportProject={handleExportProject}
         onImportProject={handleLoadProject}
-        onCreateProject={handleCreateNewProject}
+        onCreateProject={() => runWithUnsavedChangesGuard(handleCreateNewProject, 'Creating a new project will discard unsaved changes. Continue?')}
         onSaveProject={handleProjectSave}
         onSaveProjectAs={handleProjectSaveAs}
-        onDeleteProject={handleDeleteCurrentProject}
-        onClearCurrentProject={handleClearCurrentProject}
-        onSelectProject={handleSelectProjectWithConfirmation}
+        onDeleteProject={() => runWithUnsavedChangesGuard(
+          () => requestConfirmation(
+            currentProject ? `Delete project "${currentProject.name}"? This cannot be undone.` : 'Delete project?',
+            handleDeleteCurrentProject,
+            { confirmText: 'Delete', confirmButtonClass: 'bg-red-600 hover:bg-red-500', title: 'Delete Project' }
+          ),
+          'Deleting this project will discard unsaved changes. Continue?'
+        )}
+        onClearCurrentProject={() => runWithUnsavedChangesGuard(handleClearCurrentProject, 'Clearing the canvas will discard unsaved changes. Continue?')}
+        onSelectProject={handleSelectProject}
         projects={projects}
         currentProject={currentProject}
         hasUnsavedChanges={hasUnsavedChanges}
@@ -1910,7 +1959,7 @@ const App: React.FC = () => {
             confirmText="Clear Canvas"
         />
       )}
-       {isLoadingProject && (
+      {isLoadingProject && (
         <ConfirmationModal
           isOpen={isLoadingProject}
           onConfirm={confirmLoadProject}
@@ -1919,6 +1968,17 @@ const App: React.FC = () => {
           message="Loading a project will replace the current canvas and clear your undo/redo history. Are you sure you want to continue?"
           confirmText="Load Project"
           confirmButtonClass="bg-cyan-600 hover:bg-cyan-500"
+        />
+      )}
+      {pendingAction && (
+        <ConfirmationModal
+          isOpen={true}
+          onConfirm={confirmPendingAction}
+          onCancel={cancelPendingAction}
+          title={pendingAction.title ?? 'Are you sure?'}
+          message={pendingAction.message}
+          confirmText={pendingAction.confirmText ?? 'Continue'}
+          confirmButtonClass={pendingAction.confirmButtonClass}
         />
       )}
       {contextMenu && (
