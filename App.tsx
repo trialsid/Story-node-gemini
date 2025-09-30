@@ -15,7 +15,8 @@ import WelcomeModal from './components/WelcomeModal';
 import { templates } from './utils/templates';
 import ContextMenuWithSubmenu from './components/ContextMenuWithSubmenu';
 import SettingsModal from './components/SettingsModal';
-import { Settings } from 'lucide-react';
+import HelpModal from './components/HelpModal';
+import { Settings, HelpCircle } from 'lucide-react';
 import { useHistory } from './hooks/useHistory';
 import { areHandlesCompatible } from './utils/node-spec';
 import { fetchGalleryItems, createGalleryItem, deleteGalleryItem } from './services/galleryApi';
@@ -201,6 +202,7 @@ const AppContent: React.FC = () => {
   const [isClearingCanvas, setIsClearingCanvas] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ isOpen: boolean; x: number; y: number; canvasX: number; canvasY: number; } | null>(null);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   
   // New state for project loading
   const [isLoadingProject, setIsLoadingProject] = useState(false);
@@ -687,6 +689,9 @@ const AppContent: React.FC = () => {
 
   const handleOpenSettingsModal = () => setIsSettingsModalOpen(true);
   const handleCloseSettingsModal = () => setIsSettingsModalOpen(false);
+
+  const handleOpenHelpModal = () => setIsHelpModalOpen(true);
+  const handleCloseHelpModal = () => setIsHelpModalOpen(false);
 
   const handleGalleryError = useCallback((error: unknown) => {
     console.error('Gallery error', error);
@@ -2201,8 +2206,15 @@ const AppContent: React.FC = () => {
       <div className="absolute top-4 right-4 z-20">
         <ThemeSwitcher />
       </div>
-      <div className="absolute bottom-4 right-4 z-20">
-        <button 
+      <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2">
+        <button
+          onClick={handleOpenHelpModal}
+          className={`w-12 h-12 flex items-center justify-center ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-full shadow-lg text-gray-400 ${styles.toolbar.buttonHoverBg}`}
+          aria-label="Open help"
+        >
+          <HelpCircle className="w-6 h-6" />
+        </button>
+        <button
           onClick={handleOpenSettingsModal}
           className={`w-12 h-12 flex items-center justify-center ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-full shadow-lg text-gray-400 ${styles.toolbar.buttonHoverBg}`}
           aria-label="Open settings"
@@ -2228,6 +2240,11 @@ const AppContent: React.FC = () => {
         videoAutoplayEnabled={videoAutoplayEnabled}
         onVideoAutoplayEnabledChange={(value) => updatePreferences({ enableVideoAutoplayInGallery: value })}
       />}
+
+      <HelpModal
+        isOpen={isHelpModalOpen}
+        onClose={handleCloseHelpModal}
+      />
 
       <Canvas
         ref={canvasRef}
