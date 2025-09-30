@@ -22,6 +22,8 @@ interface NodeProps {
   allNodes: NodeData[];
   connections: Connection[];
   onDragStart: (nodeId: string, e: React.MouseEvent) => void;
+  onNodeClick: (nodeId: string, e: React.MouseEvent) => void;
+  isSelected: boolean;
   onUpdateData: (nodeId: string, data: Partial<NodeData['data']>) => void;
   onGenerateCharacterImage: (nodeId: string) => void;
   onGenerateImages: (nodeId: string) => void;
@@ -119,6 +121,8 @@ const Node: React.FC<NodeProps> = ({
   allNodes,
   connections,
   onDragStart,
+  onNodeClick,
+  isSelected,
   onUpdateData,
   onGenerateCharacterImage,
   onGenerateImages,
@@ -573,12 +577,23 @@ const Node: React.FC<NodeProps> = ({
   return (
     <div
       ref={nodeRef}
-      className={`absolute ${styles.node.bg} border ${contextMenuPosition ? `${styles.node.focusBorder} ${styles.node.focusRing}` : styles.node.border} rounded-lg flex flex-col`}
+      className={`absolute ${styles.node.bg} border ${(contextMenuPosition || isSelected) ? `${styles.node.focusBorder} ${styles.node.focusRing}` : styles.node.border} rounded-lg flex flex-col`}
       style={{
         left: node.position.x,
         top: node.position.y,
         width: `${dimensions.width}px`,
         height: dimensions.height && !isMinimized ? `${dimensions.height}px` : undefined,
+      }}
+      onClick={(e) => {
+        // Only trigger selection if clicking on node body (not interactive elements)
+        const target = e.target as HTMLElement;
+        const isInteractive = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' ||
+                              target.tagName === 'BUTTON' || target.tagName === 'SELECT' ||
+                              target.closest('button') || target.closest('textarea') ||
+                              target.closest('input') || target.closest('select');
+        if (!isInteractive) {
+          onNodeClick(node.id, e);
+        }
       }}
     >
       {renderHandles(inputHandles, 'input')}

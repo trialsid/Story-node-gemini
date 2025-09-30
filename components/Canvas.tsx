@@ -25,6 +25,8 @@ interface CanvasProps {
   onWheel: (e: React.WheelEvent) => void;
   onContextMenu: (e: React.MouseEvent) => void;
   onNodeDragStart: (nodeId: string, e: React.MouseEvent) => void;
+  onNodeClick: (nodeId: string, e: React.MouseEvent) => void;
+  selectedNodeIds: Set<string>;
   onUpdateNodeData: (nodeId: string, data: Partial<NodeData['data']>) => void;
   onGenerateCharacterImage: (nodeId: string) => void;
   onGenerateImages: (nodeId: string) => void;
@@ -63,6 +65,8 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
   onWheel,
   onContextMenu,
   onNodeDragStart,
+  onNodeClick,
+  selectedNodeIds,
   onUpdateNodeData,
   onGenerateCharacterImage,
   onGenerateImages,
@@ -157,6 +161,8 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
             allNodes={allNodes}
             connections={connections}
             onDragStart={onNodeDragStart}
+            onNodeClick={onNodeClick}
+            isSelected={selectedNodeIds.has(node.id)}
             onUpdateData={onUpdateNodeData}
             onGenerateCharacterImage={onGenerateCharacterImage}
             onGenerateImages={onGenerateImages}

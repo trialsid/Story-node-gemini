@@ -54,6 +54,7 @@ interface DragStartInfo {
   startMouseY: number;
   startNodeX: number;
   startNodeY: number;
+  draggedNodes: { id: string; startX: number; startY: number }[];
 }
 
 interface TempConnectionInfo {
@@ -180,6 +181,7 @@ const App: React.FC = () => {
   const [hoveredInputHandle, setHoveredInputHandle] = useState<HoveredInputInfo | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [nodeToDelete, setNodeToDelete] = useState<string | null>(null);
+  const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
 
   // State for canvas transform
   const [isPanning, setIsPanning] = useState(false);
@@ -622,9 +624,17 @@ const App: React.FC = () => {
     }
   }, [nodes, draggingNodeId]);
 
-  // Keyboard shortcuts for undo/redo
+  // Keyboard shortcuts for undo/redo and selection
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+        // Escape to clear selection
+        if (e.key === 'Escape') {
+            if (selectedNodeIds.size > 0) {
+                setSelectedNodeIds(new Set());
+                e.preventDefault();
+            }
+        }
+
         if (e.ctrlKey || e.metaKey) {
             if (e.key === 'z') {
                 if (e.shiftKey) {
@@ -641,7 +651,7 @@ const App: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, canUndo, canRedo]);
+  }, [undo, redo, canUndo, canRedo, selectedNodeIds]);
 
   const handleOpenSettingsModal = () => setIsSettingsModalOpen(true);
   const handleCloseSettingsModal = () => setIsSettingsModalOpen(false);
@@ -1365,31 +1375,45 @@ const App: React.FC = () => {
   }, [setCanvasState]);
 
   const handleNodeDragStart = useCallback((nodeId: string, e: React.MouseEvent) => {
+    // If not holding Ctrl and node is not selected, clear selection
+    if (!e.ctrlKey && !e.metaKey && !selectedNodeIds.has(nodeId)) {
+      setSelectedNodeIds(new Set());
+    }
+
     setDraggingNodeId(nodeId);
     setLastAddedNodePosition(null);
     const node = nodes.find(n => n.id === nodeId);
     if (node) {
+        // If node is in selection, drag all selected nodes
+        const nodesToDrag = selectedNodeIds.has(nodeId)
+          ? nodes.filter(n => selectedNodeIds.has(n.id))
+          : [node];
+
         setDragStartInfo({
             startMouseX: e.clientX,
             startMouseY: e.clientY,
             startNodeX: node.position.x,
             startNodeY: node.position.y,
+            draggedNodes: nodesToDrag.map(n => ({ id: n.id, startX: n.position.x, startY: n.position.y })),
         });
     }
-  }, [nodes]);
+  }, [nodes, selectedNodeIds]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     setMousePosition({ x: e.clientX, y: e.clientY });
 
     if (draggingNodeId && dragStartInfo) {
-      const dx = e.clientX - dragStartInfo.startMouseX;
-      const dy = e.clientY - dragStartInfo.startMouseY;
-      const x = dragStartInfo.startNodeX + dx / zoom;
-      const y = dragStartInfo.startNodeY + dy / zoom;
+      const dx = (e.clientX - dragStartInfo.startMouseX) / zoom;
+      const dy = (e.clientY - dragStartInfo.startMouseY) / zoom;
+
       setLocalNodes((prevNodes) =>
-        prevNodes.map((node) =>
-          node.id === draggingNodeId ? { ...node, position: { x, y } } : node
-        )
+        prevNodes.map((node) => {
+          const draggedNode = dragStartInfo.draggedNodes.find(dn => dn.id === node.id);
+          if (draggedNode) {
+            return { ...node, position: { x: draggedNode.startX + dx, y: draggedNode.startY + dy } };
+          }
+          return node;
+        })
       );
     } else if (isPanning) {
       const dx = e.clientX - panStart.x;
@@ -1417,6 +1441,7 @@ const App: React.FC = () => {
     }
     if (e.target === e.currentTarget) {
         setLastAddedNodePosition(null);
+        setSelectedNodeIds(new Set()); // Clear selection when clicking canvas
         setIsPanning(true);
         setPanStart({ x: e.clientX, y: e.clientY });
     }
@@ -1441,6 +1466,28 @@ const App: React.FC = () => {
   const handleCloseContextMenu = () => {
     setContextMenu(null);
   };
+
+  const handleNodeClick = useCallback((nodeId: string, e: React.MouseEvent) => {
+    const isCtrlHeld = e.ctrlKey || e.metaKey;
+
+    if (isCtrlHeld) {
+      // Toggle selection
+      setSelectedNodeIds(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(nodeId)) {
+          newSet.delete(nodeId);
+        } else {
+          newSet.add(nodeId);
+        }
+        return newSet;
+      });
+    } else {
+      // If clicking on a non-selected node body (not header), select only that node
+      if (!selectedNodeIds.has(nodeId)) {
+        setSelectedNodeIds(new Set([nodeId]));
+      }
+    }
+  }, [selectedNodeIds]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     const target = e.target as HTMLElement;
@@ -2102,6 +2149,8 @@ const App: React.FC = () => {
         onWheel={handleWheel}
         onContextMenu={handleContextMenu}
         onNodeDragStart={handleNodeDragStart}
+        onNodeClick={handleNodeClick}
+        selectedNodeIds={selectedNodeIds}
         onUpdateNodeData={updateNodeData}
         onGenerateCharacterImage={handleGenerateCharacterImage}
         onGenerateImages={handleGenerateImages}
