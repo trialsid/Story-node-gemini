@@ -43,7 +43,8 @@ interface NodeProps {
   onInputMouseUp: (nodeId: string, handleId: string) => void;
   onDelete: (nodeId: string) => void;
   onDeleteDirectly: (nodeId: string) => void;
-  onDuplicate: (nodeId: string, updateSelection?: (newId: string) => void) => string | null;
+  onDuplicate: (nodeId: string) => string | null;
+  onDuplicateMany: (nodeIds: string[]) => string[];
   onReset: (nodeId: string) => void;
   onToggleMinimize: (nodeId: string) => void;
   dimensions: { width: number; height?: number };
@@ -145,6 +146,7 @@ const Node: React.FC<NodeProps> = ({
   onDelete,
   onDeleteDirectly,
   onDuplicate,
+  onDuplicateMany,
   onReset,
   onToggleMinimize,
   dimensions,
@@ -193,25 +195,20 @@ const Node: React.FC<NodeProps> = ({
   const handleDuplicate = () => {
     // If this node is part of a selection, duplicate all selected nodes
     if (selectedNodeIds.has(node.id) && selectedNodeIds.size > 1) {
-      const newIds: string[] = [];
-      let completed = 0;
-      const total = selectedNodeIds.size;
-
-      selectedNodeIds.forEach(nodeId => {
-        onDuplicate(nodeId, (newId) => {
-          newIds.push(newId);
-          completed++;
-          // Once all duplications are done, update selection
-          if (completed === total) {
-            onUpdateSelection(new Set(newIds));
-          }
+      const idsToDuplicate = Array.from(selectedNodeIds);
+      const newIds = onDuplicateMany(idsToDuplicate);
+      if (newIds.length > 0) {
+        requestAnimationFrame(() => {
+          onUpdateSelection(new Set(newIds));
         });
-      });
+      }
     } else {
-      onDuplicate(node.id, (newId) => {
-        // Select the newly duplicated node
-        onUpdateSelection(new Set([newId]));
-      });
+      const newId = onDuplicate(node.id);
+      if (newId) {
+        requestAnimationFrame(() => {
+          onUpdateSelection(new Set([newId]));
+        });
+      }
     }
     closeContextMenu();
   };

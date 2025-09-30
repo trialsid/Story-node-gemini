@@ -7,6 +7,10 @@ interface HistoryState<T> {
   currentIndex: number;
 }
 
+interface SetOptions {
+  skipHistory?: boolean;
+}
+
 export const useHistory = <T>(initialState: T) => {
   const [historyState, setHistoryState] = useState<HistoryState<T>>({
     history: [initialState],
@@ -15,7 +19,7 @@ export const useHistory = <T>(initialState: T) => {
 
   const state = historyState.history[historyState.currentIndex];
 
-  const set = useCallback((value: T | ((prevState: T) => T)) => {
+  const set = useCallback((value: T | ((prevState: T) => T), options: SetOptions = {}) => {
     setHistoryState(prev => {
       const currentState = prev.history[prev.currentIndex];
       const newState = typeof value === 'function'
@@ -25,6 +29,12 @@ export const useHistory = <T>(initialState: T) => {
       // Avoid spamming history when nothing changed.
       if (JSON.stringify(newState) === JSON.stringify(currentState)) {
         return prev;
+      }
+
+      if (options.skipHistory) {
+        const newHistory = [...prev.history];
+        newHistory[prev.currentIndex] = newState;
+        return { ...prev, history: newHistory };
       }
 
       let newHistory = prev.history.slice(0, prev.currentIndex + 1);

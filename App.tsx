@@ -157,6 +157,12 @@ const sanitizeNodeDataForDuplication = (node: NodeData): NodeData['data'] => {
   return clone;
 };
 
+const TRANSIENT_NODE_DATA_KEYS = new Set([
+  'handleYOffsets',
+  'minimizedHandleYOffsets',
+  'minimizedHeight',
+]);
+
 const App: React.FC = () => {
   const {
     state: canvasState,
@@ -1236,47 +1242,57 @@ const App: React.FC = () => {
     }));
   }, [setCanvasState]);
 
-  const duplicateNode = useCallback((nodeId: string, updateSelection?: (newId: string) => void): string | null => {
-    let duplicatedPosition: { x: number; y: number } | null = null;
-    const newId = `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  const duplicateNodesBatch = useCallback((nodeIds: string[]): string[] => {
+    if (nodeIds.length === 0) {
+      return [];
+    }
+
+    const createdNodes: { id: string; position: { x: number; y: number } }[] = [];
+    const idSet = new Set(nodeIds);
 
     setCanvasState(prevState => {
-      const node = prevState.nodes.find(n => n.id === nodeId);
-      if (!node) return prevState;
+      const nodesToDuplicate = prevState.nodes.filter(node => idSet.has(node.id));
+      if (nodesToDuplicate.length === 0) {
+        return prevState;
+      }
 
-      const position = {
-        x: node.position.x + 48,
-        y: node.position.y + 48,
-      };
-      duplicatedPosition = position;
+      const timestamp = Date.now();
+      let counter = 0;
 
-      const duplicatedNode: NodeData = {
-        ...node,
-        id: newId,
-        position,
-        data: sanitizeNodeDataForDuplication(node),
-      };
+      const duplicatedNodes = nodesToDuplicate.map(node => {
+        const newId = `node_${timestamp}_${counter++}_${Math.random().toString(36).substring(2, 9)}`;
+        const position = {
+          x: node.position.x + 48,
+          y: node.position.y + 48,
+        };
+
+        createdNodes.push({ id: newId, position });
+
+        return {
+          ...node,
+          id: newId,
+          position,
+          data: sanitizeNodeDataForDuplication(node),
+        };
+      });
 
       return {
         ...prevState,
-        nodes: [...prevState.nodes, duplicatedNode],
+        nodes: [...prevState.nodes, ...duplicatedNodes],
       };
     });
 
-    if (duplicatedPosition) {
-      setLastAddedNodePosition(duplicatedPosition);
+    if (createdNodes.length > 0) {
+      setLastAddedNodePosition(createdNodes[createdNodes.length - 1].position);
     }
 
-    // Call the callback after state is set
-    if (updateSelection) {
-      // Use requestAnimationFrame to ensure state update and render completes first
-      requestAnimationFrame(() => {
-        updateSelection(newId);
-      });
-    }
-
-    return newId;
+    return createdNodes.map(node => node.id);
   }, [setCanvasState, setLastAddedNodePosition]);
+
+  const duplicateNode = useCallback((nodeId: string): string | null => {
+    const [newId] = duplicateNodesBatch([nodeId]);
+    return newId ?? null;
+  }, [duplicateNodesBatch]);
 
   const resetNode = useCallback((nodeId: string) => {
     setCanvasState(prevState => {
@@ -1304,6 +1320,9 @@ const App: React.FC = () => {
   }, [setCanvasState]);
 
   const updateNodeData = useCallback((nodeId: string, data: Partial<NodeData['data']>) => {
+    const dataKeys = Object.keys(data);
+    const isTransientUpdate = dataKeys.length > 0 && dataKeys.every(key => TRANSIENT_NODE_DATA_KEYS.has(key));
+
     setCanvasState((prevState) => {
         let newNodes = [...prevState.nodes];
         const nodeIndex = newNodes.findIndex(n => n.id === nodeId);
@@ -1388,7 +1407,7 @@ const App: React.FC = () => {
             });
         }
         return { ...prevState, nodes: newNodes, connections: newConnections };
-    });
+    }, { skipHistory: isTransientUpdate });
   }, [setCanvasState]);
 
   const handleNodeDragStart = useCallback((nodeId: string, e: React.MouseEvent) => {
@@ -2187,6 +2206,7 @@ const App: React.FC = () => {
         onDeleteNode={requestDeleteNode}
         onDeleteNodeDirectly={deleteNodeDirectly}
         onDuplicateNode={duplicateNode}
+        onDuplicateNodes={duplicateNodesBatch}
         onResetNode={resetNode}
         onToggleNodeMinimization={toggleNodeMinimization}
         nodeDimensions={NODE_DIMENSIONS}
