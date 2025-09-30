@@ -119,21 +119,21 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({
           
           <h3 className={`text-base font-semibold ${styles.modal.text} mt-8 mb-4`}>Or start from a template</h3>
           
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {Object.entries(templates).map(([key, template]) => (
-                <button
+              <button
                 key={key}
                 onClick={() => onLoadTemplate(key as keyof typeof templates)}
-                className={`w-full text-left p-4 rounded-lg flex items-center space-x-4 transition-colors ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg}`}
-            >
-                <div className={`p-3 rounded-md ${styles.node.bg}`}>
+                className={`w-full text-left p-4 rounded-lg flex flex-col gap-3 transition-colors ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${styles.gallery.itemFocusRing}`}
+              >
+                <div className="flex items-start gap-3 h-[3rem]">
+                  <div className={`p-3 rounded-md ${styles.node.bg} flex-shrink-0`}>
                     {templateIcons[key as keyof typeof templates]}
+                  </div>
+                  <p className="font-bold text-sm leading-tight">{template.name}</p>
                 </div>
-                <div>
-                    <p className="font-semibold">{template.name}</p>
-                    <p className={`text-sm ${styles.node.labelText}`}>{template.description}</p>
-                </div>
-                </button>
+                <p className={`text-sm ${styles.node.labelText} leading-relaxed`}>{template.description}</p>
+              </button>
             ))}
           </div>
         </>
@@ -156,35 +156,37 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {projects.slice(0, 10).map((project) => (
                 <div
                   key={project.id}
-                  className={`w-full text-left p-4 rounded-lg flex items-center justify-between group transition-colors ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} cursor-pointer`}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => handleLoadProject(project.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleLoadProject(project.id);
+                    }
+                  }}
+                  className={`w-full text-left p-4 rounded-lg flex flex-col gap-3 transition-colors cursor-pointer ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${styles.gallery.itemFocusRing}`}
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold truncate">{project.name}</p>
-                    <div className={`text-sm ${styles.node.labelText} flex items-center space-x-3 mt-1`}>
-                      <span>Updated {formatDate(project.updatedAt)}</span>
-                      <span>•</span>
-                      <span className="text-xs">Created {formatDate(project.createdAt)}</span>
-                    </div>
+                    <p className="font-bold text-base truncate mb-2">{project.name}</p>
+                    <p className={`text-xs ${styles.node.labelText}`}>Created {formatDate(project.createdAt)}</p>
                   </div>
-                  <div
-                    onClick={(e) => handleDeleteClick(e, project.id)}
-                    className={`ml-4 p-2 rounded-md opacity-0 group-hover:opacity-100 transition-opacity ${styles.node.bg} hover:bg-red-500/20 cursor-pointer`}
-                    role="button"
-                    aria-label="Delete project"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleDeleteClick(e as any, project.id);
-                      }
-                    }}
-                  >
-                    <Trash2 className="w-4 h-4 text-red-400" />
+                  <div className={`pt-3 border-t ${styles.toolbar.border} flex items-center justify-between gap-3`}>
+                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded ${styles.gallery.accentBadge}`}>
+                      Updated {formatDate(project.updatedAt)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteClick(e, project.id)}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded transition-colors ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} ${styles.gallery.accentText} hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${styles.gallery.itemFocusRing}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Remove
+                    </button>
                   </div>
                 </div>
               ))}
@@ -257,7 +259,9 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({
                     {content[activeTab as keyof typeof content].title}
                 </h1>
                 <p className={`${styles.modal.messageText} mb-6`}>{content[activeTab as keyof typeof content].description}</p>
-                {content[activeTab as keyof typeof content].component}
+                <div className="mx-auto max-w-3xl space-y-8">
+                  {content[activeTab as keyof typeof content].component}
+                </div>
             </main>
         </div>
       </div>
