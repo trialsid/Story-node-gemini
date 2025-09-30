@@ -6,6 +6,7 @@ import { useTheme } from '../contexts/ThemeContext';
 interface NodeContextMenuProps {
   position: { x: number; y: number };
   nodeId: string;
+  selectedNodeIds: Set<string>;
   onClose: () => void;
   onDuplicate: () => void;
   onReset: () => void;
@@ -13,11 +14,15 @@ interface NodeContextMenuProps {
   startWithDeleteConfirmation?: boolean;
 }
 
-const NodeContextMenu: React.FC<NodeContextMenuProps> = ({ position, nodeId, onClose, onDuplicate, onReset, onDeleteDirectly, startWithDeleteConfirmation = false }) => {
+const NodeContextMenu: React.FC<NodeContextMenuProps> = ({ position, nodeId, selectedNodeIds, onClose, onDuplicate, onReset, onDeleteDirectly, startWithDeleteConfirmation = false }) => {
   const { styles } = useTheme();
   const menuRef = useRef<HTMLDivElement>(null);
   const [menuPosition, setMenuPosition] = useState(position);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(startWithDeleteConfirmation);
+
+  // Check if we're in multi-select mode (this node is selected with others)
+  const isMultiSelect = selectedNodeIds.has(nodeId) && selectedNodeIds.size > 1;
+  const selectedCount = selectedNodeIds.size;
 
   const handleDeleteClick = () => {
     setShowDeleteConfirmation(true);
@@ -91,18 +96,18 @@ const NodeContextMenu: React.FC<NodeContextMenuProps> = ({ position, nodeId, onC
           <button
             type="button"
             onClick={onDuplicate}
-            className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded ${styles.toolbar.buttonHoverBg} transition-colors`}
+            className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-200 rounded ${styles.toolbar.buttonHoverBg} transition-colors`}
           >
             <Copy className="w-4 h-4" />
-            Duplicate
+            {isMultiSelect ? `Duplicate (${selectedCount})` : 'Duplicate'}
           </button>
           <button
             type="button"
             onClick={onReset}
-            className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded ${styles.toolbar.buttonHoverBg} transition-colors`}
+            className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-200 rounded ${styles.toolbar.buttonHoverBg} transition-colors`}
           >
             <RotateCcw className="w-4 h-4" />
-            Reset
+            {isMultiSelect ? `Reset (${selectedCount})` : 'Reset'}
           </button>
           <div className="h-px bg-gray-500/20 my-1" aria-hidden="true" />
           <button
@@ -111,7 +116,7 @@ const NodeContextMenu: React.FC<NodeContextMenuProps> = ({ position, nodeId, onC
             className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded text-red-400 hover:text-red-200 ${styles.toolbar.buttonHoverBg} transition-colors`}
           >
             <Trash2 className="w-4 h-4" />
-            Delete
+            {isMultiSelect ? `Delete (${selectedCount})` : 'Delete'}
           </button>
         </>
       ) : (
@@ -119,7 +124,9 @@ const NodeContextMenu: React.FC<NodeContextMenuProps> = ({ position, nodeId, onC
           <div className="px-3 py-2 text-sm">
             <div className="flex items-center gap-2 text-red-400 mb-2">
               <AlertTriangle className="w-4 h-4" />
-              <span className="font-medium">Delete Node?</span>
+              <span className="font-medium">
+                {isMultiSelect ? `Delete ${selectedCount} Nodes?` : 'Delete Node?'}
+              </span>
             </div>
             <p className="text-xs text-gray-400 mb-3">
               This action cannot be undone.
@@ -129,7 +136,7 @@ const NodeContextMenu: React.FC<NodeContextMenuProps> = ({ position, nodeId, onC
             <button
               type="button"
               onClick={handleDeleteCancel}
-              className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs rounded ${styles.toolbar.buttonHoverBg} transition-colors`}
+              className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs text-gray-200 rounded ${styles.toolbar.buttonHoverBg} transition-colors`}
             >
               <ArrowLeft className="w-3 h-3" />
               Back

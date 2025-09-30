@@ -636,16 +636,23 @@ const App: React.FC = () => {
         }
 
         if (e.ctrlKey || e.metaKey) {
-            if (e.key === 'z') {
+            if (e.key === 'z' || e.key === 'Z') {
                 if (e.shiftKey) {
-                    if (canRedo) redo();
+                    if (canRedo) {
+                        redo();
+                        e.preventDefault();
+                    }
                 } else {
-                    if (canUndo) undo();
+                    if (canUndo) {
+                        undo();
+                        e.preventDefault();
+                    }
                 }
-                e.preventDefault();
-            } else if (e.key === 'y') {
-                if (canRedo) redo();
-                e.preventDefault();
+            } else if (e.key === 'y' || e.key === 'Y') {
+                if (canRedo) {
+                    redo();
+                    e.preventDefault();
+                }
             }
         }
     };
@@ -1229,14 +1236,14 @@ const App: React.FC = () => {
     }));
   }, [setCanvasState]);
 
-  const duplicateNode = useCallback((nodeId: string) => {
+  const duplicateNode = useCallback((nodeId: string, updateSelection?: (newId: string) => void): string | null => {
     let duplicatedPosition: { x: number; y: number } | null = null;
+    const newId = `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
     setCanvasState(prevState => {
       const node = prevState.nodes.find(n => n.id === nodeId);
       if (!node) return prevState;
 
-      const newId = `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       const position = {
         x: node.position.x + 48,
         y: node.position.y + 48,
@@ -1259,6 +1266,16 @@ const App: React.FC = () => {
     if (duplicatedPosition) {
       setLastAddedNodePosition(duplicatedPosition);
     }
+
+    // Call the callback after state is set
+    if (updateSelection) {
+      // Use requestAnimationFrame to ensure state update and render completes first
+      requestAnimationFrame(() => {
+        updateSelection(newId);
+      });
+    }
+
+    return newId;
   }, [setCanvasState, setLastAddedNodePosition]);
 
   const resetNode = useCallback((nodeId: string) => {
@@ -2151,6 +2168,7 @@ const App: React.FC = () => {
         onNodeDragStart={handleNodeDragStart}
         onNodeClick={handleNodeClick}
         selectedNodeIds={selectedNodeIds}
+        onUpdateSelection={setSelectedNodeIds}
         onUpdateNodeData={updateNodeData}
         onGenerateCharacterImage={handleGenerateCharacterImage}
         onGenerateImages={handleGenerateImages}

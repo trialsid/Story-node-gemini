@@ -24,6 +24,8 @@ interface NodeProps {
   onDragStart: (nodeId: string, e: React.MouseEvent) => void;
   onNodeClick: (nodeId: string, e: React.MouseEvent) => void;
   isSelected: boolean;
+  selectedNodeIds: Set<string>;
+  onUpdateSelection: (nodeIds: Set<string>) => void;
   onUpdateData: (nodeId: string, data: Partial<NodeData['data']>) => void;
   onGenerateCharacterImage: (nodeId: string) => void;
   onGenerateImages: (nodeId: string) => void;
@@ -41,7 +43,7 @@ interface NodeProps {
   onInputMouseUp: (nodeId: string, handleId: string) => void;
   onDelete: (nodeId: string) => void;
   onDeleteDirectly: (nodeId: string) => void;
-  onDuplicate: (nodeId: string) => void;
+  onDuplicate: (nodeId: string, updateSelection?: (newId: string) => void) => string | null;
   onReset: (nodeId: string) => void;
   onToggleMinimize: (nodeId: string) => void;
   dimensions: { width: number; height?: number };
@@ -123,6 +125,8 @@ const Node: React.FC<NodeProps> = ({
   onDragStart,
   onNodeClick,
   isSelected,
+  selectedNodeIds,
+  onUpdateSelection,
   onUpdateData,
   onGenerateCharacterImage,
   onGenerateImages,
@@ -171,6 +175,12 @@ const Node: React.FC<NodeProps> = ({
   const handleHeaderContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    // If right-clicking a non-selected node when there's a selection, clear selection first
+    if (selectedNodeIds.size > 0 && !selectedNodeIds.has(node.id)) {
+      onNodeClick(node.id, { ...e, ctrlKey: false, metaKey: false } as React.MouseEvent);
+    }
+
     setContextMenuPosition({ x: e.clientX, y: e.clientY });
     setContextMenuStartsWithDelete(false);
   };
@@ -181,17 +191,48 @@ const Node: React.FC<NodeProps> = ({
   };
 
   const handleDuplicate = () => {
-    onDuplicate(node.id);
+    // If this node is part of a selection, duplicate all selected nodes
+    if (selectedNodeIds.has(node.id) && selectedNodeIds.size > 1) {
+      const newIds: string[] = [];
+      let completed = 0;
+      const total = selectedNodeIds.size;
+
+      selectedNodeIds.forEach(nodeId => {
+        onDuplicate(nodeId, (newId) => {
+          newIds.push(newId);
+          completed++;
+          // Once all duplications are done, update selection
+          if (completed === total) {
+            onUpdateSelection(new Set(newIds));
+          }
+        });
+      });
+    } else {
+      onDuplicate(node.id, (newId) => {
+        // Select the newly duplicated node
+        onUpdateSelection(new Set([newId]));
+      });
+    }
     closeContextMenu();
   };
 
   const handleReset = () => {
-    onReset(node.id);
+    // If this node is part of a selection, reset all selected nodes
+    if (selectedNodeIds.has(node.id) && selectedNodeIds.size > 1) {
+      selectedNodeIds.forEach(nodeId => onReset(nodeId));
+    } else {
+      onReset(node.id);
+    }
     closeContextMenu();
   };
 
   const handleDelete = () => {
-    onDelete(node.id);
+    // If this node is part of a selection, delete all selected nodes
+    if (selectedNodeIds.has(node.id) && selectedNodeIds.size > 1) {
+      selectedNodeIds.forEach(nodeId => onDelete(nodeId));
+    } else {
+      onDelete(node.id);
+    }
     closeContextMenu();
   };
 
@@ -1415,10 +1456,18 @@ const Node: React.FC<NodeProps> = ({
         <NodeContextMenu
           position={contextMenuPosition}
           nodeId={node.id}
+          selectedNodeIds={selectedNodeIds}
           onClose={closeContextMenu}
           onDuplicate={handleDuplicate}
           onReset={handleReset}
-          onDeleteDirectly={onDeleteDirectly}
+          onDeleteDirectly={(nodeId) => {
+            // If this node is part of a selection, delete all selected nodes
+            if (selectedNodeIds.has(nodeId) && selectedNodeIds.size > 1) {
+              selectedNodeIds.forEach(id => onDeleteDirectly(id));
+            } else {
+              onDeleteDirectly(nodeId);
+            }
+          }}
           startWithDeleteConfirmation={contextMenuStartsWithDelete}
         />
       )}
