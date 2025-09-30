@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { templates } from '../utils/templates';
-import { Image, Clapperboard, Users as UsersIcon, Layers, Plus, X, Settings, Home, Clock, BookOpen, Palette } from 'lucide-react';
+import { ProjectMetadata } from '../types';
+import { Image, Clapperboard, Users as UsersIcon, Layers, Plus, X, Settings, Home, Clock, BookOpen, Palette, Trash2, Loader2 } from 'lucide-react';
 
 interface WelcomeModalProps {
   onStartFresh: () => void;
@@ -9,11 +10,26 @@ interface WelcomeModalProps {
   onClose: () => void;
   showOnStartup: boolean;
   onShowOnStartupChange: (value: boolean) => void;
+  projects: ProjectMetadata[];
+  isLoadingProjects: boolean;
+  onLoadProject: (projectId: string) => void;
+  onDeleteProject: (projectId: string) => void;
 }
 
-const WelcomeModal: React.FC<WelcomeModalProps> = ({ onStartFresh, onLoadTemplate, onClose, showOnStartup, onShowOnStartupChange }) => {
+const WelcomeModal: React.FC<WelcomeModalProps> = ({
+  onStartFresh,
+  onLoadTemplate,
+  onClose,
+  showOnStartup,
+  onShowOnStartupChange,
+  projects,
+  isLoadingProjects,
+  onLoadProject,
+  onDeleteProject
+}) => {
   const { styles } = useTheme();
   const [activeTab, setActiveTab] = useState('start');
+  const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -24,6 +40,43 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ onStartFresh, onLoadTemplat
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
+
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const handleLoadProject = (projectId: string) => {
+    onLoadProject(projectId);
+    onClose();
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, projectId: string) => {
+    e.stopPropagation();
+    setProjectToDelete(projectId);
+  };
+
+  const confirmDelete = () => {
+    if (projectToDelete) {
+      onDeleteProject(projectToDelete);
+      setProjectToDelete(null);
+    }
+  };
+
+  const cancelDelete = () => {
+    setProjectToDelete(null);
+  };
   
   const templateIcons: { [key in keyof typeof templates]: React.ReactNode } = {
     storyCharacterPipeline: <BookOpen className="w-6 h-6 text-teal-300" />,
@@ -90,12 +143,54 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ onStartFresh, onLoadTemplat
       title: 'Recent Projects',
       description: 'Open a project you recently worked on.',
       component: (
-         <div className={`w-full h-full flex items-center justify-center text-center border-2 border-dashed ${styles.node.imagePlaceholderBorder} rounded-lg p-4 mt-4`}>
-            <div>
-              <p className={`${styles.node.labelText}`}>Your recent projects will appear here.</p>
-              <p className={`text-xs ${styles.node.labelText} mt-1`}>(Feature coming soon)</p>
+        <>
+          {isLoadingProjects ? (
+            <div className="w-full h-48 flex items-center justify-center">
+              <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
             </div>
-         </div>
+          ) : projects.length === 0 ? (
+            <div className={`w-full h-48 flex items-center justify-center text-center border-2 border-dashed ${styles.node.imagePlaceholderBorder} rounded-lg p-4 mt-4`}>
+              <div>
+                <p className={`${styles.node.labelText}`}>No projects yet.</p>
+                <p className={`text-xs ${styles.node.labelText} mt-1`}>Create your first project to get started!</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {projects.slice(0, 10).map((project) => (
+                <div
+                  key={project.id}
+                  className={`w-full text-left p-4 rounded-lg flex items-center justify-between group transition-colors ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} cursor-pointer`}
+                  onClick={() => handleLoadProject(project.id)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold truncate">{project.name}</p>
+                    <div className={`text-sm ${styles.node.labelText} flex items-center space-x-3 mt-1`}>
+                      <span>Updated {formatDate(project.updatedAt)}</span>
+                      <span>•</span>
+                      <span className="text-xs">Created {formatDate(project.createdAt)}</span>
+                    </div>
+                  </div>
+                  <div
+                    onClick={(e) => handleDeleteClick(e, project.id)}
+                    className={`ml-4 p-2 rounded-md opacity-0 group-hover:opacity-100 transition-opacity ${styles.node.bg} hover:bg-red-500/20 cursor-pointer`}
+                    role="button"
+                    aria-label="Delete project"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleDeleteClick(e as any, project.id);
+                      }
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4 text-red-400" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )
     }
   };
@@ -166,6 +261,32 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ onStartFresh, onLoadTemplat
             </main>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {projectToDelete && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50">
+          <div className={`${styles.modal.bg} rounded-lg shadow-xl p-6 border ${styles.modal.border} max-w-md w-full mx-4`}>
+            <h3 className={`text-lg font-semibold ${styles.modal.text} mb-2`}>Delete Project</h3>
+            <p className={`${styles.modal.messageText} mb-6`}>
+              Are you sure you want to delete this project? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={cancelDelete}
+                className={`px-4 py-2 rounded-md ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} transition-colors`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="px-4 py-2 rounded-md bg-red-500/20 hover:bg-red-500/30 text-red-400 transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

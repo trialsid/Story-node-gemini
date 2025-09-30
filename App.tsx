@@ -550,6 +550,28 @@ const App: React.FC = () => {
     return success;
   }, [currentProject, resetHistory]);
 
+  const deleteProjectWrapper = useCallback(async (projectId: string) => {
+    setIsProjectSaving(true);
+    setProjectError(null);
+    try {
+      await deleteProjectApi(projectId);
+      setProjects(prev => prev.filter(item => item.id !== projectId));
+
+      // If we're deleting the currently open project, clear the canvas
+      if (currentProject?.id === projectId) {
+        resetHistory(JSON.parse(JSON.stringify(EMPTY_CANVAS_STATE)) as CanvasState);
+        lastSavedStateRef.current = JSON.stringify(EMPTY_CANVAS_STATE);
+        setCurrentProject(null);
+        setHasUnsavedChanges(false);
+      }
+    } catch (error) {
+      console.error('Failed to delete project', error);
+      setProjectError(error instanceof Error ? error.message : 'Failed to delete project');
+    } finally {
+      setIsProjectSaving(false);
+    }
+  }, [currentProject, resetHistory]);
+
   const handleClearCurrentProject = useCallback(async (): Promise<boolean> => {
     setCurrentProject(null);
     resetHistory(JSON.parse(JSON.stringify(EMPTY_CANVAS_STATE)) as CanvasState);
@@ -2090,12 +2112,16 @@ const App: React.FC = () => {
 
   return (
     <div className={`w-screen h-screen ${styles.app.bg} ${styles.app.text} overflow-hidden flex flex-col font-sans ${isDragging ? 'select-none' : ''}`}>
-      {showWelcomeModal && <WelcomeModal 
-        onStartFresh={handleStartFresh} 
-        onLoadTemplate={handleLoadTemplate} 
+      {showWelcomeModal && <WelcomeModal
+        onStartFresh={handleStartFresh}
+        onLoadTemplate={handleLoadTemplate}
         onClose={() => setShowWelcomeModal(false)}
         showOnStartup={showWelcomeOnStartup}
         onShowOnStartupChange={setShowWelcomeOnStartup}
+        projects={projects}
+        isLoadingProjects={isProjectListLoading}
+        onLoadProject={loadProjectById}
+        onDeleteProject={deleteProjectWrapper}
       />}
       <Toolbar 
         onNavigateHome={handleNavigateHome}
