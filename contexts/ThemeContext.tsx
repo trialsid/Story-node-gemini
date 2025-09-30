@@ -19,6 +19,8 @@ export const themes = {
       border: 'border-gray-700',
       buttonBg: 'bg-gray-700',
       buttonHoverBg: 'hover:bg-gray-600',
+      text: 'text-gray-200',
+      iconColor: 'text-gray-300',
     },
     node: {
       bg: 'bg-gray-800',
@@ -98,6 +100,8 @@ export const themes = {
       border: 'border-gray-200',
       buttonBg: 'bg-gray-200',
       buttonHoverBg: 'hover:bg-gray-300',
+      text: 'text-gray-800',
+      iconColor: 'text-gray-700',
     },
     node: {
       bg: 'bg-white',
@@ -177,6 +181,8 @@ export const themes = {
       border: 'border-stone-700',
       buttonBg: 'bg-stone-700',
       buttonHoverBg: 'hover:bg-stone-600',
+      text: 'text-stone-200',
+      iconColor: 'text-stone-300',
     },
     node: {
       bg: 'bg-stone-800',

@@ -96,7 +96,7 @@ const NodeContextMenu: React.FC<NodeContextMenuProps> = ({ position, nodeId, sel
           <button
             type="button"
             onClick={onDuplicate}
-            className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-200 rounded ${styles.toolbar.buttonHoverBg} transition-colors`}
+            className={`w-full flex items-center gap-2 px-3 py-2 text-sm ${styles.toolbar.text} rounded ${styles.toolbar.buttonHoverBg} transition-colors`}
           >
             <Copy className="w-4 h-4" />
             {isMultiSelect ? `Duplicate (${selectedCount})` : 'Duplicate'}
@@ -104,7 +104,7 @@ const NodeContextMenu: React.FC<NodeContextMenuProps> = ({ position, nodeId, sel
           <button
             type="button"
             onClick={onReset}
-            className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-200 rounded ${styles.toolbar.buttonHoverBg} transition-colors`}
+            className={`w-full flex items-center gap-2 px-3 py-2 text-sm ${styles.toolbar.text} rounded ${styles.toolbar.buttonHoverBg} transition-colors`}
           >
             <RotateCcw className="w-4 h-4" />
             {isMultiSelect ? `Reset (${selectedCount})` : 'Reset'}
@@ -128,7 +128,7 @@ const NodeContextMenu: React.FC<NodeContextMenuProps> = ({ position, nodeId, sel
                 {isMultiSelect ? `Delete ${selectedCount} Nodes?` : 'Delete Node?'}
               </span>
             </div>
-            <p className="text-xs text-gray-400 mb-3">
+            <p className={`text-xs ${styles.modal.messageText} mb-3`}>
               This action cannot be undone.
             </p>
           </div>
@@ -136,7 +136,7 @@ const NodeContextMenu: React.FC<NodeContextMenuProps> = ({ position, nodeId, sel
             <button
               type="button"
               onClick={handleDeleteCancel}
-              className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs text-gray-200 rounded ${styles.toolbar.buttonHoverBg} transition-colors`}
+              className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs ${styles.toolbar.text} rounded ${styles.toolbar.buttonHoverBg} transition-colors`}
             >
               <ArrowLeft className="w-3 h-3" />
               Back

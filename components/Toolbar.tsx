@@ -189,11 +189,15 @@ const Toolbar: React.FC<ToolbarProps> = ({
         <div className="relative" ref={projectMenuRef}>
           <button
             onClick={() => setIsProjectMenuOpen(prev => !prev)}
-            className={`flex items-center space-x-2 px-3 py-2 ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium`}
+            className={`flex items-center space-x-2 px-3 py-2 ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium group`}
+            title={currentProject ? currentProject.name : 'Unsaved'}
           >
-            <FolderKanban className="w-5 h-5 text-cyan-400" />
-            <span>Projects</span>
-            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isProjectMenuOpen ? 'rotate-180' : ''}`} />
+            <FolderKanban className={`w-5 h-5 ${styles.gallery.accentText}`} />
+            <span className={`max-w-[120px] truncate ${styles.toolbar.text}`}>
+              {currentProject ? currentProject.name : 'Unsaved'}
+              {hasUnsavedChanges && '*'}
+            </span>
+            <ChevronDown className={`w-4 h-4 ${styles.toolbar.iconColor} transition-transform duration-200 ${isProjectMenuOpen ? 'rotate-180' : ''}`} />
           </button>
           {isProjectMenuOpen && (
             <div
@@ -201,15 +205,15 @@ const Toolbar: React.FC<ToolbarProps> = ({
               role="menu"
             >
               <div className="px-3 py-2 border-b border-gray-600/40">
-                <div className="text-xs uppercase tracking-wide text-gray-400/90">Current Project</div>
-                <div className="mt-1 flex items-center justify-between text-sm text-gray-200">
+                <div className={`text-xs uppercase tracking-wide ${styles.modal.messageText}`}>Current Project</div>
+                <div className={`mt-1 flex items-center justify-between text-sm ${styles.toolbar.text}`}>
                   <span className="truncate">
                     {currentProject ? currentProject.name : 'None'}
                   </span>
-                  {hasUnsavedChanges && <span className="ml-2 text-amber-300 text-xs">Unsaved</span>}
+                  {hasUnsavedChanges && <span className="ml-2 text-amber-400 text-xs">Unsaved</span>}
                 </div>
                 {isProjectBusy && (
-                  <div className="mt-1 text-xs text-gray-400">Working…</div>
+                  <div className={`mt-1 text-xs ${styles.modal.messageText}`}>Working…</div>
                 )}
                 {projectError && (
                   <div className="mt-1 text-xs text-red-400">{projectError}</div>
@@ -219,25 +223,25 @@ const Toolbar: React.FC<ToolbarProps> = ({
               <button
                 onClick={createProjectActionHandler(onSaveProject)}
                 disabled={isProjectBusy}
-                className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
+                className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${styles.toolbar.text}`}
               >
-                <FileDown className="w-4 h-4 text-cyan-300" />
+                <FileDown className={`w-4 h-4 ${styles.gallery.accentText}`} />
                 <span>Save{hasUnsavedChanges ? '*' : ''}</span>
               </button>
               <button
                 onClick={createProjectActionHandler(onSaveProjectAs)}
                 disabled={isProjectBusy}
-                className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
+                className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${styles.toolbar.text}`}
               >
-                <FileDown className="w-4 h-4 text-cyan-300" />
+                <FileDown className={`w-4 h-4 ${styles.gallery.accentText}`} />
                 <span>Save As…</span>
               </button>
               <button
                 onClick={createProjectActionHandler(onClearCurrentProject)}
                 disabled={isProjectBusy}
-                className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed`}
+                className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${styles.toolbar.text}`}
               >
-                <Plus className="w-4 h-4 text-cyan-300" />
+                <Plus className={`w-4 h-4 ${styles.gallery.accentText}`} />
                 <span>New Project</span>
               </button>
 
@@ -245,22 +249,22 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
               <button
                 onClick={createProjectActionHandler(onExportProject)}
-                className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium`}
+                className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium ${styles.toolbar.text}`}
               >
-                <FileDown className="w-4 h-4 text-gray-300" />
+                <FileDown className={`w-4 h-4 ${styles.toolbar.iconColor}`} />
                 <span>Export to File</span>
               </button>
               <button
                 onClick={createProjectActionHandler(onImportProject)}
-                className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium`}
+                className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium ${styles.toolbar.text}`}
               >
-                <FileUp className="w-4 h-4 text-gray-300" />
+                <FileUp className={`w-4 h-4 ${styles.toolbar.iconColor}`} />
                 <span>Import from File</span>
               </button>
               <button
                 onClick={createProjectActionHandler(onDeleteProject)}
                 disabled={!currentProject || isProjectBusy}
-                className="w-full flex items-center space-x-3 px-3 py-2 text-left rounded-md transition-colors text-sm font-medium text-red-300 hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center space-x-3 px-3 py-2 text-left rounded-md transition-colors text-sm font-medium text-red-400 hover:bg-red-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Delete Project</span>
@@ -268,21 +272,21 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
               <div className="border-t border-gray-600/40 my-1" />
 
-              <div className="px-3 py-1 text-xs uppercase tracking-wide text-gray-400/80">
+              <div className={`px-3 py-1 text-xs uppercase tracking-wide ${styles.modal.messageText}`}>
                 Switch Project
               </div>
               <div className="max-h-48 overflow-y-auto">
                 {isProjectListLoading ? (
-                  <div className="px-3 py-2 text-sm text-gray-400">Loading projects…</div>
+                  <div className={`px-3 py-2 text-sm ${styles.modal.messageText}`}>Loading projects…</div>
                 ) : projects.length === 0 ? (
-                  <div className="px-3 py-2 text-sm text-gray-400">No saved projects yet.</div>
+                  <div className={`px-3 py-2 text-sm ${styles.modal.messageText}`}>No saved projects yet.</div>
                 ) : (
                   projects.map(project => (
                     <button
                       key={project.id}
                       onClick={createProjectActionHandler(() => onSelectProject(project.id))}
                       disabled={isProjectBusy}
-                      className={`w-full flex items-center justify-between px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium ${currentProject?.id === project.id ? 'text-cyan-300' : ''} disabled:opacity-50 disabled:cursor-not-allowed`}
+                      className={`w-full flex items-center justify-between px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium ${currentProject?.id === project.id ? styles.gallery.accentText : styles.toolbar.text} disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       <span className="truncate">{project.name}</span>
                       {currentProject?.id === project.id && <span className="text-xs">Current</span>}
@@ -293,8 +297,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
             </div>
           )}
         </div>
-        <ToolbarButton onClick={onNavigateHome} tooltip="Home" className="hover:bg-cyan-500/20">
-            <Home className="w-5 h-5 text-cyan-400" />
+        <ToolbarButton onClick={onNavigateHome} tooltip="Home" className={`${styles.gallery.accentText === 'text-cyan-300' ? 'hover:bg-cyan-500/20' : styles.gallery.accentText === 'text-blue-600' ? 'hover:bg-blue-500/20' : 'hover:bg-amber-500/20'}`}>
+            <Home className={`w-5 h-5 ${styles.gallery.accentText}`} />
         </ToolbarButton>
         <ToolbarButton onClick={onClearCanvas} tooltip="Clear Canvas">
             <Eraser className="w-5 h-5 text-red-400" />
@@ -304,10 +308,10 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
         {/* Group 2: History */}
         <ToolbarButton onClick={onUndo} disabled={!canUndo} tooltip="Undo (Ctrl+Z)">
-            <Undo2 className="w-5 h-5 text-gray-300" />
+            <Undo2 className={`w-5 h-5 ${styles.toolbar.iconColor}`} />
         </ToolbarButton>
         <ToolbarButton onClick={onRedo} disabled={!canRedo} tooltip="Redo (Ctrl+Shift+Z)">
-            <Redo2 className="w-5 h-5 text-gray-300" />
+            <Redo2 className={`w-5 h-5 ${styles.toolbar.iconColor}`} />
         </ToolbarButton>
         
         <div className="w-px h-6 bg-gray-500/30 mx-1" />
@@ -318,16 +322,16 @@ const Toolbar: React.FC<ToolbarProps> = ({
                 onClick={() => setIsStoryToolsMenuOpen(!isStoryToolsMenuOpen)}
                 className={`flex items-center space-x-2 px-3 py-2 ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium`}
             >
-                <ScrollText className="w-5 h-5 text-purple-400" />
-                <span>Story Tools</span>
-                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isStoryToolsMenuOpen ? 'rotate-180' : ''}`} />
+                <ScrollText className="w-5 h-5 text-purple-500" />
+                <span className={styles.toolbar.text}>Story Tools</span>
+                <ChevronDown className={`w-4 h-4 ${styles.toolbar.iconColor} transition-transform duration-200 ${isStoryToolsMenuOpen ? 'rotate-180' : ''}`} />
             </button>
             {isStoryToolsMenuOpen && (
                 <div
                     className={`absolute top-full mt-2 w-56 p-1 ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-lg shadow-lg z-10`}
                     role="menu"
                 >
-                    <div className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-400/80">
+                    <div className={`px-3 py-1 text-xs font-semibold uppercase tracking-wide ${styles.modal.messageText}`}>
                         {storyToolsCategory.title}
                     </div>
                     {storyToolsCategory.items.map((item) => (
@@ -337,7 +341,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                                 item.action();
                                 setIsStoryToolsMenuOpen(false);
                             }}
-                            className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium`}
+                            className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium ${styles.toolbar.text}`}
                             role="menuitem"
                         >
                             {item.icon}
@@ -354,9 +358,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
                 onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
                 className={`flex items-center space-x-2 px-3 py-2 ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium`}
             >
-                <Plus className="w-5 h-5 text-gray-300" />
-                <span>Add Node</span>
-                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isAddMenuOpen ? 'rotate-180' : ''}`} />
+                <Plus className={`w-5 h-5 ${styles.toolbar.iconColor}`} />
+                <span className={styles.toolbar.text}>Add Node</span>
+                <ChevronDown className={`w-4 h-4 ${styles.toolbar.iconColor} transition-transform duration-200 ${isAddMenuOpen ? 'rotate-180' : ''}`} />
             </button>
             {isAddMenuOpen && (
                 <div 
@@ -365,7 +369,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                 >
                     {menuCategories.map((category, categoryIndex) => (
                         <div key={category.title}>
-                            <div className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-400/80">
+                            <div className={`px-3 py-1 text-xs font-semibold uppercase tracking-wide ${styles.modal.messageText}`}>
                                 {category.title}
                             </div>
                             {category.items.map((item) => (
@@ -375,7 +379,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                                         item.action();
                                         setIsAddMenuOpen(false);
                                     }}
-                                    className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium`}
+                                    className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium ${styles.toolbar.text}`}
                                     role="menuitem"
                                 >
                                     {item.icon}
