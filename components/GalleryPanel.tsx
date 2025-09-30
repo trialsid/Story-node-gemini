@@ -151,6 +151,20 @@ const GalleryPanel: React.FC<GalleryPanelProps> = ({
             key={`${item.id}-${videoAutoplayEnabled}`}
             role="button"
             tabIndex={0}
+            draggable={item.type === 'image'}
+            onDragStart={(event) => {
+              if (item.type !== 'image') {
+                event.preventDefault();
+                return;
+              }
+              event.dataTransfer.effectAllowed = 'copy';
+              event.dataTransfer.setData('application/json', JSON.stringify({
+                type: 'gallery-image',
+                fileName: item.fileName,
+                url: item.url,
+                itemType: item.type,
+              }));
+            }}
             onClick={(event) => {
               event.stopPropagation();
               onSelectItem(item);
@@ -162,7 +176,7 @@ const GalleryPanel: React.FC<GalleryPanelProps> = ({
               }
             }}
             aria-label={`Open ${item.fileName}`}
-            className={`group relative rounded-lg ${styles.node.imagePlaceholderBg} flex aspect-square overflow-hidden border ${styles.node.imagePlaceholderBorder} hover:ring-2 focus-visible:outline-none focus-visible:ring-2 transition ${styles.gallery.itemHoverRing} ${styles.gallery.itemFocusRing} ${styles.gallery.itemHoverShadow}`}
+            className={`group relative rounded-lg ${styles.node.imagePlaceholderBg} flex aspect-square overflow-hidden border ${styles.node.imagePlaceholderBorder} hover:ring-2 focus-visible:outline-none focus-visible:ring-2 transition ${styles.gallery.itemHoverRing} ${styles.gallery.itemFocusRing} ${styles.gallery.itemHoverShadow} ${item.type === 'image' ? 'cursor-grab active:cursor-grabbing' : ''}`}
           >
             {renderMediaPreview(item)}
             {!isMinimized && (
@@ -235,11 +249,25 @@ const GalleryPanel: React.FC<GalleryPanelProps> = ({
           <button
             key={`${item.id}-${videoAutoplayEnabled}`}
             type="button"
+            draggable={item.type === 'image'}
+            onDragStart={(event) => {
+              if (item.type !== 'image') {
+                event.preventDefault();
+                return;
+              }
+              event.dataTransfer.effectAllowed = 'copy';
+              event.dataTransfer.setData('application/json', JSON.stringify({
+                type: 'gallery-image',
+                fileName: item.fileName,
+                url: item.url,
+                itemType: item.type,
+              }));
+            }}
             onClick={(event) => {
               event.stopPropagation();
               onSelectItem(item);
             }}
-            className={`group relative w-12 h-12 flex-shrink-0 rounded-md overflow-hidden ${styles.node.imagePlaceholderBg} border ${styles.node.imagePlaceholderBorder} hover:ring-2 focus-visible:outline-none focus-visible:ring-2 transition ${styles.gallery.itemHoverRing} ${styles.gallery.itemFocusRing}`}
+            className={`group relative w-12 h-12 flex-shrink-0 rounded-md overflow-hidden ${styles.node.imagePlaceholderBg} border ${styles.node.imagePlaceholderBorder} hover:ring-2 focus-visible:outline-none focus-visible:ring-2 transition ${styles.gallery.itemHoverRing} ${styles.gallery.itemFocusRing} ${item.type === 'image' ? 'cursor-grab active:cursor-grabbing' : ''}`}
             aria-label={`Preview ${item.fileName}`}
           >
             {renderMediaPreview(item, true)}

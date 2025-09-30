@@ -1102,6 +1102,17 @@ const AppContent: React.FC = () => {
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
 
+  const addImageNodeWithImage = useCallback((pos: { x: number; y: number }, imageUrl: string) => {
+    const newNode: NodeData = {
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type: NodeType.Image,
+      position: pos,
+      data: { imageUrl },
+    };
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+    setLastAddedNodePosition(null);
+  }, [setCanvasState]);
+
   const addImageEditorNode = useCallback((pos?: { x: number; y: number }) => {
     let newNodePosition: { x: number, y: number };
     if (pos) {
@@ -1501,6 +1512,26 @@ const AppContent: React.FC = () => {
         setPanStart({ x: e.clientX, y: e.clientY });
     }
   }, [contextMenu?.isOpen]);
+
+  const handleCanvasDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('application/json'));
+      if (data.type === 'gallery-image' && data.url) {
+        const canvasX = (e.clientX - canvasOffset.x) / zoom;
+        const canvasY = (e.clientY - canvasOffset.y) / zoom;
+        addImageNodeWithImage({ x: canvasX, y: canvasY }, data.url);
+      }
+    } catch (error) {
+      // Ignore invalid drop data
+    }
+  }, [canvasOffset, zoom, addImageNodeWithImage]);
+
+  const handleCanvasDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  }, []);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -2207,6 +2238,8 @@ const AppContent: React.FC = () => {
         onMouseUp={handleMouseUp}
         onWheel={handleWheel}
         onContextMenu={handleContextMenu}
+        onDrop={handleCanvasDrop}
+        onDragOver={handleCanvasDragOver}
         onNodeDragStart={handleNodeDragStart}
         onNodeClick={handleNodeClick}
         selectedNodeIds={selectedNodeIds}

@@ -24,6 +24,8 @@ interface CanvasProps {
   onMouseUp: (e: React.MouseEvent) => void;
   onWheel: (e: React.WheelEvent) => void;
   onContextMenu: (e: React.MouseEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
+  onDragOver?: (e: React.DragEvent) => void;
   onNodeDragStart: (nodeId: string, e: React.MouseEvent) => void;
   onNodeClick: (nodeId: string, e: React.MouseEvent) => void;
   selectedNodeIds: Set<string>;
@@ -66,6 +68,8 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
   onMouseUp,
   onWheel,
   onContextMenu,
+  onDrop,
+  onDragOver,
   onNodeDragStart,
   onNodeClick,
   selectedNodeIds,
@@ -150,6 +154,8 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
       onMouseUp={onMouseUp}
       onWheel={onWheel}
       onContextMenu={onContextMenu}
+      onDrop={onDrop}
+      onDragOver={onDragOver}
     >
       <div 
         className="absolute top-0 left-0"
