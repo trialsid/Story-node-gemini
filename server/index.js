@@ -455,6 +455,15 @@ app.delete('/api/projects/:id', async (req, res) => {
     projects.splice(index, 1);
     await writeProjectsMetadata(projects);
 
+    // Remove orphaned gallery items for this project
+    try {
+      const galleryItems = await readMetadata();
+      const filteredItems = galleryItems.filter(item => item.projectId !== projectId);
+      await writeMetadata(filteredItems);
+    } catch (err) {
+      console.warn('Failed to clean up gallery items for deleted project', err);
+    }
+
     const projectFile = path.join(projectsDir, `${projectId}.json`);
     if (existsSync(projectFile)) {
       unlink(projectFile, (err) => {

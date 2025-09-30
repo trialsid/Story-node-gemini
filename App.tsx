@@ -376,6 +376,7 @@ const App: React.FC = () => {
       // Convert any draft gallery items to real items for this project
       const draftItems = galleryItems.filter(item => item.projectId === 'draft');
       const convertedItems: GalleryItem[] = [];
+      const successfulDraftIds = new Set<string>();
 
       for (const draftItem of draftItems) {
         try {
@@ -389,15 +390,16 @@ const App: React.FC = () => {
             projectId: metadata.id
           });
           convertedItems.push(realItem);
+          successfulDraftIds.add(draftItem.id);
         } catch (error) {
           console.error('Failed to convert draft item', error);
         }
       }
 
-      // Update gallery state: remove drafts, add converted items
+      // Update gallery state: remove only successfully converted drafts, add converted items
       updateGalleryState(prevItems => [
         ...convertedItems,
-        ...prevItems.filter(item => item.projectId !== 'draft')
+        ...prevItems.filter(item => item.projectId !== 'draft' || !successfulDraftIds.has(item.id))
       ]);
 
       setProjects(prev => sortProjectsByUpdatedAt([metadata, ...prev.filter(item => item.id !== metadata.id)]));
