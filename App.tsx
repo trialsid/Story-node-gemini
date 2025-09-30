@@ -2248,7 +2248,7 @@ const AppContent: React.FC = () => {
 
       <Canvas
         ref={canvasRef}
-        allNodes={localNodes}
+        allNodes={draggingNodeId ? localNodes : nodes}
         connections={connections}
         onMouseDown={handleCanvasMouseDown}
         onMouseMove={handleMouseMove}
