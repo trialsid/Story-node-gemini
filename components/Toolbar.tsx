@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { Home, Eraser, Undo2, Redo2, FileDown, FileUp, Plus, ChevronDown, ScrollText, FolderKanban, Trash2 } from 'lucide-react';
+import { Home, Eraser, Undo2, Redo2, FileDown, FileUp, Plus, ChevronDown, ScrollText, FolderKanban, Trash2, Save, Copy, Upload, Download } from 'lucide-react';
 import { buildNodeMenuCategories, buildStoryToolsCategory } from '../utils/nodeMenuConfig';
 import { ProjectMetadata } from '../types';
 
@@ -113,9 +113,44 @@ const Toolbar: React.FC<ToolbarProps> = ({
             setIsStoryToolsMenuOpen(false);
         }
     };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+        // Check if user is typing in an input field
+        const target = event.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+            return;
+        }
+
+        // Ctrl+S - Save
+        if (event.ctrlKey && !event.shiftKey && event.key === 's') {
+            event.preventDefault();
+            if (!isProjectBusy) {
+                onSaveProject();
+            }
+        }
+        // Ctrl+Shift+S - Save As
+        else if (event.ctrlKey && event.shiftKey && event.key === 'S') {
+            event.preventDefault();
+            if (!isProjectBusy) {
+                onSaveProjectAs();
+            }
+        }
+        // Ctrl+N - New Project
+        else if (event.ctrlKey && !event.shiftKey && event.key === 'n') {
+            event.preventDefault();
+            if (!isProjectBusy) {
+                onClearCurrentProject();
+            }
+        }
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isProjectBusy, onSaveProject, onSaveProjectAs, onClearCurrentProject]);
 
   const menuCategories = useMemo(() => buildNodeMenuCategories({
     onAddTextNode,
@@ -223,26 +258,35 @@ const Toolbar: React.FC<ToolbarProps> = ({
               <button
                 onClick={createProjectActionHandler(onSaveProject)}
                 disabled={isProjectBusy}
-                className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${styles.toolbar.text}`}
+                className={`w-full flex items-center justify-between px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${styles.toolbar.text}`}
               >
-                <FileDown className={`w-4 h-4 ${styles.gallery.accentText}`} />
-                <span>Save{hasUnsavedChanges ? '*' : ''}</span>
+                <div className="flex items-center space-x-3">
+                  <Save className={`w-4 h-4 ${styles.gallery.accentText}`} />
+                  <span>Save{hasUnsavedChanges ? '*' : ''}</span>
+                </div>
+                <span className={`text-xs ${styles.modal.messageText}`}>Ctrl+S</span>
               </button>
               <button
                 onClick={createProjectActionHandler(onSaveProjectAs)}
                 disabled={isProjectBusy}
-                className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${styles.toolbar.text}`}
+                className={`w-full flex items-center justify-between px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${styles.toolbar.text}`}
               >
-                <FileDown className={`w-4 h-4 ${styles.gallery.accentText}`} />
-                <span>Save As…</span>
+                <div className="flex items-center space-x-3">
+                  <Copy className={`w-4 h-4 ${styles.gallery.accentText}`} />
+                  <span>Save As…</span>
+                </div>
+                <span className={`text-xs ${styles.modal.messageText}`}>Ctrl+Shift+S</span>
               </button>
               <button
                 onClick={createProjectActionHandler(onClearCurrentProject)}
                 disabled={isProjectBusy}
-                className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${styles.toolbar.text}`}
+                className={`w-full flex items-center justify-between px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${styles.toolbar.text}`}
               >
-                <Plus className={`w-4 h-4 ${styles.gallery.accentText}`} />
-                <span>New Project</span>
+                <div className="flex items-center space-x-3">
+                  <Plus className={`w-4 h-4 ${styles.gallery.accentText}`} />
+                  <span>New Project</span>
+                </div>
+                <span className={`text-xs ${styles.modal.messageText}`}>Ctrl+N</span>
               </button>
 
               <div className="border-t border-gray-600/40 my-1" />
@@ -251,14 +295,14 @@ const Toolbar: React.FC<ToolbarProps> = ({
                 onClick={createProjectActionHandler(onExportProject)}
                 className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium ${styles.toolbar.text}`}
               >
-                <FileDown className={`w-4 h-4 ${styles.toolbar.iconColor}`} />
+                <Download className={`w-4 h-4 ${styles.toolbar.iconColor}`} />
                 <span>Export to File</span>
               </button>
               <button
                 onClick={createProjectActionHandler(onImportProject)}
                 className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium ${styles.toolbar.text}`}
               >
-                <FileUp className={`w-4 h-4 ${styles.toolbar.iconColor}`} />
+                <Upload className={`w-4 h-4 ${styles.toolbar.iconColor}`} />
                 <span>Import from File</span>
               </button>
               <button

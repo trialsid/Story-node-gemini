@@ -259,8 +259,13 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [theme, setTheme] = useState<Theme>('dark');
+interface ThemeProviderProps {
+    children: ReactNode;
+    initialTheme?: Theme;
+}
+
+export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children, initialTheme = 'dark' }) => {
+    const [theme, setTheme] = useState<Theme>(initialTheme);
     const styles = useMemo(() => themes[theme], [theme]);
 
     React.useEffect(() => {

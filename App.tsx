@@ -6,7 +6,8 @@ import ImageModal from './components/ImageModal';
 import ConfirmationModal from './components/ConfirmationModal';
 import TextModal from './components/TextModal';
 import { generateCharacterSheet, editImageWithPrompt, generateVideoFromPrompt, generateTextFromPrompt, generateImages, mixImagesWithPrompt, generateCharactersFromStory, expandStoryFromPremise, generateShortStory } from './services/geminiService';
-import { useTheme } from './contexts/ThemeContext';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { useUserPreferences } from './contexts/UserPreferencesContext';
 import ThemeSwitcher from './components/ThemeSwitcher';
 import GalleryPanel from './components/GalleryPanel';
 import GalleryPreviewModal from './components/GalleryPreviewModal';
@@ -163,7 +164,8 @@ const TRANSIENT_NODE_DATA_KEYS = new Set([
   'minimizedHeight',
 ]);
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
+  const { preferences, updatePreferences, isLoading: isPreferencesLoading } = useUserPreferences();
   const {
     state: canvasState,
     set: setCanvasState,
@@ -211,15 +213,8 @@ const App: React.FC = () => {
   const [isGalleryLoading, setIsGalleryLoading] = useState(false);
   const [selectedGalleryItem, setSelectedGalleryItem] = useState<GalleryItem | null>(null);
 
-  const [showWelcomeOnStartup, setShowWelcomeOnStartup] = useState(() => {
-    const setting = localStorage.getItem('showWelcomeOnStartup');
-    return setting === null || setting === 'true';
-  });
-
-  const [videoAutoplayEnabled, setVideoAutoplayEnabled] = useState(() => {
-    const setting = localStorage.getItem('videoAutoplayEnabled');
-    return setting === null || setting === 'true';
-  });
+  const showWelcomeOnStartup = preferences.showWelcomeOnStartup;
+  const videoAutoplayEnabled = preferences.enableVideoAutoplayInGallery;
 
   const [projects, setProjects] = useState<ProjectMetadata[]>([]);
   const [currentProject, setCurrentProject] = useState<ProjectMetadata | null>(null);
@@ -2119,7 +2114,7 @@ const App: React.FC = () => {
         onLoadTemplate={handleLoadTemplate}
         onClose={() => setShowWelcomeModal(false)}
         showOnStartup={showWelcomeOnStartup}
-        onShowOnStartupChange={setShowWelcomeOnStartup}
+        onShowOnStartupChange={(value) => updatePreferences({ showWelcomeOnStartup: value })}
         projects={projects}
         isLoadingProjects={isProjectListLoading}
         onLoadProject={loadProjectById}
@@ -2198,9 +2193,9 @@ const App: React.FC = () => {
         isOpen={isSettingsModalOpen}
         onClose={handleCloseSettingsModal}
         showWelcomeOnStartup={showWelcomeOnStartup}
-        onShowWelcomeOnStartupChange={setShowWelcomeOnStartup}
+        onShowWelcomeOnStartupChange={(value) => updatePreferences({ showWelcomeOnStartup: value })}
         videoAutoplayEnabled={videoAutoplayEnabled}
-        onVideoAutoplayEnabledChange={setVideoAutoplayEnabled}
+        onVideoAutoplayEnabledChange={(value) => updatePreferences({ enableVideoAutoplayInGallery: value })}
       />}
 
       <Canvas
@@ -2321,6 +2316,20 @@ const App: React.FC = () => {
         />
       )}
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  const { preferences, isLoading } = useUserPreferences();
+
+  if (isLoading) {
+    return null; // Or a loading spinner
+  }
+
+  return (
+    <ThemeProvider initialTheme={preferences.theme}>
+      <AppContent />
+    </ThemeProvider>
   );
 };
 

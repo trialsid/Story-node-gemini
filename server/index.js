@@ -12,6 +12,7 @@ const generatedDir = path.join(projectRoot, 'generated');
 const metadataFile = path.join(generatedDir, 'gallery.json');
 const projectsDir = path.join(generatedDir, 'projects');
 const projectsMetadataFile = path.join(generatedDir, 'projects.json');
+const userPrefsFile = path.join(generatedDir, 'userPrefs.json');
 
 const app = express();
 const PORT = process.env.GALLERY_SERVER_PORT ? Number(process.env.GALLERY_SERVER_PORT) : 4000;
@@ -95,6 +96,29 @@ const readProjectState = async (projectId) => {
 const writeProjectState = async (projectId, state) => {
   const projectFile = path.join(projectsDir, `${projectId}.json`);
   await fs.writeFile(projectFile, JSON.stringify(state, null, 2), 'utf-8');
+};
+
+const DEFAULT_USER_PREFS = {
+  theme: 'dark',
+  showWelcomeOnStartup: true,
+  enableVideoAutoplayInGallery: false,
+};
+
+const readUserPrefs = async () => {
+  try {
+    const raw = await fs.readFile(userPrefsFile, 'utf-8');
+    const data = JSON.parse(raw);
+    return { ...DEFAULT_USER_PREFS, ...data };
+  } catch (error) {
+    if ((error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') || (error instanceof Error && error.message.includes('ENOENT'))) {
+      return DEFAULT_USER_PREFS;
+    }
+    throw error;
+  }
+};
+
+const writeUserPrefs = async (prefs) => {
+  await fs.writeFile(userPrefsFile, JSON.stringify(prefs, null, 2), 'utf-8');
 };
 
 const resolveGalleryFilePath = (projectId, fileName) => {
@@ -486,6 +510,31 @@ app.delete('/api/projects/:id', async (req, res) => {
   } catch (error) {
     console.error('Failed to delete project', error);
     res.status(500).send('Failed to delete project');
+  }
+});
+
+// User Preferences endpoints
+app.get('/api/user-preferences', async (req, res) => {
+  try {
+    await ensureGeneratedDir();
+    const prefs = await readUserPrefs();
+    res.json(prefs);
+  } catch (error) {
+    console.error('Failed to read user preferences', error);
+    res.status(500).send('Failed to read user preferences');
+  }
+});
+
+app.put('/api/user-preferences', async (req, res) => {
+  try {
+    await ensureGeneratedDir();
+    const currentPrefs = await readUserPrefs();
+    const updatedPrefs = { ...currentPrefs, ...req.body };
+    await writeUserPrefs(updatedPrefs);
+    res.json(updatedPrefs);
+  } catch (error) {
+    console.error('Failed to update user preferences', error);
+    res.status(500).send('Failed to update user preferences');
   }
 });
 

@@ -1,10 +1,12 @@
 
 import React from 'react';
 import { useTheme, themes } from '../contexts/ThemeContext';
+import { useUserPreferences } from '../contexts/UserPreferencesContext';
 import { Sun, Moon, Sparkles } from 'lucide-react';
 
 const ThemeSwitcher: React.FC = () => {
   const { theme, setTheme, styles } = useTheme();
+  const { updatePreferences } = useUserPreferences();
 
   const getButtonClasses = (buttonTheme: 'dark' | 'modern' | 'elegant') => {
     const isActive = theme === buttonTheme;
@@ -25,7 +27,10 @@ const ThemeSwitcher: React.FC = () => {
       {Object.values(themes).map(themeOption => (
         <button
           key={themeOption.key}
-          onClick={() => setTheme(themeOption.key)}
+          onClick={() => {
+            setTheme(themeOption.key);
+            updatePreferences({ theme: themeOption.key });
+          }}
           className={getButtonClasses(themeOption.key)}
           aria-label={`Switch to ${themeOption.name} theme`}
           title={`Switch to ${themeOption.name} theme`}
