@@ -64,6 +64,45 @@ export const NODE_SPEC: { [key in NodeType]: NodeSpec } = {
       { id: 'screenplay_output', type: HandleType.Text, label: 'Screenplay Text' },
     ],
   },
+  [NodeType.WorldBible]: {
+    inputs: [{ id: 'world_prompt_input', type: HandleType.Text, label: 'World Prompt' }],
+    outputs: [
+      { id: 'world_summary_output', type: HandleType.Text, label: 'World Summary' },
+      { id: 'key_locations_output', type: HandleType.Text, label: 'Key Locations' },
+      { id: 'factions_output', type: HandleType.Text, label: 'Factions & Cast' },
+      { id: 'visual_motifs_output', type: HandleType.Text, label: 'Visual Motifs' },
+      { id: 'continuity_rules_output', type: HandleType.Text, label: 'Continuity Rules' },
+    ],
+  },
+  [NodeType.SceneBeatPlanner]: {
+    inputs: [{ id: 'story_input', type: HandleType.Text, label: 'Story / Premise' }],
+    outputs: [
+      { id: 'scene_beats_output', type: HandleType.Text, label: 'Scene Beats' },
+      { id: 'asset_checklist_output', type: HandleType.Text, label: 'Asset Checklist' },
+    ],
+  },
+  [NodeType.ShotStoryboard]: {
+    inputs: [{ id: 'beat_input', type: HandleType.Text, label: 'Scene Beat' }],
+    outputs: [
+      { id: 'shot_prompts_output', type: HandleType.Text, label: 'Shot Prompts' },
+    ],
+  },
+  [NodeType.VideoKeyframeInitializer]: {
+    inputs: [
+      { id: 'character_ref_input', type: HandleType.Image, label: 'Character Ref' },
+      { id: 'location_ref_input', type: HandleType.Image, label: 'Location Ref' },
+      { id: 'continuity_ref_input', type: HandleType.Image, label: 'Continuity Frame' },
+      { id: 'prompt_input', type: HandleType.Text, label: 'Keyframe Prompt' },
+    ],
+    outputs: [{ id: 'keyframe_image_output', type: HandleType.Image, label: 'Keyframe' }],
+  },
+  [NodeType.VideoSequencePlanner]: {
+    inputs: [
+      { id: 'clip_input', type: HandleType.Video, label: 'Video Clips' },
+      { id: 'notes_input', type: HandleType.Text, label: 'Notes (Optional)' },
+    ],
+    outputs: [{ id: 'timeline_output', type: HandleType.Text, label: 'Timeline Plan' }],
+  },
   [NodeType.VideoGenerator]: {
     inputs: [
       { id: 'image_input', type: HandleType.Image, label: 'Input Image (Optional)' },

@@ -1,11 +1,11 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { NodeData, NodeType, Connection, CanvasState, HandleType, GalleryItem, GalleryStatus, ProjectMetadata, ProjectState } from './types';
+import { NodeData, NodeType, Connection, CanvasState, HandleType, GalleryItem, GalleryStatus, ProjectMetadata, ProjectState, TimelineClipPlan } from './types';
 import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
 import ImageModal from './components/ImageModal';
 import ConfirmationModal from './components/ConfirmationModal';
 import TextModal from './components/TextModal';
-import { generateCharacterSheet, editImageWithPrompt, generateVideoFromPrompt, generateTextFromPrompt, generateImages, mixImagesWithPrompt, generateCharactersFromStory, expandStoryFromPremise, generateShortStory, generateScreenplay } from './services/geminiService';
+import { generateCharacterSheet, editImageWithPrompt, generateVideoFromPrompt, generateTextFromPrompt, generateImages, mixImagesWithPrompt, generateCharactersFromStory, expandStoryFromPremise, generateShortStory, generateScreenplay, generateWorldBible, generateSceneBeats, generateShotPrompts, generateVideoKeyframe } from './services/geminiService';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { useUserPreferences } from './contexts/UserPreferencesContext';
 import ThemeSwitcher from './components/ThemeSwitcher';
@@ -40,6 +40,11 @@ const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } }
   [NodeType.StoryExpander]: { width: 256 },
   [NodeType.ShortStoryWriter]: { width: 280 },
   [NodeType.ScreenplayWriter]: { width: 280 },
+  [NodeType.WorldBible]: { width: 320 },
+  [NodeType.SceneBeatPlanner]: { width: 320 },
+  [NodeType.ShotStoryboard]: { width: 320 },
+  [NodeType.VideoKeyframeInitializer]: { width: 280 },
+  [NodeType.VideoSequencePlanner]: { width: 320 },
 };
 
 const EMPTY_CANVAS_STATE: CanvasState = { nodes: [], connections: [] };
@@ -121,6 +126,42 @@ const createDefaultDataForType = (type: NodeType): NodeData['data'] => {
       return {
         storyPrompt: 'A rookie detective uncovers a hidden society beneath the city',
       } as NodeData['data'];
+    case NodeType.WorldBible:
+      return {
+        worldPrompt: 'Establish the canon for a solarpunk sky archipelago maintained by storm wardens.',
+        worldSummary: '',
+        keyLocations: '',
+        factionsAndAllies: '',
+        visualMotifs: '',
+        continuityRules: '',
+      } as NodeData['data'];
+    case NodeType.SceneBeatPlanner:
+      return {
+        scenePlannerInput: 'Outline the major beats for a pilot episode where a storm warden uncovers a conspiracy.',
+        structurePreset: 'three_act',
+        sceneBeats: [],
+        sceneBeatsText: '',
+        assetChecklistText: '',
+      } as NodeData['data'];
+    case NodeType.ShotStoryboard:
+      return {
+        shotReferenceText: 'Act I Beat: Lyra confronts the council on the observation deck during a lightning storm.',
+        shotStyleGuide: 'Cinematic, wide-angle establishing shots with neon reflections and dramatic silhouettes.',
+        shotPrompts: [],
+        shotPromptsText: '',
+      } as NodeData['data'];
+    case NodeType.VideoKeyframeInitializer:
+      return {
+        keyframePrompt: 'Blend the references into a dynamic opening shot of Lyra soaring over the city.',
+        keyframeSourceImageUrls: [],
+      } as NodeData['data'];
+    case NodeType.VideoSequencePlanner:
+      return {
+        timelineNotes: 'Assemble the teaser trailer beats from escape to final reveal.',
+        musicCue: 'Pulsing synthwave rising to orchestral hits.',
+        timelineClips: [],
+        timelineExportText: '',
+      } as NodeData['data'];
     default:
       return {} as NodeData['data'];
   }
@@ -161,6 +202,29 @@ const sanitizeNodeDataForDuplication = (node: NodeData): NodeData['data'] => {
     case NodeType.ScreenplayWriter:
       delete (clone as any).pitch;
       delete (clone as any).screenplayText;
+      break;
+    case NodeType.WorldBible:
+      delete (clone as any).worldSummary;
+      delete (clone as any).keyLocations;
+      delete (clone as any).factionsAndAllies;
+      delete (clone as any).visualMotifs;
+      delete (clone as any).continuityRules;
+      break;
+    case NodeType.SceneBeatPlanner:
+      delete (clone as any).sceneBeats;
+      delete (clone as any).sceneBeatsText;
+      delete (clone as any).assetChecklistText;
+      break;
+    case NodeType.ShotStoryboard:
+      delete (clone as any).shotPrompts;
+      delete (clone as any).shotPromptsText;
+      break;
+    case NodeType.VideoKeyframeInitializer:
+      delete (clone as any).keyframeImageUrl;
+      break;
+    case NodeType.VideoSequencePlanner:
+      delete (clone as any).timelineClips;
+      delete (clone as any).timelineExportText;
       break;
     default:
       break;
@@ -1324,6 +1388,121 @@ const AppContent: React.FC = () => {
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
 
+  const addWorldBibleNode = useCallback((pos?: { x: number; y: number }) => {
+    let newNodePosition: { x: number; y: number };
+    if (pos) {
+      newNodePosition = pos;
+      setLastAddedNodePosition(null);
+    } else {
+      const nextPos = lastAddedNodePosition
+        ? { x: lastAddedNodePosition.x + 32, y: lastAddedNodePosition.y + 32 }
+        : { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom };
+      newNodePosition = nextPos;
+      setLastAddedNodePosition(nextPos);
+    }
+
+    const newNode: NodeData = {
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type: NodeType.WorldBible,
+      position: newNodePosition,
+      data: createDefaultDataForType(NodeType.WorldBible),
+    };
+
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+  }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
+
+  const addSceneBeatPlannerNode = useCallback((pos?: { x: number; y: number }) => {
+    let newNodePosition: { x: number; y: number };
+    if (pos) {
+      newNodePosition = pos;
+      setLastAddedNodePosition(null);
+    } else {
+      const nextPos = lastAddedNodePosition
+        ? { x: lastAddedNodePosition.x + 32, y: lastAddedNodePosition.y + 32 }
+        : { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom };
+      newNodePosition = nextPos;
+      setLastAddedNodePosition(nextPos);
+    }
+
+    const newNode: NodeData = {
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type: NodeType.SceneBeatPlanner,
+      position: newNodePosition,
+      data: createDefaultDataForType(NodeType.SceneBeatPlanner),
+    };
+
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+  }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
+
+  const addShotStoryboardNode = useCallback((pos?: { x: number; y: number }) => {
+    let newNodePosition: { x: number; y: number };
+    if (pos) {
+      newNodePosition = pos;
+      setLastAddedNodePosition(null);
+    } else {
+      const nextPos = lastAddedNodePosition
+        ? { x: lastAddedNodePosition.x + 32, y: lastAddedNodePosition.y + 32 }
+        : { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom };
+      newNodePosition = nextPos;
+      setLastAddedNodePosition(nextPos);
+    }
+
+    const newNode: NodeData = {
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type: NodeType.ShotStoryboard,
+      position: newNodePosition,
+      data: createDefaultDataForType(NodeType.ShotStoryboard),
+    };
+
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+  }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
+
+  const addVideoKeyframeInitializerNode = useCallback((pos?: { x: number; y: number }) => {
+    let newNodePosition: { x: number; y: number };
+    if (pos) {
+      newNodePosition = pos;
+      setLastAddedNodePosition(null);
+    } else {
+      const nextPos = lastAddedNodePosition
+        ? { x: lastAddedNodePosition.x + 32, y: lastAddedNodePosition.y + 32 }
+        : { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom };
+      newNodePosition = nextPos;
+      setLastAddedNodePosition(nextPos);
+    }
+
+    const newNode: NodeData = {
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type: NodeType.VideoKeyframeInitializer,
+      position: newNodePosition,
+      data: createDefaultDataForType(NodeType.VideoKeyframeInitializer),
+    };
+
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+  }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
+
+  const addVideoSequencePlannerNode = useCallback((pos?: { x: number; y: number }) => {
+    let newNodePosition: { x: number; y: number };
+    if (pos) {
+      newNodePosition = pos;
+      setLastAddedNodePosition(null);
+    } else {
+      const nextPos = lastAddedNodePosition
+        ? { x: lastAddedNodePosition.x + 32, y: lastAddedNodePosition.y + 32 }
+        : { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom };
+      newNodePosition = nextPos;
+      setLastAddedNodePosition(nextPos);
+    }
+
+    const newNode: NodeData = {
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type: NodeType.VideoSequencePlanner,
+      position: newNodePosition,
+      data: createDefaultDataForType(NodeType.VideoSequencePlanner),
+    };
+
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+  }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
+
   const toggleNodeMinimization = useCallback((nodeId: string) => {
     setCanvasState(prevState => ({
         ...prevState,
@@ -1416,6 +1595,84 @@ const AppContent: React.FC = () => {
     const dataKeys = Object.keys(data);
     const isTransientUpdate = dataKeys.length > 0 && dataKeys.every(key => TRANSIENT_NODE_DATA_KEYS.has(key));
 
+    const mapTextToTargetData = (targetNode: NodeData, handleId: string, text: string | undefined): Partial<NodeData['data']> => {
+      if (!text) {
+        return {};
+      }
+
+      switch (targetNode.type) {
+        case NodeType.CharacterGenerator:
+          if (handleId === 'description_input') {
+            return { characterDescription: text };
+          }
+          break;
+        case NodeType.ImageGenerator:
+          if (handleId === 'prompt_input') {
+            return { prompt: text };
+          }
+          break;
+        case NodeType.VideoGenerator:
+          if (handleId === 'prompt_input') {
+            return { editDescription: text };
+          }
+          break;
+        case NodeType.TextGenerator:
+          if (handleId === 'prompt_input') {
+            return { prompt: text };
+          }
+          break;
+        case NodeType.StoryCharacterCreator:
+          if (handleId === 'prompt_input') {
+            return { storyPrompt: text };
+          }
+          break;
+        case NodeType.StoryExpander:
+          if (handleId === 'premise_input') {
+            return { premise: text };
+          }
+          break;
+        case NodeType.ShortStoryWriter:
+          if (handleId === 'premise_input') {
+            return { storyPremise: text };
+          }
+          break;
+        case NodeType.ScreenplayWriter:
+          if (handleId === 'prompt_input') {
+            return { storyPrompt: text };
+          }
+          break;
+        case NodeType.WorldBible:
+          if (handleId === 'world_prompt_input') {
+            return { worldPrompt: text };
+          }
+          break;
+        case NodeType.SceneBeatPlanner:
+          if (handleId === 'story_input') {
+            return { scenePlannerInput: text };
+          }
+          break;
+        case NodeType.ShotStoryboard:
+          if (handleId === 'beat_input') {
+            return { shotReferenceText: text };
+          }
+          break;
+        case NodeType.VideoKeyframeInitializer:
+          if (handleId === 'prompt_input') {
+            return { keyframePrompt: text };
+          }
+          break;
+        case NodeType.VideoSequencePlanner:
+          if (handleId === 'notes_input') {
+            return { timelineNotes: text };
+          }
+          break;
+        default:
+          break;
+      }
+
+      return {};
+    };
+
     setCanvasState((prevState) => {
         let newNodes = [...prevState.nodes];
         const nodeIndex = newNodes.findIndex(n => n.id === nodeId);
@@ -1433,28 +1690,23 @@ const AppContent: React.FC = () => {
 
                 const toNode = newNodes[toNodeIndex];
                 let dataToUpdate: Partial<NodeData['data']> = {};
-                
+                const applyTextPropagation = (textToPropagate?: string) => {
+                  if (!textToPropagate) {
+                    return;
+                  }
+                  const mapped = mapTextToTargetData(toNode, conn.toHandleId, textToPropagate);
+                  if (Object.keys(mapped).length > 0) {
+                    dataToUpdate = mapped;
+                  }
+                };
+
                 const updatedNodeProducesText =
                   (updatedNode.type === NodeType.Text ||
                     updatedNode.type === NodeType.TextGenerator ||
                     updatedNode.type === NodeType.StoryExpander);
 
                 if (updatedNodeProducesText && 'text' in data) {
-                    if (toNode.type === NodeType.CharacterGenerator && conn.toHandleId === 'description_input') {
-                        dataToUpdate = { characterDescription: data.text };
-                    } else if (toNode.type === NodeType.ImageGenerator && conn.toHandleId === 'prompt_input') {
-                        dataToUpdate = { prompt: data.text };
-                    } else if (toNode.type === NodeType.VideoGenerator && conn.toHandleId === 'prompt_input') {
-                        dataToUpdate = { editDescription: data.text };
-                    } else if (toNode.type === NodeType.TextGenerator && conn.toHandleId === 'prompt_input') {
-                      dataToUpdate = { prompt: data.text };
-                    } else if (toNode.type === NodeType.StoryCharacterCreator && conn.toHandleId === 'prompt_input') {
-                        dataToUpdate = { storyPrompt: data.text };
-                    } else if (toNode.type === NodeType.StoryExpander && conn.toHandleId === 'premise_input') {
-                        dataToUpdate = { premise: data.text };
-                    } else if (toNode.type === NodeType.ShortStoryWriter && conn.toHandleId === 'premise_input') {
-                        dataToUpdate = { storyPremise: data.text };
-                    }
+                    applyTextPropagation(data.text);
                 }
                 
                 if ((updatedNode.type === NodeType.CharacterGenerator || updatedNode.type === NodeType.ImageEditor || updatedNode.type === NodeType.Image || updatedNode.type === NodeType.ImageMixer) && 'imageUrl' in data) {
@@ -1763,22 +2015,9 @@ const AppContent: React.FC = () => {
                 fromNode.type === NodeType.StoryExpander);
 
             if (fromNodeProducesText && 'text' in fromNode.data) {
-                if (toNode.type === NodeType.CharacterGenerator && toHandleId === 'description_input') {
-                    dataToUpdate = { characterDescription: fromNode.data.text };
-                } else if (toNode.type === NodeType.ImageGenerator && toHandleId === 'prompt_input') {
-                    dataToUpdate = { prompt: fromNode.data.text };
-                } else if (toNode.type === NodeType.VideoGenerator && toHandleId === 'prompt_input') {
-                    dataToUpdate = { editDescription: fromNode.data.text };
-                } else if (toNode.type === NodeType.TextGenerator && toHandleId === 'prompt_input') {
-                    dataToUpdate = { prompt: fromNode.data.text };
-                } else if (toNode.type === NodeType.StoryCharacterCreator && toHandleId === 'prompt_input') {
-                    dataToUpdate = { storyPrompt: fromNode.data.text };
-                } else if (toNode.type === NodeType.StoryExpander && toHandleId === 'premise_input') {
-                    dataToUpdate = { premise: fromNode.data.text };
-                } else if (toNode.type === NodeType.ShortStoryWriter && toHandleId === 'premise_input') {
-                    dataToUpdate = { storyPremise: fromNode.data.text };
-                } else if (toNode.type === NodeType.ScreenplayWriter && toHandleId === 'prompt_input') {
-                    dataToUpdate = { storyPrompt: fromNode.data.text };
+                const mapped = mapTextToTargetData(toNode, toHandleId, fromNode.data.text);
+                if (Object.keys(mapped).length > 0) {
+                    dataToUpdate = mapped;
                 }
             } else if ((fromNode.type === NodeType.CharacterGenerator || fromNode.type === NodeType.ImageEditor || fromNode.type === NodeType.Image) && 'imageUrl' in fromNode.data) {
                  if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && toHandleId === 'image_input') {
@@ -1811,22 +2050,63 @@ const AppContent: React.FC = () => {
                 }
 
                 if (textToPropagate) {
-                    if (toNode.type === NodeType.CharacterGenerator && toHandleId === 'description_input') {
-                        dataToUpdate = { characterDescription: textToPropagate };
-                    } else if (toNode.type === NodeType.ImageGenerator && toHandleId === 'prompt_input') {
-                        dataToUpdate = { prompt: textToPropagate };
-                    } else if (toNode.type === NodeType.VideoGenerator && toHandleId === 'prompt_input') {
-                        dataToUpdate = { editDescription: textToPropagate };
-                    } else if (toNode.type === NodeType.TextGenerator && toHandleId === 'prompt_input') {
-                        dataToUpdate = { prompt: textToPropagate };
-                    } else if (toNode.type === NodeType.StoryCharacterCreator && toHandleId === 'prompt_input') {
-                        dataToUpdate = { storyPrompt: textToPropagate };
-                    } else if (toNode.type === NodeType.StoryExpander && toHandleId === 'premise_input') {
-                        dataToUpdate = { premise: textToPropagate };
-                    } else if (toNode.type === NodeType.ShortStoryWriter && toHandleId === 'premise_input') {
-                        dataToUpdate = { storyPremise: textToPropagate };
-                    } else if (toNode.type === NodeType.ScreenplayWriter && toHandleId === 'prompt_input') {
-                        dataToUpdate = { storyPrompt: textToPropagate };
+                    const mapped = mapTextToTargetData(toNode, toHandleId, textToPropagate);
+                    if (Object.keys(mapped).length > 0) {
+                        dataToUpdate = mapped;
+                    }
+                }
+            } else if (fromNode.type === NodeType.WorldBible) {
+                let textToPropagate: string | undefined;
+                if (startHandleId === 'world_summary_output') {
+                    textToPropagate = fromNode.data.worldSummary;
+                } else if (startHandleId === 'key_locations_output') {
+                    textToPropagate = fromNode.data.keyLocations;
+                } else if (startHandleId === 'factions_output') {
+                    textToPropagate = fromNode.data.factionsAndAllies;
+                } else if (startHandleId === 'visual_motifs_output') {
+                    textToPropagate = fromNode.data.visualMotifs;
+                } else if (startHandleId === 'continuity_rules_output') {
+                    textToPropagate = fromNode.data.continuityRules;
+                }
+
+                if (textToPropagate) {
+                    const mapped = mapTextToTargetData(toNode, toHandleId, textToPropagate);
+                    if (Object.keys(mapped).length > 0) {
+                        dataToUpdate = mapped;
+                    }
+                }
+            } else if (fromNode.type === NodeType.SceneBeatPlanner) {
+                let textToPropagate: string | undefined;
+                if (startHandleId === 'scene_beats_output') {
+                    textToPropagate = fromNode.data.sceneBeatsText;
+                } else if (startHandleId === 'asset_checklist_output') {
+                    textToPropagate = fromNode.data.assetChecklistText;
+                }
+
+                if (textToPropagate) {
+                    const mapped = mapTextToTargetData(toNode, toHandleId, textToPropagate);
+                    if (Object.keys(mapped).length > 0) {
+                        dataToUpdate = mapped;
+                    }
+                }
+            } else if (fromNode.type === NodeType.ShotStoryboard) {
+                if (startHandleId === 'shot_prompts_output' && fromNode.data.shotPromptsText) {
+                    const mapped = mapTextToTargetData(toNode, toHandleId, fromNode.data.shotPromptsText);
+                    if (Object.keys(mapped).length > 0) {
+                        dataToUpdate = mapped;
+                    }
+                }
+            } else if (fromNode.type === NodeType.VideoKeyframeInitializer) {
+                if (startHandleId === 'keyframe_image_output' && fromNode.data.keyframeImageUrl) {
+                    if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && toHandleId === 'image_input') {
+                        dataToUpdate = { inputImageUrl: fromNode.data.keyframeImageUrl };
+                    }
+                }
+            } else if (fromNode.type === NodeType.VideoSequencePlanner) {
+                if (startHandleId === 'timeline_output' && fromNode.data.timelineExportText) {
+                    const mapped = mapTextToTargetData(toNode, toHandleId, fromNode.data.timelineExportText);
+                    if (Object.keys(mapped).length > 0) {
+                        dataToUpdate = mapped;
                     }
                 }
             }
@@ -2003,6 +2283,233 @@ const AppContent: React.FC = () => {
       const errorMessage = error instanceof Error ? error.message : String(error);
       updateNodeData(nodeId, { error: errorMessage, isLoading: false });
     }
+  }, [nodes, updateNodeData]);
+
+  const handleGenerateWorldBible = useCallback(async (nodeId: string) => {
+    const sourceNode = nodes.find(n => n.id === nodeId);
+    if (!sourceNode || sourceNode.type !== NodeType.WorldBible) {
+      return;
+    }
+
+    const prompt = sourceNode.data.worldPrompt?.trim();
+    if (!prompt) {
+      updateNodeData(nodeId, { error: 'World prompt cannot be empty.' });
+      return;
+    }
+
+    updateNodeData(nodeId, { isLoading: true, error: undefined });
+
+    try {
+      const bible = await generateWorldBible(prompt);
+      updateNodeData(nodeId, {
+        worldSummary: bible.worldSummary,
+        keyLocations: bible.keyLocations,
+        factionsAndAllies: bible.factions,
+        visualMotifs: bible.visualMotifs,
+        continuityRules: bible.continuityRules,
+        isLoading: false,
+      });
+    } catch (error) {
+      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      updateNodeData(nodeId, { error: errorMessage, isLoading: false });
+    }
+  }, [nodes, updateNodeData]);
+
+  const handleGenerateSceneBeats = useCallback(async (nodeId: string) => {
+    const sourceNode = nodes.find(n => n.id === nodeId);
+    if (!sourceNode || sourceNode.type !== NodeType.SceneBeatPlanner) {
+      return;
+    }
+
+    const storyInput = sourceNode.data.scenePlannerInput?.trim();
+    if (!storyInput) {
+      updateNodeData(nodeId, { error: 'Scene planner input cannot be empty.' });
+      return;
+    }
+
+    updateNodeData(nodeId, { isLoading: true, error: undefined });
+
+    try {
+      const { beats, assetChecklist } = await generateSceneBeats(storyInput, sourceNode.data.structurePreset || 'three_act');
+      const beatsText = beats
+        .map((beat, index) => {
+          const characters = beat.characters.length > 0 ? `Characters: ${beat.characters.join(', ')}` : 'Characters: --';
+          const assets = beat.requiredAssets.length > 0 ? `Assets: ${beat.requiredAssets.join(', ')}` : 'Assets: --';
+          return `Beat ${index + 1}: ${beat.title}\nSetting: ${beat.setting}\nGoal: ${beat.goal}\nConflict: ${beat.conflict}\n${characters}\nVisual Notes: ${beat.visualNotes}\n${assets}`;
+        })
+        .join('\n\n');
+      const checklistText = assetChecklist.length > 0 ? assetChecklist.map(item => `- ${item}`).join('\n') : '';
+      updateNodeData(nodeId, {
+        sceneBeats: beats,
+        sceneBeatsText: beatsText,
+        assetChecklistText: checklistText,
+        isLoading: false,
+      });
+    } catch (error) {
+      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      updateNodeData(nodeId, { error: errorMessage, isLoading: false });
+    }
+  }, [nodes, updateNodeData]);
+
+  const handleGenerateShotPrompts = useCallback(async (nodeId: string) => {
+    const sourceNode = nodes.find(n => n.id === nodeId);
+    if (!sourceNode || sourceNode.type !== NodeType.ShotStoryboard) {
+      return;
+    }
+
+    const beatText = sourceNode.data.shotReferenceText?.trim();
+    if (!beatText) {
+      updateNodeData(nodeId, { error: 'Provide a scene beat before generating shots.' });
+      return;
+    }
+
+    updateNodeData(nodeId, { isLoading: true, error: undefined });
+
+    try {
+      const prompts = await generateShotPrompts(beatText, sourceNode.data.shotStyleGuide);
+      const promptsText = prompts
+        .map((shot, index) => `Shot ${index + 1}: ${shot.title}\nDescription: ${shot.description}\nFraming: ${shot.framing}\nLens: ${shot.lens}\nLighting: ${shot.lighting}\nMotion: ${shot.motion}\nCamera: ${shot.cameraMovement}\nPrompt: ${shot.outputPrompt}`)
+        .join('\n\n');
+      updateNodeData(nodeId, {
+        shotPrompts: prompts,
+        shotPromptsText: promptsText,
+        isLoading: false,
+      });
+    } catch (error) {
+      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      updateNodeData(nodeId, { error: errorMessage, isLoading: false });
+    }
+  }, [nodes, updateNodeData]);
+
+  const handleGenerateVideoKeyframe = useCallback(async (nodeId: string) => {
+    const sourceNode = nodes.find(n => n.id === nodeId);
+    if (!sourceNode || sourceNode.type !== NodeType.VideoKeyframeInitializer) {
+      return;
+    }
+
+    const prompt = sourceNode.data.keyframePrompt?.trim();
+    if (!prompt) {
+      updateNodeData(nodeId, { error: 'Keyframe prompt cannot be empty.' });
+      return;
+    }
+
+    const imageHandleSet = new Set(['character_ref_input', 'location_ref_input', 'continuity_ref_input']);
+    const inputConnections = connections.filter(conn => conn.toNodeId === nodeId && imageHandleSet.has(conn.toHandleId));
+    const imageUrls: string[] = [];
+
+    inputConnections.forEach(conn => {
+      const upstreamNode = nodes.find(n => n.id === conn.fromNodeId);
+      if (!upstreamNode) {
+        return;
+      }
+
+      if (upstreamNode.type === NodeType.ImageGenerator && upstreamNode.data.imageUrls) {
+        const match = conn.fromHandleId.match(/_(\d+)$/);
+        if (match) {
+          const index = parseInt(match[1], 10) - 1;
+          const url = upstreamNode.data.imageUrls[index];
+          if (url) {
+            imageUrls.push(url);
+          }
+        }
+      } else if (upstreamNode.type === NodeType.VideoKeyframeInitializer && upstreamNode.data.keyframeImageUrl) {
+        imageUrls.push(upstreamNode.data.keyframeImageUrl);
+      } else if (typeof upstreamNode.data.imageUrl === 'string') {
+        imageUrls.push(upstreamNode.data.imageUrl);
+      } else if (typeof upstreamNode.data.inputImageUrl === 'string') {
+        imageUrls.push(upstreamNode.data.inputImageUrl);
+      }
+    });
+
+    if (imageUrls.length === 0) {
+      updateNodeData(nodeId, { error: 'Connect at least one reference image.' });
+      return;
+    }
+
+    updateNodeData(nodeId, {
+      isLoading: true,
+      error: undefined,
+      keyframeImageUrl: undefined,
+      keyframeSourceImageUrls: imageUrls,
+    });
+
+    try {
+      const keyframeUrl = await generateVideoKeyframe(imageUrls, prompt);
+      updateNodeData(nodeId, { keyframeImageUrl: keyframeUrl, isLoading: false });
+
+      try {
+        await persistGalleryItem({
+          dataUrl: keyframeUrl,
+          type: 'image',
+          prompt,
+          nodeType: NodeType.VideoKeyframeInitializer,
+          nodeId,
+        });
+      } catch (galleryError) {
+        console.error('Failed to save keyframe to gallery:', galleryError);
+      }
+    } catch (error) {
+      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      updateNodeData(nodeId, { error: errorMessage, isLoading: false });
+    }
+  }, [nodes, connections, updateNodeData, persistGalleryItem]);
+
+  const handleSyncVideoSequence = useCallback((nodeId: string) => {
+    const plannerNode = nodes.find(n => n.id === nodeId);
+    if (!plannerNode || plannerNode.type !== NodeType.VideoSequencePlanner) {
+      return;
+    }
+
+    const clipConnections = connections.filter(conn => conn.toNodeId === nodeId && conn.toHandleId === 'clip_input');
+    const existingClips = plannerNode.data.timelineClips || [];
+    const existingMap = new Map(existingClips.map(clip => [clip.clipNodeId, clip]));
+    const synchronizedClips = clipConnections.map((conn, index) => {
+      const clipNode = nodes.find(n => n.id === conn.fromNodeId);
+      if (!clipNode || clipNode.type !== NodeType.VideoGenerator) {
+        return null;
+      }
+
+      const previous = existingMap.get(clipNode.id);
+      return {
+        clipNodeId: clipNode.id,
+        clipLabel: previous?.clipLabel || `Clip ${index + 1}`,
+        prompt: clipNode.data.editDescription,
+        videoUrl: clipNode.data.videoUrl,
+        durationSeconds: previous?.durationSeconds,
+        transition: previous?.transition,
+        notes: previous?.notes,
+      };
+    }).filter((clip): clip is TimelineClipPlan => clip !== null);
+
+    updateNodeData(nodeId, { timelineClips: synchronizedClips });
+  }, [nodes, connections, updateNodeData]);
+
+  const handleExportVideoSequence = useCallback((nodeId: string) => {
+    const plannerNode = nodes.find(n => n.id === nodeId);
+    if (!plannerNode || plannerNode.type !== NodeType.VideoSequencePlanner) {
+      return;
+    }
+
+    const exportPayload = {
+      musicCue: plannerNode.data.musicCue || '',
+      notes: plannerNode.data.timelineNotes || '',
+      clips: (plannerNode.data.timelineClips || []).map(clip => ({
+        id: clip.clipNodeId,
+        label: clip.clipLabel,
+        prompt: clip.prompt,
+        videoUrl: clip.videoUrl,
+        durationSeconds: clip.durationSeconds,
+        transition: clip.transition,
+        notes: clip.notes,
+      })),
+    };
+
+    const exportText = JSON.stringify(exportPayload, null, 2);
+    updateNodeData(nodeId, { timelineExportText: exportText });
   }, [nodes, updateNodeData]);
 
   const handleEditImage = useCallback(async (nodeId: string) => {
@@ -2237,9 +2744,14 @@ const AppContent: React.FC = () => {
       onAddStoryExpanderNode: () => addStoryExpanderNode(position),
       onAddShortStoryWriterNode: () => addShortStoryWriterNode(position),
       onAddScreenplayWriterNode: () => addScreenplayWriterNode(position),
+      onAddWorldBibleNode: () => addWorldBibleNode(position),
+      onAddSceneBeatPlannerNode: () => addSceneBeatPlannerNode(position),
+      onAddShotStoryboardNode: () => addShotStoryboardNode(position),
       onAddImageEditorNode: () => addImageEditorNode(position),
       onAddImageMixerNode: () => addImageMixerNode(position),
       onAddVideoGeneratorNode: () => addVideoGeneratorNode(position),
+      onAddVideoKeyframeInitializerNode: () => addVideoKeyframeInitializerNode(position),
+      onAddVideoSequencePlannerNode: () => addVideoSequencePlannerNode(position),
     });
   }, [
     contextMenu,
@@ -2254,6 +2766,11 @@ const AppContent: React.FC = () => {
     addImageEditorNode,
     addImageMixerNode,
     addVideoGeneratorNode,
+    addWorldBibleNode,
+    addSceneBeatPlannerNode,
+    addShotStoryboardNode,
+    addVideoKeyframeInitializerNode,
+    addVideoSequencePlannerNode,
   ]);
 
   return (
@@ -2300,10 +2817,15 @@ const AppContent: React.FC = () => {
         onAddStoryExpanderNode={() => addStoryExpanderNode()}
         onAddShortStoryWriterNode={() => addShortStoryWriterNode()}
         onAddScreenplayWriterNode={() => addScreenplayWriterNode()}
+        onAddWorldBibleNode={() => addWorldBibleNode()}
+        onAddSceneBeatPlannerNode={() => addSceneBeatPlannerNode()}
+        onAddShotStoryboardNode={() => addShotStoryboardNode()}
         onAddImageNode={() => addImageNode()}
         onAddImageEditorNode={() => addImageEditorNode()}
         onAddImageMixerNode={() => addImageMixerNode()}
         onAddVideoGeneratorNode={() => addVideoGeneratorNode()}
+        onAddVideoKeyframeInitializerNode={() => addVideoKeyframeInitializerNode()}
+        onAddVideoSequencePlannerNode={() => addVideoSequencePlannerNode()}
         onUndo={undo}
         onRedo={redo}
         canUndo={canUndo}
@@ -2383,6 +2905,12 @@ const AppContent: React.FC = () => {
         onExpandStory={handleExpandStory}
         onGenerateShortStory={handleGenerateShortStory}
         onGenerateScreenplay={handleGenerateScreenplay}
+        onGenerateWorldBible={handleGenerateWorldBible}
+        onGenerateSceneBeats={handleGenerateSceneBeats}
+        onGenerateShotPrompts={handleGenerateShotPrompts}
+        onGenerateVideoKeyframe={handleGenerateVideoKeyframe}
+        onSyncVideoSequence={handleSyncVideoSequence}
+        onExportVideoSequence={handleExportVideoSequence}
         onOpenTextModal={handleOpenTextModal}
         onEditImage={handleEditImage}
         onMixImages={handleMixImages}

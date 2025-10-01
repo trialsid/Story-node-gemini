@@ -41,6 +41,12 @@ interface CanvasProps {
   onExpandStory: (nodeId: string) => void;
   onGenerateShortStory: (nodeId: string) => void;
   onGenerateScreenplay: (nodeId: string) => void;
+  onGenerateWorldBible: (nodeId: string) => void;
+  onGenerateSceneBeats: (nodeId: string) => void;
+  onGenerateShotPrompts: (nodeId: string) => void;
+  onGenerateVideoKeyframe: (nodeId: string) => void;
+  onSyncVideoSequence: (nodeId: string) => void;
+  onExportVideoSequence: (nodeId: string) => void;
   onOpenTextModal: (title: string, text: string) => void;
   onImageClick: (imageUrl: string) => void;
   onOutputMouseDown: (nodeId: string, handleId: string) => void;
@@ -86,6 +92,12 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
   onExpandStory,
   onGenerateShortStory,
   onGenerateScreenplay,
+  onGenerateWorldBible,
+  onGenerateSceneBeats,
+  onGenerateShotPrompts,
+  onGenerateVideoKeyframe,
+  onSyncVideoSequence,
+  onExportVideoSequence,
   onOpenTextModal,
   onImageClick,
   onOutputMouseDown,
@@ -188,6 +200,12 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
             onExpandStory={onExpandStory}
             onGenerateShortStory={onGenerateShortStory}
             onGenerateScreenplay={onGenerateScreenplay}
+            onGenerateWorldBible={onGenerateWorldBible}
+            onGenerateSceneBeats={onGenerateSceneBeats}
+            onGenerateShotPrompts={onGenerateShotPrompts}
+            onGenerateVideoKeyframe={onGenerateVideoKeyframe}
+            onSyncVideoSequence={onSyncVideoSequence}
+            onExportVideoSequence={onExportVideoSequence}
             onOpenTextModal={onOpenTextModal}
             onImageClick={onImageClick}
             onOutputMouseDown={onOutputMouseDown}
