@@ -28,15 +28,10 @@ interface ToolbarProps {
   onAddStoryExpanderNode: () => void;
   onAddShortStoryWriterNode: () => void;
   onAddScreenplayWriterNode: () => void;
-  onAddWorldBibleNode: () => void;
-  onAddSceneBeatPlannerNode: () => void;
-  onAddShotStoryboardNode: () => void;
   onAddImageNode: () => void;
   onAddImageEditorNode: () => void;
   onAddImageMixerNode: () => void;
   onAddVideoGeneratorNode: () => void;
-  onAddVideoKeyframeInitializerNode: () => void;
-  onAddVideoSequencePlannerNode: () => void;
   onUndo: () => void;
   onRedo: () => void;
   canUndo: boolean;
@@ -91,15 +86,10 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddStoryExpanderNode,
     onAddShortStoryWriterNode,
     onAddScreenplayWriterNode,
-    onAddWorldBibleNode,
-    onAddSceneBeatPlannerNode,
-    onAddShotStoryboardNode,
     onAddImageNode,
     onAddImageEditorNode,
     onAddImageMixerNode,
     onAddVideoGeneratorNode,
-    onAddVideoKeyframeInitializerNode,
-    onAddVideoSequencePlannerNode,
     onUndo,
     onRedo,
     canUndo,
@@ -174,14 +164,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddStoryExpanderNode,
     onAddShortStoryWriterNode,
     onAddScreenplayWriterNode,
-    onAddWorldBibleNode,
-    onAddSceneBeatPlannerNode,
-    onAddShotStoryboardNode,
     onAddImageEditorNode,
     onAddImageMixerNode,
     onAddVideoGeneratorNode,
-    onAddVideoKeyframeInitializerNode,
-    onAddVideoSequencePlannerNode,
   }), [
     onAddTextNode,
     onAddTextGeneratorNode,
@@ -192,14 +177,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddStoryExpanderNode,
     onAddShortStoryWriterNode,
     onAddScreenplayWriterNode,
-    onAddWorldBibleNode,
-    onAddSceneBeatPlannerNode,
-    onAddShotStoryboardNode,
     onAddImageEditorNode,
     onAddImageMixerNode,
     onAddVideoGeneratorNode,
-    onAddVideoKeyframeInitializerNode,
-    onAddVideoSequencePlannerNode,
   ]);
 
   const storyToolsCategory = useMemo(() => buildStoryToolsCategory({
@@ -212,32 +192,15 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddStoryExpanderNode,
     onAddShortStoryWriterNode,
     onAddScreenplayWriterNode,
-    onAddWorldBibleNode,
-    onAddSceneBeatPlannerNode,
-    onAddShotStoryboardNode,
     onAddImageEditorNode,
     onAddImageMixerNode,
     onAddVideoGeneratorNode,
-    onAddVideoKeyframeInitializerNode,
-    onAddVideoSequencePlannerNode,
   }), [
     onAddCharacterGeneratorNode,
     onAddStoryCharacterCreatorNode,
     onAddStoryExpanderNode,
     onAddShortStoryWriterNode,
     onAddScreenplayWriterNode,
-    onAddWorldBibleNode,
-    onAddSceneBeatPlannerNode,
-    onAddShotStoryboardNode,
-    onAddImageGeneratorNode,
-    onAddTextNode,
-    onAddTextGeneratorNode,
-    onAddImageNode,
-    onAddImageEditorNode,
-    onAddImageMixerNode,
-    onAddVideoGeneratorNode,
-    onAddVideoKeyframeInitializerNode,
-    onAddVideoSequencePlannerNode,
   ]);
 
   const createProjectActionHandler = (action: () => void | boolean | Promise<void | boolean>) => () => {

@@ -11,11 +11,6 @@ export enum NodeType {
   StoryExpander = 'STORY_EXPANDER_NODE',
   ShortStoryWriter = 'SHORT_STORY_WRITER_NODE',
   ScreenplayWriter = 'SCREENPLAY_WRITER_NODE',
-  WorldBible = 'WORLD_BIBLE_NODE',
-  SceneBeatPlanner = 'SCENE_BEAT_PLANNER_NODE',
-  ShotStoryboard = 'SHOT_STORYBOARD_NODE',
-  VideoKeyframeInitializer = 'VIDEO_KEYFRAME_INITIALIZER_NODE',
-  VideoSequencePlanner = 'VIDEO_SEQUENCE_PLANNER_NODE',
 }
 
 export enum HandleType {
@@ -35,48 +30,6 @@ export interface Connection {
 export interface StoryCharacter {
   name: string;
   description: string;
-}
-
-export interface WorldBibleSections {
-  worldSummary: string;
-  keyLocations: string;
-  factions: string;
-  visualMotifs: string;
-  continuityRules: string;
-}
-
-export interface SceneBeat {
-  id: string;
-  title: string;
-  summary: string;
-  setting: string;
-  characters: string[];
-  goal: string;
-  conflict: string;
-  visualNotes: string;
-  requiredAssets: string[];
-}
-
-export interface ShotPrompt {
-  id: string;
-  title: string;
-  description: string;
-  framing: string;
-  lens: string;
-  lighting: string;
-  motion: string;
-  cameraMovement: string;
-  outputPrompt: string;
-}
-
-export interface TimelineClipPlan {
-  clipNodeId: string;
-  clipLabel: string;
-  prompt?: string;
-  videoUrl?: string;
-  durationSeconds?: number;
-  transition?: string;
-  notes?: string;
 }
 
 export interface NodeData {
@@ -144,38 +97,6 @@ export interface NodeData {
     // For Screenplay Writer
     pitch?: string;
     screenplayText?: string;
-
-    // For World Bible
-    worldPrompt?: string;
-    worldSummary?: string;
-    keyLocations?: string;
-    factionsAndAllies?: string;
-    visualMotifs?: string;
-    continuityRules?: string;
-
-    // For Scene Beat Planner
-    scenePlannerInput?: string;
-    structurePreset?: string;
-    sceneBeats?: SceneBeat[];
-    sceneBeatsText?: string;
-    assetChecklistText?: string;
-
-    // For Shot Storyboard
-    shotReferenceText?: string;
-    shotStyleGuide?: string;
-    shotPrompts?: ShotPrompt[];
-    shotPromptsText?: string;
-
-    // For Video Keyframe Initializer
-    keyframePrompt?: string;
-    keyframeSourceImageUrls?: string[];
-    keyframeImageUrl?: string;
-
-    // For Video Sequence Planner
-    timelineNotes?: string;
-    musicCue?: string;
-    timelineClips?: TimelineClipPlan[];
-    timelineExportText?: string;
   };
 }
 
