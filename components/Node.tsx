@@ -5,7 +5,7 @@ import NodeHandle from './NodeHandle';
 import { useTheme } from '../contexts/ThemeContext';
 import { areHandlesCompatible, NodeHandleSpec } from '../utils/node-spec';
 import ExpandableTextArea from './ExpandableTextArea';
-import { getHandlesForSide, getMinimizedHandleY, SLICE_HEIGHT_PX, DEFAULT_MINIMIZED_PREVIEW_HEIGHT } from '../utils/handlePositions';
+import { getHandlesForSide, getMinimizedHandleY, SLICE_HEIGHT_PX, DEFAULT_MINIMIZED_PREVIEW_HEIGHT, getHandleSpec } from '../utils/handlePositions';
 import NodeContextMenu from './NodeContextMenu';
 
 interface TempConnectionInfo {
@@ -39,9 +39,10 @@ interface NodeProps {
   onGenerateScreenplay: (nodeId: string) => void;
   onOpenTextModal: (title: string, text: string) => void;
   onImageClick: (imageUrl: string) => void;
-  onOutputMouseDown: (nodeId: string, handleId: string) => void;
-  onInputMouseDown: (nodeId: string, handleId: string) => void;
+  onOutputMouseDown: (nodeId: string, handleId: string, event?: React.MouseEvent) => void;
+  onInputMouseDown: (nodeId: string, handleId: string, event?: React.MouseEvent) => void;
   onInputMouseUp: (nodeId: string, handleId: string) => void;
+  onRemoveConnection: (connectionId: string) => void;
   onDelete: (nodeId: string) => void;
   onDeleteDirectly: (nodeId: string) => void;
   onDuplicate: (nodeId: string) => string | null;
@@ -120,6 +121,29 @@ const formatDuration = (ms?: number | null) => {
 
 const CHARACTER_BLOCK_HEIGHT_PX = 128;
 
+const NODE_TITLE_MAP: Record<NodeType, string> = {
+  [NodeType.Text]: 'Text Node',
+  [NodeType.TextGenerator]: 'Text Generator',
+  [NodeType.StoryCharacterCreator]: 'Character Extractor',
+  [NodeType.StoryExpander]: 'Story Expander',
+  [NodeType.ShortStoryWriter]: 'Short Story Writer',
+  [NodeType.ScreenplayWriter]: 'Screenplay Writer',
+  [NodeType.Image]: 'Image Node',
+  [NodeType.ImageGenerator]: 'Image Generator',
+  [NodeType.CharacterGenerator]: 'Character Viz',
+  [NodeType.ImageEditor]: 'Image Editor',
+  [NodeType.ImageMixer]: 'Image Mixer',
+  [NodeType.VideoGenerator]: 'Video Generator',
+};
+
+const getNodeDisplayTitle = (node?: NodeData | null): string => {
+  if (!node) {
+    return 'Unknown node';
+  }
+
+  return NODE_TITLE_MAP[node.type] ?? 'Node';
+};
+
 const Node: React.FC<NodeProps> = ({
   node,
   allNodes,
@@ -145,6 +169,7 @@ const Node: React.FC<NodeProps> = ({
   onOutputMouseDown,
   onInputMouseDown,
   onInputMouseUp,
+  onRemoveConnection,
   onDelete,
   onDeleteDirectly,
   onDuplicate,
@@ -582,9 +607,41 @@ const Node: React.FC<NodeProps> = ({
       }
   };
   
+  const connectionBadgeRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [openConnectionsHandleId, setOpenConnectionsHandleId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!openConnectionsHandleId) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      const container = connectionBadgeRefs.current[openConnectionsHandleId];
+      if (container && target && container.contains(target)) {
+        return;
+      }
+      setOpenConnectionsHandleId(null);
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpenConnectionsHandleId(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [openConnectionsHandleId]);
+
   const renderHandles = (handles: NodeHandleSpec[], side: 'input' | 'output') => {
     return handles.map(handle => {
-      const isConnected = connections.some(c =>
+      const connectionsForHandle = connections.filter(c =>
         (side === 'input' && c.toNodeId === node.id && c.toHandleId === handle.id) ||
         (side === 'output' && c.fromNodeId === node.id && c.fromHandleId === handle.id)
       );
@@ -592,26 +649,124 @@ const Node: React.FC<NodeProps> = ({
       const isBeingDraggedOver = hoveredInputHandle?.nodeId === node.id && hoveredInputHandle?.handleId === handle.id;
       const isCompatible = tempConnectionInfo ? areHandlesCompatible(tempConnectionInfo.startHandleType, handle.type) : false;
 
+      const topPosition = isMinimized
+        ? (node.data.minimizedHandleYOffsets?.[handle.id] ?? getMinimizedHandleY(node, handle.id, side))
+        : (node.data.handleYOffsets?.[handle.id] ?? '50%');
+
+      const handlePositionStyle: React.CSSProperties = {
+        [side === 'input' ? 'left' : 'right']: '-8px',
+        top: topPosition,
+        transform: 'translateY(-50%)',
+        transition: 'top 0.3s ease-in-out',
+      };
+
+      const handleKey = `${side}:${handle.id}`;
+      const isBadgeOpen = openConnectionsHandleId === handleKey;
+
+      const handleColorClasses = styles.handle.typeColors[handle.type] || '';
+      const [handleBgClass = 'bg-gray-400', handleBorderClass = 'border-gray-500'] = handleColorClasses.split(' ');
+
       return (
-        <NodeHandle
-          key={handle.id}
-          onMouseDown={() => side === 'input' ? onInputMouseDown(node.id, handle.id) : onOutputMouseDown(node.id, handle.id)}
-          onMouseUp={() => side === 'input' ? onInputMouseUp(node.id, handle.id) : undefined}
-          onMouseEnter={() => side === 'input' ? setHoveredInputHandle({ nodeId: node.id, handleId: handle.id }) : undefined}
-          onMouseLeave={() => side === 'input' ? setHoveredInputHandle(null) : undefined}
-          isConnected={isConnected}
-          type={handle.type}
-          isBeingDraggedOver={isBeingDraggedOver}
-          isValidTarget={isCompatible}
-          style={{
-            [side === 'input' ? 'left' : 'right']: '-8px',
-            top: isMinimized
-              ? (node.data.minimizedHandleYOffsets?.[handle.id] ?? getMinimizedHandleY(node, handle.id, side))
-              : (node.data.handleYOffsets?.[handle.id] ?? '50%'),
-            transform: 'translateY(-50%)',
-            transition: 'top 0.3s ease-in-out',
-          }}
-        />
+        <React.Fragment key={handle.id}>
+          <NodeHandle
+            onMouseDown={(event) => side === 'input' ? onInputMouseDown(node.id, handle.id, event) : onOutputMouseDown(node.id, handle.id, event)}
+            onMouseUp={() => side === 'input' ? onInputMouseUp(node.id, handle.id) : undefined}
+            onMouseEnter={() => side === 'input' ? setHoveredInputHandle({ nodeId: node.id, handleId: handle.id }) : undefined}
+            onMouseLeave={() => side === 'input' ? setHoveredInputHandle(null) : undefined}
+            isConnected={connectionsForHandle.length > 0}
+            type={handle.type}
+            isBeingDraggedOver={isBeingDraggedOver}
+            isValidTarget={isCompatible}
+            style={handlePositionStyle}
+          />
+          {connectionsForHandle.length > 0 && (
+            <div
+              ref={el => { connectionBadgeRefs.current[handleKey] = el; }}
+              className="absolute z-20"
+              style={{
+                top: topPosition,
+                ...(side === 'input' ? { left: '-8px', transform: 'translateY(-50%) translateX(-16px)' } : { right: '-8px', transform: 'translateY(-50%) translateX(16px)' }),
+                transition: 'top 0.3s ease-in-out',
+              }}
+            >
+              <div className={`relative ${side === 'output' ? 'text-right' : 'text-left'}`}>
+                <button
+                  type="button"
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded-full border ${handleBorderClass} ${styles.node.bg} ${styles.node.text} shadow-sm text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-cyan-400`}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onMouseUp={(event) => event.stopPropagation()}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setOpenConnectionsHandleId(prev => (prev === handleKey ? null : handleKey));
+                  }}
+                  aria-expanded={isBadgeOpen}
+                  aria-label={`${connectionsForHandle.length} connection${connectionsForHandle.length === 1 ? '' : 's'} on ${side} handle ${handle.label}`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${handleBgClass}`} aria-hidden="true" />
+                  <span>{connectionsForHandle.length}</span>
+                </button>
+                {isBadgeOpen && (
+                  <div
+                    className={`absolute ${side === 'output' ? 'right-full mr-2' : 'left-full ml-2'} mt-2 min-w-[200px] rounded-lg border ${handleBorderClass} ${styles.node.bg} shadow-xl`}
+                  >
+                    <div className={`px-3 py-2 text-[11px] uppercase tracking-wide font-semibold ${styles.node.labelText}`}>
+                      {side === 'output' ? 'Connected to' : 'Receiving from'}
+                    </div>
+                    <div className="px-2 pb-2 pt-1 space-y-1">
+                      {connectionsForHandle.map(connection => {
+                        const counterpartNode = side === 'output'
+                          ? allNodes.find(n => n.id === connection.toNodeId)
+                          : allNodes.find(n => n.id === connection.fromNodeId);
+                        const counterpartHandleSpec = counterpartNode
+                          ? getHandleSpec(
+                              counterpartNode,
+                              side === 'output' ? connection.toHandleId : connection.fromHandleId,
+                              side === 'output' ? 'input' : 'output'
+                            )
+                          : undefined;
+
+                        const connectionLabel = counterpartHandleSpec?.label || (side === 'output' ? connection.toHandleId : connection.fromHandleId);
+                        const directionArrow = side === 'output' ? '→' : '←';
+
+                        return (
+                          <div
+                            key={connection.id}
+                            className={`flex items-center justify-between gap-2 rounded-md px-2 py-1 text-xs transition-colors ${styles.node.text} hover:bg-gray-500/10`}
+                          >
+                            <div className="flex items-start gap-2">
+                              <span className={`mt-1 w-2 h-2 rounded-full ${handleBgClass}`} aria-hidden="true" />
+                              <div className="flex flex-col">
+                                <span className="font-medium leading-tight">{getNodeDisplayTitle(counterpartNode)}</span>
+                                <span className={`text-[10px] ${styles.node.labelText} leading-tight`}>
+                                  {directionArrow} {connectionLabel}
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              className="p-1 text-red-400 hover:text-red-300"
+                              onMouseDown={(event) => event.stopPropagation()}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onRemoveConnection(connection.id);
+                                if (connectionsForHandle.length <= 1) {
+                                  setOpenConnectionsHandleId(null);
+                                }
+                              }}
+                              aria-label={`Remove connection ${directionArrow} ${connectionLabel}`}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </React.Fragment>
       );
     });
   };
