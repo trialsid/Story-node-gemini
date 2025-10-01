@@ -1665,51 +1665,82 @@ const AppContent: React.FC = () => {
     setCanvasOffset({ x: newOffsetX, y: newOffsetY });
   }, [zoom, canvasOffset]);
 
-  const handleOutputMouseDown = useCallback((nodeId: string, handleId: string) => {
+  const removeConnection = useCallback((connectionId: string) => {
+    setCanvasState(prevState => {
+      const existingConnection = prevState.connections.find(c => c.id === connectionId);
+      if (!existingConnection) {
+        return prevState;
+      }
+
+      const updatedConnections = prevState.connections.filter(c => c.id !== connectionId);
+
+      return {
+        ...prevState,
+        connections: updatedConnections,
+      };
+    });
+  }, [setCanvasState]);
+
+  const handleOutputMouseDown = useCallback((nodeId: string, handleId: string, event?: React.MouseEvent) => {
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
     const handleSpec = getHandleSpec(node, handleId, 'output');
     if (!handleSpec) return;
 
-    setCanvasState(prev => ({ ...prev, connections: prev.connections.filter(c => !(c.fromNodeId === nodeId && c.fromHandleId === handleId)) }));
+    if (event?.altKey) {
+      const connectionsToRemove = connections
+        .filter(c => c.fromNodeId === nodeId && c.fromHandleId === handleId)
+        .map(c => c.id);
+
+      connectionsToRemove.forEach(connectionId => removeConnection(connectionId));
+      setTempConnectionInfo(null);
+      return;
+    }
 
     setTempConnectionInfo({
       startNodeId: nodeId,
       startHandleId: handleId,
       startHandleType: handleSpec.type,
     });
-  }, [nodes, setCanvasState]);
+  }, [connections, nodes, removeConnection]);
 
-  const handleInputMouseDown = useCallback((nodeId: string, handleId: string) => {
+  const handleInputMouseDown = useCallback((nodeId: string, handleId: string, event?: React.MouseEvent) => {
     const clickedNode = nodes.find(n => n.id === nodeId);
-    const isMixerMultiInput = clickedNode?.type === NodeType.ImageMixer && handleId === 'image_input';
+    if (!clickedNode) return;
 
-    if (isMixerMultiInput) {
-        // Just break all connections to this input, don't start a new temp connection
-        setCanvasState(prev => ({
-            ...prev,
-            connections: prev.connections.filter(c => !(c.toNodeId === nodeId && c.toHandleId === handleId))
-        }));
-        setTempConnectionInfo(null);
-        return;
+    const isMixerMultiInput = clickedNode.type === NodeType.ImageMixer && handleId === 'image_input';
+
+    if (event?.altKey) {
+      const connectionsToRemove = connections
+        .filter(c => c.toNodeId === nodeId && c.toHandleId === handleId)
+        .map(c => c.id);
+      connectionsToRemove.forEach(connectionId => removeConnection(connectionId));
+      setTempConnectionInfo(null);
+      return;
     }
 
-    const connection = connections.find(c => c.toNodeId === nodeId && c.toHandleId === handleId);
-    if (connection) {
-        setCanvasState(prev => ({ ...prev, connections: prev.connections.filter(c => c.id !== connection.id) }));
-        
-        const fromNode = nodes.find(n => n.id === connection.fromNodeId);
-        if (!fromNode) return;
-        const fromHandleSpec = getHandleSpec(fromNode, connection.fromHandleId, 'output');
-        if (!fromHandleSpec) return;
-
-        setTempConnectionInfo({
-            startNodeId: connection.fromNodeId,
-            startHandleId: connection.fromHandleId,
-            startHandleType: fromHandleSpec.type,
-        });
+    const inboundConnections = connections.filter(c => c.toNodeId === nodeId && c.toHandleId === handleId);
+    if (inboundConnections.length === 0) {
+      return;
     }
-  }, [connections, setCanvasState, nodes]);
+
+    const connectionToReuse = isMixerMultiInput
+      ? inboundConnections[inboundConnections.length - 1]
+      : inboundConnections[0];
+
+    const fromNode = nodes.find(n => n.id === connectionToReuse.fromNodeId);
+    if (!fromNode) return;
+    const fromHandleSpec = getHandleSpec(fromNode, connectionToReuse.fromHandleId, 'output');
+    if (!fromHandleSpec) return;
+
+    removeConnection(connectionToReuse.id);
+
+    setTempConnectionInfo({
+      startNodeId: connectionToReuse.fromNodeId,
+      startHandleId: connectionToReuse.fromHandleId,
+      startHandleType: fromHandleSpec.type,
+    });
+  }, [connections, nodes, removeConnection]);
 
   const handleInputMouseUp = useCallback((toNodeId: string, toHandleId: string) => {
     if (!tempConnectionInfo) return;
@@ -2391,6 +2422,7 @@ const AppContent: React.FC = () => {
         onOutputMouseDown={handleOutputMouseDown}
         onInputMouseDown={handleInputMouseDown}
         onInputMouseUp={handleInputMouseUp}
+        onRemoveConnection={removeConnection}
         onDeleteNode={requestDeleteNode}
         onDeleteNodeDirectly={deleteNodeDirectly}
         onDuplicateNode={duplicateNode}

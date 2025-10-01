@@ -43,9 +43,10 @@ interface CanvasProps {
   onGenerateScreenplay: (nodeId: string) => void;
   onOpenTextModal: (title: string, text: string) => void;
   onImageClick: (imageUrl: string) => void;
-  onOutputMouseDown: (nodeId: string, handleId: string) => void;
-  onInputMouseDown: (nodeId: string, handleId: string) => void;
+  onOutputMouseDown: (nodeId: string, handleId: string, event?: React.MouseEvent) => void;
+  onInputMouseDown: (nodeId: string, handleId: string, event?: React.MouseEvent) => void;
   onInputMouseUp: (nodeId: string, handleId: string) => void;
+  onRemoveConnection: (connectionId: string) => void;
   onDeleteNode: (nodeId: string) => void;
   onDeleteNodeDirectly: (nodeId: string) => void;
   onDuplicateNode: (nodeId: string) => string | null;
@@ -104,6 +105,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
   mousePosition,
   hoveredInputHandle,
   setHoveredInputHandle,
+  onRemoveConnection,
 }, ref) => {
   const { styles } = useTheme();
   const baseGridSize = 24;
@@ -193,6 +195,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
             onOutputMouseDown={onOutputMouseDown}
             onInputMouseDown={onInputMouseDown}
             onInputMouseUp={onInputMouseUp}
+            onRemoveConnection={onRemoveConnection}
             onDelete={onDeleteNode}
             onDeleteDirectly={onDeleteNodeDirectly}
             onDuplicate={onDuplicateNode}
