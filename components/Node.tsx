@@ -36,6 +36,7 @@ interface NodeProps {
   onGenerateCharacters: (nodeId: string) => void;
   onExpandStory: (nodeId: string) => void;
   onGenerateShortStory: (nodeId: string) => void;
+  onGenerateScreenplay: (nodeId: string) => void;
   onOpenTextModal: (title: string, text: string) => void;
   onImageClick: (imageUrl: string) => void;
   onOutputMouseDown: (nodeId: string, handleId: string) => void;
@@ -138,6 +139,7 @@ const Node: React.FC<NodeProps> = ({
   onGenerateCharacters,
   onExpandStory,
   onGenerateShortStory,
+  onGenerateScreenplay,
   onOpenTextModal,
   onImageClick,
   onOutputMouseDown,
@@ -262,6 +264,8 @@ const Node: React.FC<NodeProps> = ({
         onGenerateCharacters(node.id);
       } else if (nodeType === NodeType.StoryExpander) {
         onExpandStory(node.id);
+      } else if (nodeType === NodeType.ScreenplayWriter) {
+        onGenerateScreenplay(node.id);
       }
     }
   };
@@ -1010,6 +1014,81 @@ const Node: React.FC<NodeProps> = ({
           {isMinimized && (
             <div className={`p-2 h-16 text-xs italic ${styles.node.labelText} truncate rounded-b-md flex items-center border-t ${styles.node.border}`}>
               {node.data.fullStory || "No story generated."}
+            </div>
+          )}
+        </>
+      )}
+
+      {node.type === NodeType.ScreenplayWriter && (
+        <>
+          <NodeHeader
+            title='Screenplay Writer'
+            icon={<Clapperboard className="w-4 h-4 text-purple-400" />}
+            isMinimized={isMinimized}
+            onToggleMinimize={() => onToggleMinimize(node.id)}
+            onDelete={handleDelete}
+            onShowDeleteConfirmation={handleShowDeleteConfirmation}
+            onMouseDown={handleHeaderMouseDown}
+            onContextMenu={handleHeaderContextMenu}
+          />
+          <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
+            <div className="p-2 space-y-2">
+              <div ref={el => handleAnchorRefs.current['prompt_input'] = el}>
+                <label htmlFor={`screenplay-prompt-${node.id}`} className={labelClassName}>Story Prompt</label>
+                <textarea
+                  id={`screenplay-prompt-${node.id}`}
+                  value={node.data.storyPrompt || ''}
+                  onChange={(e) => onUpdateData(node.id, { storyPrompt: e.target.value })}
+                  onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.ScreenplayWriter)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className={`${textAreaClassName(connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input'))} h-24`}
+                  disabled={connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input')}
+                  placeholder="e.g., A detective finds a hidden library beneath the city..."
+                />
+              </div>
+
+              {node.data.isLoading ? (
+                <div className={`${imagePreviewBaseClassName} h-48 flex items-center justify-center`}>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
+                </div>
+              ) : node.data.error ? (
+                <div className={`${textAreaClassName(true)} p-2 text-red-400 text-xs text-center`}>{node.data.error}</div>
+              ) : (
+                <>
+                  <div ref={el => handleAnchorRefs.current['pitch_output'] = el}>
+                    <label className={labelClassName}>Director's Pitch</label>
+                    <div className={`${textAreaClassName(true)} min-h-[5rem] max-h-40 custom-scrollbar overflow-y-auto`}>
+                      <p className="text-xs break-words whitespace-pre-wrap">
+                        {node.data.pitch || 'Pitch will appear here...'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div ref={el => handleAnchorRefs.current['screenplay_output'] = el}>
+                    <label className={labelClassName}>Screenplay Scene</label>
+                    <textarea
+                      readOnly
+                      value={node.data.screenplayText || 'Screenplay will appear here...'}
+                      className={`${textAreaClassName(true)} h-64 custom-scrollbar text-xs font-mono`}
+                    />
+                  </div>
+                </>
+              )}
+
+              <button
+                onClick={() => onGenerateScreenplay(node.id)}
+                disabled={node.data.isLoading}
+                className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-purple-600 hover:bg-purple-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`}
+              >
+                <Sparkles className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                {node.data.isLoading ? 'Generating...' : 'Generate Screenplay'}
+              </button>
+            </div>
+          </div>
+
+          {isMinimized && (
+            <div className={`p-2 h-16 text-xs italic ${styles.node.labelText} truncate rounded-b-md flex items-center border-t ${styles.node.border}`}>
+              {node.data.pitch ? 'Pitch & screenplay generated.' : 'No screenplay generated.'}
             </div>
           )}
         </>

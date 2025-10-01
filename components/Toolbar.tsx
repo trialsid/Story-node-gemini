@@ -27,6 +27,7 @@ interface ToolbarProps {
   onAddStoryCharacterCreatorNode: () => void;
   onAddStoryExpanderNode: () => void;
   onAddShortStoryWriterNode: () => void;
+  onAddScreenplayWriterNode: () => void;
   onAddImageNode: () => void;
   onAddImageEditorNode: () => void;
   onAddImageMixerNode: () => void;
@@ -84,8 +85,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddStoryCharacterCreatorNode,
     onAddStoryExpanderNode,
     onAddShortStoryWriterNode,
+    onAddScreenplayWriterNode,
     onAddImageNode,
-    onAddImageEditorNode, 
+    onAddImageEditorNode,
     onAddImageMixerNode,
     onAddVideoGeneratorNode,
     onUndo,
@@ -161,6 +163,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddStoryCharacterCreatorNode,
     onAddStoryExpanderNode,
     onAddShortStoryWriterNode,
+    onAddScreenplayWriterNode,
     onAddImageEditorNode,
     onAddImageMixerNode,
     onAddVideoGeneratorNode,
@@ -173,6 +176,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddStoryCharacterCreatorNode,
     onAddStoryExpanderNode,
     onAddShortStoryWriterNode,
+    onAddScreenplayWriterNode,
     onAddImageEditorNode,
     onAddImageMixerNode,
     onAddVideoGeneratorNode,
@@ -187,6 +191,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddStoryCharacterCreatorNode,
     onAddStoryExpanderNode,
     onAddShortStoryWriterNode,
+    onAddScreenplayWriterNode,
     onAddImageEditorNode,
     onAddImageMixerNode,
     onAddVideoGeneratorNode,
@@ -195,6 +200,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddStoryCharacterCreatorNode,
     onAddStoryExpanderNode,
     onAddShortStoryWriterNode,
+    onAddScreenplayWriterNode,
   ]);
 
   const createProjectActionHandler = (action: () => void | boolean | Promise<void | boolean>) => () => {

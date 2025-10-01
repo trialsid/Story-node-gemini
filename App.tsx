@@ -5,7 +5,7 @@ import Toolbar from './components/Toolbar';
 import ImageModal from './components/ImageModal';
 import ConfirmationModal from './components/ConfirmationModal';
 import TextModal from './components/TextModal';
-import { generateCharacterSheet, editImageWithPrompt, generateVideoFromPrompt, generateTextFromPrompt, generateImages, mixImagesWithPrompt, generateCharactersFromStory, expandStoryFromPremise, generateShortStory } from './services/geminiService';
+import { generateCharacterSheet, editImageWithPrompt, generateVideoFromPrompt, generateTextFromPrompt, generateImages, mixImagesWithPrompt, generateCharactersFromStory, expandStoryFromPremise, generateShortStory, generateScreenplay } from './services/geminiService';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { useUserPreferences } from './contexts/UserPreferencesContext';
 import ThemeSwitcher from './components/ThemeSwitcher';
@@ -39,6 +39,7 @@ const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } }
   [NodeType.StoryCharacterCreator]: { width: 256 },
   [NodeType.StoryExpander]: { width: 256 },
   [NodeType.ShortStoryWriter]: { width: 280 },
+  [NodeType.ScreenplayWriter]: { width: 280 },
 };
 
 const EMPTY_CANVAS_STATE: CanvasState = { nodes: [], connections: [] };
@@ -116,6 +117,10 @@ const createDefaultDataForType = (type: NodeType): NodeData['data'] => {
         storyPremise: 'A lonely lighthouse keeper finds a mysterious creature washed ashore',
         pointOfView: 'Third-person limited',
       } as NodeData['data'];
+    case NodeType.ScreenplayWriter:
+      return {
+        storyPrompt: 'A rookie detective uncovers a hidden society beneath the city',
+      } as NodeData['data'];
     default:
       return {} as NodeData['data'];
   }
@@ -152,6 +157,10 @@ const sanitizeNodeDataForDuplication = (node: NodeData): NodeData['data'] => {
       break;
     case NodeType.StoryCharacterCreator:
       delete (clone as any).characters;
+      break;
+    case NodeType.ScreenplayWriter:
+      delete (clone as any).pitch;
+      delete (clone as any).screenplayText;
       break;
     default:
       break;
@@ -1293,6 +1302,28 @@ const AppContent: React.FC = () => {
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
 
+  const addScreenplayWriterNode = useCallback((pos?: { x: number; y: number }) => {
+    let newNodePosition: { x: number, y: number };
+    if (pos) {
+        newNodePosition = pos;
+        setLastAddedNodePosition(null);
+    } else {
+        const nextPos = lastAddedNodePosition
+            ? { x: lastAddedNodePosition.x + 32, y: lastAddedNodePosition.y + 32 }
+            : { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom };
+        newNodePosition = nextPos;
+        setLastAddedNodePosition(nextPos);
+    }
+
+    const newNode: NodeData = {
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type: NodeType.ScreenplayWriter,
+      position: newNodePosition,
+      data: createDefaultDataForType(NodeType.ScreenplayWriter),
+    };
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+  }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
+
   const toggleNodeMinimization = useCallback((nodeId: string) => {
     setCanvasState(prevState => ({
         ...prevState,
@@ -1746,6 +1777,8 @@ const AppContent: React.FC = () => {
                     dataToUpdate = { premise: fromNode.data.text };
                 } else if (toNode.type === NodeType.ShortStoryWriter && toHandleId === 'premise_input') {
                     dataToUpdate = { storyPremise: fromNode.data.text };
+                } else if (toNode.type === NodeType.ScreenplayWriter && toHandleId === 'prompt_input') {
+                    dataToUpdate = { storyPrompt: fromNode.data.text };
                 }
             } else if ((fromNode.type === NodeType.CharacterGenerator || fromNode.type === NodeType.ImageEditor || fromNode.type === NodeType.Image) && 'imageUrl' in fromNode.data) {
                  if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && toHandleId === 'image_input') {
@@ -1767,6 +1800,33 @@ const AppContent: React.FC = () => {
                     const characterDescription = fromNode.data.characters[characterIndex]?.description;
                     if (characterDescription && toNode.type === NodeType.CharacterGenerator && toHandleId === 'description_input') {
                         dataToUpdate = { characterDescription };
+                    }
+                }
+            } else if (fromNode.type === NodeType.ScreenplayWriter) {
+                let textToPropagate: string | undefined;
+                if (startHandleId === 'pitch_output') {
+                    textToPropagate = fromNode.data.pitch;
+                } else if (startHandleId === 'screenplay_output') {
+                    textToPropagate = fromNode.data.screenplayText;
+                }
+
+                if (textToPropagate) {
+                    if (toNode.type === NodeType.CharacterGenerator && toHandleId === 'description_input') {
+                        dataToUpdate = { characterDescription: textToPropagate };
+                    } else if (toNode.type === NodeType.ImageGenerator && toHandleId === 'prompt_input') {
+                        dataToUpdate = { prompt: textToPropagate };
+                    } else if (toNode.type === NodeType.VideoGenerator && toHandleId === 'prompt_input') {
+                        dataToUpdate = { editDescription: textToPropagate };
+                    } else if (toNode.type === NodeType.TextGenerator && toHandleId === 'prompt_input') {
+                        dataToUpdate = { prompt: textToPropagate };
+                    } else if (toNode.type === NodeType.StoryCharacterCreator && toHandleId === 'prompt_input') {
+                        dataToUpdate = { storyPrompt: textToPropagate };
+                    } else if (toNode.type === NodeType.StoryExpander && toHandleId === 'premise_input') {
+                        dataToUpdate = { premise: textToPropagate };
+                    } else if (toNode.type === NodeType.ShortStoryWriter && toHandleId === 'premise_input') {
+                        dataToUpdate = { storyPremise: textToPropagate };
+                    } else if (toNode.type === NodeType.ScreenplayWriter && toHandleId === 'prompt_input') {
+                        dataToUpdate = { storyPrompt: textToPropagate };
                     }
                 }
             }
@@ -1914,6 +1974,30 @@ const AppContent: React.FC = () => {
         sourceNode.data.pointOfView || 'Third-person limited'
       );
       updateNodeData(nodeId, { fullStory: fullStory, isLoading: false });
+    } catch (error) {
+      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      updateNodeData(nodeId, { error: errorMessage, isLoading: false });
+    }
+  }, [nodes, updateNodeData]);
+
+  const handleGenerateScreenplay = useCallback(async (nodeId: string) => {
+    const sourceNode = nodes.find(n => n.id === nodeId);
+    if (!sourceNode || sourceNode.type !== NodeType.ScreenplayWriter) {
+      return;
+    }
+
+    const storyPrompt = sourceNode.data.storyPrompt?.trim();
+    if (!storyPrompt) {
+      updateNodeData(nodeId, { error: 'Story prompt cannot be empty.' });
+      return;
+    }
+
+    updateNodeData(nodeId, { isLoading: true, error: undefined, pitch: undefined, screenplayText: undefined });
+
+    try {
+      const result = await generateScreenplay(storyPrompt);
+      updateNodeData(nodeId, { pitch: result.pitch, screenplayText: result.screenplay, isLoading: false });
     } catch (error) {
       console.error(error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -2152,6 +2236,7 @@ const AppContent: React.FC = () => {
       onAddStoryCharacterCreatorNode: () => addStoryCharacterCreatorNode(position),
       onAddStoryExpanderNode: () => addStoryExpanderNode(position),
       onAddShortStoryWriterNode: () => addShortStoryWriterNode(position),
+      onAddScreenplayWriterNode: () => addScreenplayWriterNode(position),
       onAddImageEditorNode: () => addImageEditorNode(position),
       onAddImageMixerNode: () => addImageMixerNode(position),
       onAddVideoGeneratorNode: () => addVideoGeneratorNode(position),
@@ -2165,6 +2250,7 @@ const AppContent: React.FC = () => {
     addNode,
     addStoryCharacterCreatorNode,
     addStoryExpanderNode,
+    addScreenplayWriterNode,
     addImageEditorNode,
     addImageMixerNode,
     addVideoGeneratorNode,
@@ -2213,6 +2299,7 @@ const AppContent: React.FC = () => {
         onAddStoryCharacterCreatorNode={() => addStoryCharacterCreatorNode()}
         onAddStoryExpanderNode={() => addStoryExpanderNode()}
         onAddShortStoryWriterNode={() => addShortStoryWriterNode()}
+        onAddScreenplayWriterNode={() => addScreenplayWriterNode()}
         onAddImageNode={() => addImageNode()}
         onAddImageEditorNode={() => addImageEditorNode()}
         onAddImageMixerNode={() => addImageMixerNode()}
@@ -2295,6 +2382,7 @@ const AppContent: React.FC = () => {
         onGenerateCharacters={handleGenerateCharacters}
         onExpandStory={handleExpandStory}
         onGenerateShortStory={handleGenerateShortStory}
+        onGenerateScreenplay={handleGenerateScreenplay}
         onOpenTextModal={handleOpenTextModal}
         onEditImage={handleEditImage}
         onMixImages={handleMixImages}

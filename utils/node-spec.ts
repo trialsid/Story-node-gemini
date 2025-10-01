@@ -57,6 +57,13 @@ export const NODE_SPEC: { [key in NodeType]: NodeSpec } = {
     inputs: [{ id: 'premise_input', type: HandleType.Text, label: 'Story Premise' }],
     outputs: [{ id: 'story_output', type: HandleType.Text, label: 'Full Story' }],
   },
+  [NodeType.ScreenplayWriter]: {
+    inputs: [{ id: 'prompt_input', type: HandleType.Text, label: 'Story Prompt' }],
+    outputs: [
+      { id: 'pitch_output', type: HandleType.Text, label: "Director's Pitch" },
+      { id: 'screenplay_output', type: HandleType.Text, label: 'Screenplay Text' },
+    ],
+  },
   [NodeType.VideoGenerator]: {
     inputs: [
       { id: 'image_input', type: HandleType.Image, label: 'Input Image (Optional)' },
