@@ -10,6 +10,7 @@ export enum NodeType {
   StoryCharacterCreator = 'STORY_CHARACTER_CREATOR_NODE',
   StoryExpander = 'STORY_EXPANDER_NODE',
   ShortStoryWriter = 'SHORT_STORY_WRITER_NODE',
+  ScreenplayWriter = 'SCREENPLAY_WRITER_NODE',
 }
 
 export enum HandleType {
@@ -92,6 +93,10 @@ export interface NodeData {
     storyPremise?: string;
     pointOfView?: string;
     fullStory?: string;
+
+    // For Screenplay Writer
+    pitch?: string;
+    screenplayText?: string;
   };
 }
 

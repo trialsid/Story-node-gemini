@@ -156,6 +156,75 @@ Part 4: Writing Style & Execution
     throw new Error(getFriendlyErrorMessage(lastError));
 };
 
+export const generateScreenplay = async (
+    storyPrompt: string
+): Promise<{ pitch: string; screenplay: string }> => {
+    if (!ai) {
+        throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
+    }
+
+    const trimmedPrompt = storyPrompt?.trim();
+    if (!trimmedPrompt) {
+        throw new Error("Please provide a story prompt.");
+    }
+
+    const prompt = `You are a viral screenplay writer. Your task is to take a story prompt and turn it into two things:
+1. A short, punchy director's pitch that captures the essence of the story.
+2. The first scene of the screenplay, written in standard screenplay format.
+
+Story Prompt: "${trimmedPrompt}"
+
+Return the result as a single JSON object with two keys: "pitch" and "screenplay".`;
+
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: {
+                    responseMimeType: 'application/json',
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            pitch: { type: Type.STRING },
+                            screenplay: { type: Type.STRING },
+                        },
+                        required: ['pitch', 'screenplay'],
+                    },
+                },
+            });
+
+            const text = response.text;
+            if (!text) {
+                throw new Error('The model returned an empty response.');
+            }
+
+            let parsed: { pitch?: unknown; screenplay?: unknown };
+            try {
+                parsed = JSON.parse(text);
+            } catch (parseError) {
+                throw new Error('The model returned an invalid format for the screenplay.');
+            }
+
+            if (typeof parsed.pitch !== 'string' || typeof parsed.screenplay !== 'string') {
+                throw new Error('The model returned an invalid format for the screenplay.');
+            }
+
+            return { pitch: parsed.pitch, screenplay: parsed.screenplay };
+        } catch (error) {
+            lastError = error;
+            console.error(`Attempt ${attempt} failed:`, error);
+            if (attempt < MAX_RETRIES) {
+                await sleep(INITIAL_DELAY_MS * Math.pow(2, attempt - 1));
+            }
+        }
+    }
+
+    throw new Error(getFriendlyErrorMessage(lastError));
+};
+
 export const expandStoryFromPremise = async (
     premise: string,
     length: 'short' | 'medium' = 'short',
