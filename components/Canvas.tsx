@@ -224,9 +224,13 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
                   const fromPos = getNodeHandlePosition(fromNode, conn.fromHandleId, 'output');
                   const toPos = getNodeHandlePosition(toNode, conn.toHandleId, 'input');
                   
+                  const toHandleSpec = getHandleSpec(toNode, conn.toHandleId, 'input');
+                  const allowsMultipleConnections = toHandleSpec?.allowMultipleConnections ?? false;
+
                   const isPendingReplacement = tempConnectionInfo !== null &&
                     conn.toNodeId === hoveredInputHandle?.nodeId &&
-                    conn.toHandleId === hoveredInputHandle?.handleId;
+                    conn.toHandleId === hoveredInputHandle?.handleId &&
+                    !allowsMultipleConnections;
 
                   const fromHandleSpec = getHandleSpec(fromNode, conn.fromHandleId, 'output');
                   if (!fromHandleSpec) return null;

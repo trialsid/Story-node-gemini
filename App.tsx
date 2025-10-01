@@ -1708,7 +1708,8 @@ const AppContent: React.FC = () => {
     const clickedNode = nodes.find(n => n.id === nodeId);
     if (!clickedNode) return;
 
-    const isMixerMultiInput = clickedNode.type === NodeType.ImageMixer && handleId === 'image_input';
+    const clickedHandleSpec = getHandleSpec(clickedNode, handleId, 'input');
+    const allowsMultipleConnections = clickedHandleSpec?.allowMultipleConnections ?? false;
 
     if (event?.altKey) {
       const connectionsToRemove = connections
@@ -1724,7 +1725,7 @@ const AppContent: React.FC = () => {
       return;
     }
 
-    const connectionToReuse = isMixerMultiInput
+    const connectionToReuse = allowsMultipleConnections
       ? inboundConnections[inboundConnections.length - 1]
       : inboundConnections[0];
 
@@ -1769,22 +1770,26 @@ const AppContent: React.FC = () => {
     };
     
     setCanvasState(prevState => {
-        const isMixerMultiInput = toNode.type === NodeType.ImageMixer && toHandleId === 'image_input';
+        const allowsMultipleConnections = toHandleSpec.allowMultipleConnections ?? false;
 
         let connectionsToKeep = prevState.connections;
-        if (!isMixerMultiInput) {
+        if (!allowsMultipleConnections) {
             // Default behavior: filter out any existing connections to this input
             connectionsToKeep = connectionsToKeep.filter(c => !(c.toNodeId === toNodeId && c.toHandleId === toHandleId));
         }
 
+        if (connectionsToKeep.some(connection => connection.id === newConnection.id)) {
+            return prevState;
+        }
+
         const newConnections = [...connectionsToKeep, newConnection];
         let newNodes = [...prevState.nodes];
-        
+
         const fromNode = newNodes.find(n => n.id === startNodeId);
         const toNodeIndex = newNodes.findIndex(n => n.id === toNodeId);
-        
+
         // Data propagation (except for mixer, which resolves inputs at generation time)
-        if (fromNode && toNodeIndex !== -1 && !isMixerMultiInput) {
+        if (fromNode && toNodeIndex !== -1 && !allowsMultipleConnections) {
             let dataToUpdate: Partial<NodeData['data']> = {};
             const toNode = newNodes[toNodeIndex];
 

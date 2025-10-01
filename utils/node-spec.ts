@@ -4,6 +4,7 @@ export interface NodeHandleSpec {
   id: string;
   type: HandleType;
   label: string;
+  allowMultipleConnections?: boolean;
 }
 
 export interface NodeSpec {
@@ -14,11 +15,11 @@ export interface NodeSpec {
 export const NODE_SPEC: { [key in NodeType]: NodeSpec } = {
   [NodeType.Text]: {
     inputs: [],
-    outputs: [{ id: 'text_output', type: HandleType.Text, label: 'Text' }],
+    outputs: [{ id: 'text_output', type: HandleType.Text, label: 'Text', allowMultipleConnections: true }],
   },
   [NodeType.Image]: {
     inputs: [],
-    outputs: [{ id: 'image_output', type: HandleType.Image, label: 'Image' }],
+    outputs: [{ id: 'image_output', type: HandleType.Image, label: 'Image', allowMultipleConnections: true }],
   },
   [NodeType.TextGenerator]: {
     inputs: [{ id: 'prompt_input', type: HandleType.Text, label: 'Prompt' }],
@@ -42,7 +43,7 @@ export const NODE_SPEC: { [key in NodeType]: NodeSpec } = {
     outputs: [{ id: 'image_output', type: HandleType.Image, label: 'Output Image' }],
   },
   [NodeType.ImageMixer]: {
-    inputs: [{ id: 'image_input', type: HandleType.Image, label: 'Images' }],
+    inputs: [{ id: 'image_input', type: HandleType.Image, label: 'Images', allowMultipleConnections: true }],
     outputs: [{ id: 'image_output', type: HandleType.Image, label: 'Mixed Image' }],
   },
   [NodeType.StoryCharacterCreator]: {
