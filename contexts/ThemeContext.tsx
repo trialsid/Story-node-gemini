@@ -50,6 +50,10 @@ export const themes = {
       cancelButton: 'bg-gray-600 hover:bg-gray-500',
       cancelFocusRing: 'focus:ring-gray-500',
       focusRingOffset: 'focus:ring-offset-gray-800',
+      saveButton: 'bg-emerald-600 hover:bg-emerald-500',
+      saveFocusRing: 'focus:ring-emerald-500',
+      discardButton: 'bg-rose-600 hover:bg-rose-500',
+      discardFocusRing: 'focus:ring-rose-500',
     },
     handle: {
       border: 'border-gray-400',
@@ -131,6 +135,10 @@ export const themes = {
       cancelButton: 'bg-gray-200 hover:bg-gray-300',
       cancelFocusRing: 'focus:ring-gray-400',
       focusRingOffset: 'focus:ring-offset-white',
+      saveButton: 'bg-green-600 hover:bg-green-500',
+      saveFocusRing: 'focus:ring-green-500',
+      discardButton: 'bg-orange-600 hover:bg-orange-500',
+      discardFocusRing: 'focus:ring-orange-500',
     },
     handle: {
       border: 'border-gray-400',
@@ -212,6 +220,10 @@ export const themes = {
       cancelButton: 'bg-stone-600 hover:bg-stone-500',
       cancelFocusRing: 'focus:ring-stone-500',
       focusRingOffset: 'focus:ring-offset-stone-800',
+      saveButton: 'bg-teal-600 hover:bg-teal-500',
+      saveFocusRing: 'focus:ring-teal-500',
+      discardButton: 'bg-amber-700 hover:bg-amber-600',
+      discardFocusRing: 'focus:ring-amber-600',
     },
     handle: {
       border: 'border-stone-400',

@@ -16,6 +16,7 @@ import { templates } from './utils/templates';
 import ContextMenuWithSubmenu from './components/ContextMenuWithSubmenu';
 import SettingsModal from './components/SettingsModal';
 import HelpModal from './components/HelpModal';
+import HomeNavigationModal from './components/HomeNavigationModal';
 import { Settings, HelpCircle } from 'lucide-react';
 import { useHistory } from './hooks/useHistory';
 import { areHandlesCompatible } from './utils/node-spec';
@@ -198,7 +199,7 @@ const AppContent: React.FC = () => {
   const [canvasOffset, setCanvasOffset] = useState({ x: 50, y: 50 });
   const [zoom, setZoom] = useState(1);
   const [showLauncherModal, setShowLauncherModal] = useState(false);
-  const [isNavigatingHome, setIsNavigatingHome] = useState(false);
+  const [isHomeNavigationModalOpen, setIsHomeNavigationModalOpen] = useState(false);
   const [isClearingCanvas, setIsClearingCanvas] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ isOpen: boolean; x: number; y: number; canvasX: number; canvasY: number; } | null>(null);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -580,6 +581,39 @@ const AppContent: React.FC = () => {
     return true;
   }, [resetHistory]);
 
+  const clearCanvasAndOpenLauncher = useCallback(async (): Promise<boolean> => {
+    const result = await handleClearCurrentProject();
+    if (result !== false) {
+      setShowLauncherModal(true);
+      setIsHomeNavigationModalOpen(false);
+      setLastAddedNodePosition(null);
+      setContextMenu(null);
+      setModalImageUrl(null);
+      setTextModalData(null);
+      setNodeToDelete(null);
+      setTempConnectionInfo(null);
+      setHoveredInputHandle(null);
+      setDraggingNodeId(null);
+      setSelectedNodeIds(new Set());
+    }
+    return result;
+  }, [handleClearCurrentProject]);
+
+  const handleHomeModalSave = useCallback(async () => {
+    const success = currentProject ? await handleProjectSave() : await handleProjectSaveAs();
+    if (success) {
+      await clearCanvasAndOpenLauncher();
+    }
+  }, [clearCanvasAndOpenLauncher, currentProject, handleProjectSave, handleProjectSaveAs]);
+
+  const handleHomeModalDiscard = useCallback(async () => {
+    await clearCanvasAndOpenLauncher();
+  }, [clearCanvasAndOpenLauncher]);
+
+  const handleHomeModalCancel = useCallback(() => {
+    setIsHomeNavigationModalOpen(false);
+  }, []);
+
   const handleSelectProject = useCallback((projectId: string): Promise<boolean> => {
     if (!projectId || projectId === currentProject?.id) {
       return Promise.resolve(false);
@@ -899,23 +933,16 @@ const AppContent: React.FC = () => {
   }, [resetHistory]);
 
   const handleNavigateHome = useCallback(() => {
-    if (nodes.length > 0) {
-        setIsNavigatingHome(true);
-    } else {
-        setShowLauncherModal(true);
+    if (isProjectSaving) {
+      return;
     }
-  }, [nodes.length]);
 
-  const confirmNavigateHome = () => {
-    resetHistory({ nodes: [], connections: [] });
-    setShowWelcomeModal(true);
-    setIsNavigatingHome(false);
-    setLastAddedNodePosition(null);
-  };
-
-  const cancelNavigateHome = () => {
-    setIsNavigatingHome(false);
-  };
+    if (hasUnsavedChanges) {
+      setIsHomeNavigationModalOpen(true);
+    } else {
+      clearCanvasAndOpenLauncher();
+    }
+  }, [clearCanvasAndOpenLauncher, hasUnsavedChanges, isProjectSaving]);
 
   const handleClearCanvasRequest = useCallback(() => {
     if (nodes.length > 0) {
@@ -2303,17 +2330,14 @@ const AppContent: React.FC = () => {
           message="Are you sure you want to delete this node? This action cannot be undone."
         />
       )}
-      {isNavigatingHome && (
-        <ConfirmationModal
-            isOpen={isNavigatingHome}
-            onConfirm={confirmNavigateHome}
-            onCancel={cancelNavigateHome}
-            title="Return Home"
-            message="Are you sure you want to return to the home screen? All unsaved changes will be lost."
-            confirmText="Return Home"
-            confirmButtonClass="bg-cyan-600 hover:bg-cyan-500"
-        />
-      )}
+      <HomeNavigationModal
+        isOpen={isHomeNavigationModalOpen}
+        onClose={handleHomeModalCancel}
+        onSave={handleHomeModalSave}
+        onDiscard={handleHomeModalDiscard}
+        isProcessing={isProjectSaving}
+        hasExistingProject={!!currentProject}
+      />
       {isClearingCanvas && (
         <ConfirmationModal
             isOpen={isClearingCanvas}

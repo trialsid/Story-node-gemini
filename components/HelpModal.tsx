@@ -117,7 +117,7 @@ const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
               </div>
               <div>
                 <h4 className="font-semibold mb-1">Projects</h4>
-                <p className="text-sm">Your work auto-saves. Access projects from the Welcome screen or load templates to get started quickly.</p>
+                <p className="text-sm">Your work auto-saves. Access projects from the Launcher screen or load templates to get started quickly.</p>
               </div>
               <div>
                 <h4 className="font-semibold mb-1">Themes</h4>
@@ -194,7 +194,7 @@ const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                 <li><strong>Reuse Content:</strong> One output can connect to multiple inputs - perfect for reusing characters or settings</li>
                 <li><strong>Gallery Workflow:</strong> Drag images from the gallery directly onto the canvas to continue editing them</li>
                 <li><strong>Minimize Nodes:</strong> Keep your canvas clean by minimizing nodes you're not actively working on</li>
-                <li><strong>Templates:</strong> Start with pre-built templates from the Welcome screen to learn common workflows</li>
+                <li><strong>Templates:</strong> Start with pre-built templates from the Launcher screen to learn common workflows</li>
               </ul>
             </div>
           </section>
