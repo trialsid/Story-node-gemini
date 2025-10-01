@@ -5,8 +5,8 @@ import { X, Settings, Keyboard } from 'lucide-react';
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  showWelcomeOnStartup: boolean;
-  onShowWelcomeOnStartupChange: (value: boolean) => void;
+  showLauncherOnStartup: boolean;
+  onShowLauncherOnStartupChange: (value: boolean) => void;
   videoAutoplayEnabled: boolean;
   onVideoAutoplayEnabledChange: (value: boolean) => void;
 }
@@ -36,7 +36,7 @@ const ToggleSwitch: React.FC<{
   );
 };
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, showWelcomeOnStartup, onShowWelcomeOnStartupChange, videoAutoplayEnabled, onVideoAutoplayEnabledChange }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, showLauncherOnStartup, onShowLauncherOnStartupChange, videoAutoplayEnabled, onVideoAutoplayEnabledChange }) => {
   const { styles } = useTheme();
   const [activeTab, setActiveTab] = useState<'general' | 'shortcuts'>('general');
 
@@ -76,11 +76,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, showWelc
       <div className={`p-4 rounded-lg ${styles.toolbar.buttonBg} border ${styles.toolbar.border} space-y-4`}>
         <div className="flex items-center justify-between">
           <span id="show-on-startup-label" className={styles.modal.messageText}>
-            Show welcome screen on startup
+            Show launcher screen on startup
           </span>
           <ToggleSwitch
-            checked={showWelcomeOnStartup}
-            onChange={onShowWelcomeOnStartupChange}
+            checked={showLauncherOnStartup}
+            onChange={onShowLauncherOnStartupChange}
             labelId="show-on-startup-label"
           />
         </div>

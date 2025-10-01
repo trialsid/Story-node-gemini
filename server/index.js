@@ -100,7 +100,7 @@ const writeProjectState = async (projectId, state) => {
 
 const DEFAULT_USER_PREFS = {
   theme: 'dark',
-  showWelcomeOnStartup: true,
+  showLauncherOnStartup: true,
   enableVideoAutoplayInGallery: false,
 };
 

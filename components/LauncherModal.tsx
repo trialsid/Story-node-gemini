@@ -4,7 +4,7 @@ import { templates } from '../utils/templates';
 import { ProjectMetadata } from '../types';
 import { Image, Clapperboard, Users as UsersIcon, Layers, Plus, X, Settings, Home, Clock, BookOpen, Palette, Trash2, Loader2 } from 'lucide-react';
 
-interface WelcomeModalProps {
+interface LauncherModalProps {
   onStartFresh: () => void;
   onLoadTemplate: (templateKey: keyof typeof templates) => void;
   onClose: () => void;
@@ -16,7 +16,7 @@ interface WelcomeModalProps {
   onDeleteProject: (projectId: string) => void;
 }
 
-const WelcomeModal: React.FC<WelcomeModalProps> = ({
+const LauncherModal: React.FC<LauncherModalProps> = ({
   onStartFresh,
   onLoadTemplate,
   onClose,
@@ -202,7 +202,7 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({
     <div
       role="dialog"
       aria-modal="true"
-      aria-labelledby="welcome-title-main"
+      aria-labelledby="launcher-title-main"
       className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${styles.modal.overlay} backdrop-blur-sm transition-opacity duration-300 ease-in-out`}
       onClick={onClose}
     >
@@ -250,12 +250,12 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({
             <button 
                 onClick={onClose}
                 className="absolute top-3 right-3 p-2 rounded-full text-gray-400 hover:bg-gray-600/50 hover:text-white transition-colors z-10"
-                aria-label="Close welcome screen"
+                aria-label="Close launcher screen"
             >
                 <X className="w-5 h-5" />
             </button>
             <main className="flex-grow p-8 overflow-y-auto custom-scrollbar">
-                <h1 id="welcome-title-main" className={`text-2xl font-bold ${styles.modal.text} mb-1`}>
+                <h1 id="launcher-title-main" className={`text-2xl font-bold ${styles.modal.text} mb-1`}>
                     {content[activeTab as keyof typeof content].title}
                 </h1>
                 <p className={`${styles.modal.messageText} mb-6`}>{content[activeTab as keyof typeof content].description}</p>
@@ -295,4 +295,4 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({
   );
 };
 
-export default WelcomeModal;
+export default LauncherModal;

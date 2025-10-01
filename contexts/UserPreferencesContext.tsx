@@ -3,7 +3,7 @@ import { Theme } from './ThemeContext';
 
 export interface UserPreferences {
   theme: Theme;
-  showWelcomeOnStartup: boolean;
+  showLauncherOnStartup: boolean;
   enableVideoAutoplayInGallery: boolean;
 }
 
@@ -18,7 +18,7 @@ const UserPreferencesContext = createContext<UserPreferencesContextType | undefi
 export const UserPreferencesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [preferences, setPreferences] = useState<UserPreferences>({
     theme: 'dark',
-    showWelcomeOnStartup: true,
+    showLauncherOnStartup: true,
     enableVideoAutoplayInGallery: false,
   });
   const [isLoading, setIsLoading] = useState(true);

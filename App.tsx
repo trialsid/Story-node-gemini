@@ -11,7 +11,7 @@ import { useUserPreferences } from './contexts/UserPreferencesContext';
 import ThemeSwitcher from './components/ThemeSwitcher';
 import GalleryPanel from './components/GalleryPanel';
 import GalleryPreviewModal from './components/GalleryPreviewModal';
-import WelcomeModal from './components/WelcomeModal';
+import LauncherModal from './components/LauncherModal';
 import { templates } from './utils/templates';
 import ContextMenuWithSubmenu from './components/ContextMenuWithSubmenu';
 import SettingsModal from './components/SettingsModal';
@@ -197,7 +197,7 @@ const AppContent: React.FC = () => {
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [canvasOffset, setCanvasOffset] = useState({ x: 50, y: 50 });
   const [zoom, setZoom] = useState(1);
-  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [showLauncherModal, setShowLauncherModal] = useState(false);
   const [isNavigatingHome, setIsNavigatingHome] = useState(false);
   const [isClearingCanvas, setIsClearingCanvas] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ isOpen: boolean; x: number; y: number; canvasX: number; canvasY: number; } | null>(null);
@@ -215,7 +215,7 @@ const AppContent: React.FC = () => {
   const [isGalleryLoading, setIsGalleryLoading] = useState(false);
   const [selectedGalleryItem, setSelectedGalleryItem] = useState<GalleryItem | null>(null);
 
-  const showWelcomeOnStartup = preferences.showWelcomeOnStartup;
+  const showLauncherOnStartup = preferences.showLauncherOnStartup;
   const videoAutoplayEnabled = preferences.enableVideoAutoplayInGallery;
 
   const [projects, setProjects] = useState<ProjectMetadata[]>([]);
@@ -612,8 +612,8 @@ const AppContent: React.FC = () => {
   }, [pendingAction]);
 
   useEffect(() => {
-    localStorage.setItem('showWelcomeOnStartup', String(showWelcomeOnStartup));
-  }, [showWelcomeOnStartup]);
+    localStorage.setItem('showLauncherOnStartup', String(showLauncherOnStartup));
+  }, [showLauncherOnStartup]);
 
   useEffect(() => {
     localStorage.setItem('videoAutoplayEnabled', String(videoAutoplayEnabled));
@@ -629,8 +629,8 @@ const AppContent: React.FC = () => {
   }, [canvasState, currentProject]);
 
   useEffect(() => {
-    if (showWelcomeOnStartup) {
-      setShowWelcomeModal(true);
+    if (showLauncherOnStartup) {
+      setShowLauncherModal(true);
     }
   }, []);
 
@@ -805,7 +805,7 @@ const AppContent: React.FC = () => {
 
   const handleStartFresh = useCallback(() => {
     resetHistory({ nodes: [], connections: [] });
-    setShowWelcomeModal(false);
+    setShowLauncherModal(false);
     setLastAddedNodePosition(null);
   }, [resetHistory]);
   
@@ -894,7 +894,7 @@ const AppContent: React.FC = () => {
     
     const finalNodes = propagateInitialData(newNodes, newConnections);
     resetHistory({ nodes: finalNodes, connections: newConnections });
-    setShowWelcomeModal(false);
+    setShowLauncherModal(false);
     setLastAddedNodePosition(null);
   }, [resetHistory]);
 
@@ -902,7 +902,7 @@ const AppContent: React.FC = () => {
     if (nodes.length > 0) {
         setIsNavigatingHome(true);
     } else {
-        setShowWelcomeModal(true);
+        setShowLauncherModal(true);
     }
   }, [nodes.length]);
 
@@ -2145,12 +2145,12 @@ const AppContent: React.FC = () => {
 
   return (
     <div className={`w-screen h-screen ${styles.app.bg} ${styles.app.text} overflow-hidden flex flex-col font-sans ${isDragging ? 'select-none' : ''}`}>
-      {showWelcomeModal && <WelcomeModal
+      {showLauncherModal && <LauncherModal
         onStartFresh={handleStartFresh}
         onLoadTemplate={handleLoadTemplate}
-        onClose={() => setShowWelcomeModal(false)}
-        showOnStartup={showWelcomeOnStartup}
-        onShowOnStartupChange={(value) => updatePreferences({ showWelcomeOnStartup: value })}
+        onClose={() => setShowLauncherModal(false)}
+        showOnStartup={showLauncherOnStartup}
+        onShowOnStartupChange={(value) => updatePreferences({ showLauncherOnStartup: value })}
         projects={projects}
         isLoadingProjects={isProjectListLoading}
         onLoadProject={loadProjectById}
@@ -2235,8 +2235,8 @@ const AppContent: React.FC = () => {
       {isSettingsModalOpen && <SettingsModal
         isOpen={isSettingsModalOpen}
         onClose={handleCloseSettingsModal}
-        showWelcomeOnStartup={showWelcomeOnStartup}
-        onShowWelcomeOnStartupChange={(value) => updatePreferences({ showWelcomeOnStartup: value })}
+        showLauncherOnStartup={showLauncherOnStartup}
+        onShowLauncherOnStartupChange={(value) => updatePreferences({ showLauncherOnStartup: value })}
         videoAutoplayEnabled={videoAutoplayEnabled}
         onVideoAutoplayEnabledChange={(value) => updatePreferences({ enableVideoAutoplayInGallery: value })}
       />}
