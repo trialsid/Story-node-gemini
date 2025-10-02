@@ -28,17 +28,24 @@ export interface NodeMenuCategory {
   items: NodeMenuItem[];
 }
 
-export const buildStoryToolsCategory = (callbacks: NodeMenuCallbacks): NodeMenuCategory => ({
-  title: 'Story Tools',
-  items: [
-    { label: 'Screenplay Writer', icon: <Clapperboard className="w-5 h-5 text-purple-400" />, action: callbacks.onAddScreenplayWriterNode },
-    { label: 'Short Story Writer', icon: <PenTool className="w-5 h-5 text-yellow-300" />, action: callbacks.onAddShortStoryWriterNode },
-    { label: 'Story Expander', icon: <ScrollText className="w-5 h-5 text-purple-400" />, action: callbacks.onAddStoryExpanderNode },
-    { label: 'Character Extractor', icon: <UserCog className="w-5 h-5 text-teal-400" />, action: callbacks.onAddStoryCharacterCreatorNode },
-    { label: 'Character Sheets', icon: <Sparkles className="w-5 h-5 text-emerald-300" />, action: callbacks.onAddStoryCharacterSheetNode },
-    { label: 'Character Viz', icon: <UsersIcon className="w-5 h-5 text-cyan-400" />, action: callbacks.onAddCharacterGeneratorNode },
-  ],
-});
+export const buildStoryToolsCategories = (callbacks: NodeMenuCallbacks): NodeMenuCategory[] => [
+  {
+    title: 'Story Writing',
+    items: [
+      { label: 'Screenplay Writer', icon: <Clapperboard className="w-5 h-5 text-purple-400" />, action: callbacks.onAddScreenplayWriterNode },
+      { label: 'Short Story Writer', icon: <PenTool className="w-5 h-5 text-yellow-300" />, action: callbacks.onAddShortStoryWriterNode },
+      { label: 'Story Expander', icon: <ScrollText className="w-5 h-5 text-purple-400" />, action: callbacks.onAddStoryExpanderNode },
+    ],
+  },
+  {
+    title: 'Character Tools',
+    items: [
+      { label: 'Character Extractor', icon: <UserCog className="w-5 h-5 text-teal-400" />, action: callbacks.onAddStoryCharacterCreatorNode },
+      { label: 'Character Sheets', icon: <Sparkles className="w-5 h-5 text-emerald-300" />, action: callbacks.onAddStoryCharacterSheetNode },
+      { label: 'Character Viz', icon: <UsersIcon className="w-5 h-5 text-cyan-400" />, action: callbacks.onAddCharacterGeneratorNode },
+    ],
+  },
+];
 
 export const buildNodeMenuCategories = (callbacks: NodeMenuCallbacks): NodeMenuCategory[] => [
   {
@@ -74,7 +81,7 @@ export const buildAllNodeMenuCategories = (callbacks: NodeMenuCallbacks): NodeMe
       { label: 'Image', icon: <ImagePlus className="w-5 h-5 text-orange-400" />, action: callbacks.onAddImageNode },
     ],
   },
-  buildStoryToolsCategory(callbacks),
+  ...buildStoryToolsCategories(callbacks),
   {
     title: 'Image Tools',
     items: [

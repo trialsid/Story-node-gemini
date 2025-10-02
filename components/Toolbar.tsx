@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { Home, Eraser, Undo2, Redo2, FileDown, FileUp, Plus, ChevronDown, ScrollText, FolderKanban, Trash2, Save, Copy, Upload, Download } from 'lucide-react';
-import { buildNodeMenuCategories, buildStoryToolsCategory } from '../utils/nodeMenuConfig';
+import { buildNodeMenuCategories, buildStoryToolsCategories } from '../utils/nodeMenuConfig';
 import { ProjectMetadata } from '../types';
 
 interface ToolbarProps {
@@ -186,7 +186,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddVideoGeneratorNode,
   ]);
 
-  const storyToolsCategory = useMemo(() => buildStoryToolsCategory({
+  const storyToolsCategories = useMemo(() => buildStoryToolsCategories({
     onAddTextNode,
     onAddTextGeneratorNode,
     onAddImageNode,
@@ -389,22 +389,29 @@ const Toolbar: React.FC<ToolbarProps> = ({
                     className={`absolute top-full mt-2 w-56 p-1 ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-lg shadow-lg z-10`}
                     role="menu"
                 >
-                    <div className={`px-3 py-1 text-xs font-semibold uppercase tracking-wide ${styles.modal.messageText}`}>
-                        {storyToolsCategory.title}
-                    </div>
-                    {storyToolsCategory.items.map((item) => (
-                        <button
-                            key={item.label}
-                            onClick={() => {
-                                item.action();
-                                setIsStoryToolsMenuOpen(false);
-                            }}
-                            className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium ${styles.toolbar.text}`}
-                            role="menuitem"
-                        >
-                            {item.icon}
-                            <span>{item.label}</span>
-                        </button>
+                    {storyToolsCategories.map((category, categoryIndex) => (
+                        <div key={category.title}>
+                            <div className={`px-3 py-1 text-xs font-semibold uppercase tracking-wide ${styles.modal.messageText}`}>
+                                {category.title}
+                            </div>
+                            {category.items.map((item) => (
+                                <button
+                                    key={item.label}
+                                    onClick={() => {
+                                        item.action();
+                                        setIsStoryToolsMenuOpen(false);
+                                    }}
+                                    className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium ${styles.toolbar.text}`}
+                                    role="menuitem"
+                                >
+                                    {item.icon}
+                                    <span>{item.label}</span>
+                                </button>
+                            ))}
+                            {categoryIndex < storyToolsCategories.length - 1 && (
+                                <div className="h-px bg-gray-500/20 my-1" aria-hidden="true" />
+                            )}
+                        </div>
                     ))}
                 </div>
             )}
