@@ -333,7 +333,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
               <div className={`px-3 py-1 text-xs uppercase tracking-wide ${styles.modal.messageText}`}>
                 Switch Project
               </div>
-              <div className="max-h-48 overflow-y-auto">
+              <div className="max-h-48 overflow-y-auto custom-scrollbar">
                 {isProjectListLoading ? (
                   <div className={`px-3 py-2 text-sm ${styles.modal.messageText}`}>Loading projects…</div>
                 ) : projects.length === 0 ? (
