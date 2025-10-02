@@ -25,3 +25,4 @@ generated/
 *.sln
 *.sw?
 .env
+env.js
