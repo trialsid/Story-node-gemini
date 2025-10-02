@@ -696,7 +696,25 @@ export const editImageWithPrompt = async (
                 },
             });
 
-            for (const part of response.candidates[0].content.parts) {
+            // Check response structure
+            if (!response.candidates || response.candidates.length === 0) {
+                console.error('Invalid response structure:', response);
+                throw new Error('No candidates in response. The model may have refused the request.');
+            }
+
+            const candidate = response.candidates[0];
+
+            // Check for safety blocks
+            if (candidate.finishReason === 'IMAGE_SAFETY') {
+                throw new Error('Image generation blocked by safety filters. Try a different prompt or input images.');
+            }
+
+            if (!candidate.content || !candidate.content.parts) {
+                console.error('Invalid candidate structure:', candidate);
+                throw new Error(`Invalid response format from model. Finish reason: ${candidate.finishReason || 'unknown'}`);
+            }
+
+            for (const part of candidate.content.parts) {
                 if (part.inlineData) {
                     const base64ImageBytes: string = part.inlineData.data;
                     return `data:${part.inlineData.mimeType};base64,${base64ImageBytes}`;
@@ -750,7 +768,25 @@ export const mixImagesWithPrompt = async (
                 },
             });
 
-            for (const part of response.candidates[0].content.parts) {
+            // Check response structure
+            if (!response.candidates || response.candidates.length === 0) {
+                console.error('Invalid response structure:', response);
+                throw new Error('No candidates in response. The model may have refused the request.');
+            }
+
+            const candidate = response.candidates[0];
+
+            // Check for safety blocks
+            if (candidate.finishReason === 'IMAGE_SAFETY') {
+                throw new Error('Image generation blocked by safety filters. Try a different prompt or input images.');
+            }
+
+            if (!candidate.content || !candidate.content.parts) {
+                console.error('Invalid candidate structure:', candidate);
+                throw new Error(`Invalid response format from model. Finish reason: ${candidate.finishReason || 'unknown'}`);
+            }
+
+            for (const part of candidate.content.parts) {
                 if (part.inlineData) {
                     const base64ImageBytes: string = part.inlineData.data;
                     return `data:${part.inlineData.mimeType};base64,${base64ImageBytes}`;
