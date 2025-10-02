@@ -49,6 +49,10 @@ export const NODE_SPEC: { [key in NodeType]: NodeSpec } = {
     inputs: [{ id: 'prompt_input', type: HandleType.Text, label: 'Story Prompt' }],
     outputs: [],
   },
+  [NodeType.StoryCharacterSheet]: {
+    inputs: [{ id: 'prompt_input', type: HandleType.Text, label: 'Story Prompt' }],
+    outputs: [],
+  },
   [NodeType.StoryExpander]: {
     inputs: [{ id: 'premise_input', type: HandleType.Text, label: 'Premise' }],
     outputs: [{ id: 'story_output', type: HandleType.Text, label: 'Story' }],

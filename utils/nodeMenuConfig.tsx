@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, ScrollText, Edit3, Users as UsersIcon, PenTool, ImagePlus, Wand2, Layers, Clapperboard, UserCog } from 'lucide-react';
+import { FileText, ScrollText, Edit3, Users as UsersIcon, PenTool, ImagePlus, Wand2, Layers, Clapperboard, UserCog, Sparkles } from 'lucide-react';
 
 export interface NodeMenuCallbacks {
   onAddTextNode: () => void;
@@ -8,6 +8,7 @@ export interface NodeMenuCallbacks {
   onAddImageGeneratorNode: () => void;
   onAddCharacterGeneratorNode: () => void;
   onAddStoryCharacterCreatorNode: () => void;
+  onAddStoryCharacterSheetNode: () => void;
   onAddStoryExpanderNode: () => void;
   onAddShortStoryWriterNode: () => void;
   onAddScreenplayWriterNode: () => void;
@@ -34,6 +35,7 @@ export const buildStoryToolsCategory = (callbacks: NodeMenuCallbacks): NodeMenuC
     { label: 'Short Story Writer', icon: <PenTool className="w-5 h-5 text-yellow-300" />, action: callbacks.onAddShortStoryWriterNode },
     { label: 'Story Expander', icon: <ScrollText className="w-5 h-5 text-purple-400" />, action: callbacks.onAddStoryExpanderNode },
     { label: 'Character Extractor', icon: <UserCog className="w-5 h-5 text-teal-400" />, action: callbacks.onAddStoryCharacterCreatorNode },
+    { label: 'Character Sheets', icon: <Sparkles className="w-5 h-5 text-emerald-300" />, action: callbacks.onAddStoryCharacterSheetNode },
     { label: 'Character Viz', icon: <UsersIcon className="w-5 h-5 text-cyan-400" />, action: callbacks.onAddCharacterGeneratorNode },
   ],
 });

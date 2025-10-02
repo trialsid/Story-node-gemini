@@ -34,6 +34,7 @@ interface NodeProps {
   onGenerateVideo: (nodeId: string) => void;
   onGenerateText: (nodeId: string) => void;
   onGenerateCharacters: (nodeId: string) => void;
+  onGenerateCharacterSheets: (nodeId: string) => void;
   onExpandStory: (nodeId: string) => void;
   onGenerateShortStory: (nodeId: string) => void;
   onGenerateScreenplay: (nodeId: string) => void;
@@ -137,6 +138,7 @@ const Node: React.FC<NodeProps> = ({
   onGenerateVideo,
   onGenerateText,
   onGenerateCharacters,
+  onGenerateCharacterSheets,
   onExpandStory,
   onGenerateShortStory,
   onGenerateScreenplay,
@@ -262,6 +264,8 @@ const Node: React.FC<NodeProps> = ({
         onGenerateText(node.id);
       } else if (nodeType === NodeType.StoryCharacterCreator) {
         onGenerateCharacters(node.id);
+      } else if (nodeType === NodeType.StoryCharacterSheet) {
+        onGenerateCharacterSheets(node.id);
       } else if (nodeType === NodeType.StoryExpander) {
         onExpandStory(node.id);
       } else if (nodeType === NodeType.ScreenplayWriter) {
@@ -330,6 +334,47 @@ const Node: React.FC<NodeProps> = ({
             ? container.scrollHeight
             : characterCount > 0
               ? characterCount * 48
+              : DEFAULT_MINIMIZED_PREVIEW_HEIGHT;
+          const clampedHeight = Math.max(DEFAULT_MINIMIZED_PREVIEW_HEIGHT, measuredHeight);
+          if (Math.abs((node.data.minimizedHeight ?? 0) - clampedHeight) > 0.5) {
+              onUpdateData(node.id, { minimizedHeight: clampedHeight });
+          }
+        };
+
+        const ensureObserver = () => {
+          if (resizeObserver || typeof ResizeObserver === 'undefined') return;
+          const container = minimizedCharactersPreviewRef.current;
+          if (!container) return;
+          resizeObserver = new ResizeObserver(() => updateHeight());
+          resizeObserver.observe(container);
+        };
+
+        const measure = () => {
+          updateHeight();
+          ensureObserver();
+        };
+
+        const rafId = window.requestAnimationFrame(measure);
+        const timeoutId = window.setTimeout(measure, 0);
+        ensureObserver();
+
+        return () => {
+          window.cancelAnimationFrame(rafId);
+          window.clearTimeout(timeoutId);
+          resizeObserver?.disconnect();
+        };
+    }
+
+    if (node.type === NodeType.StoryCharacterSheet) {
+        let resizeObserver: ResizeObserver | null = null;
+
+        const updateHeight = () => {
+          const container = minimizedCharactersPreviewRef.current;
+          const sheetCount = node.data.characterSheets?.filter(sheet => sheet?.imageUrl).length ?? 0;
+          const measuredHeight = container
+            ? container.scrollHeight
+            : sheetCount > 0
+              ? Math.ceil(sheetCount / 2) * 96
               : DEFAULT_MINIMIZED_PREVIEW_HEIGHT;
           const clampedHeight = Math.max(DEFAULT_MINIMIZED_PREVIEW_HEIGHT, measuredHeight);
           if (Math.abs((node.data.minimizedHeight ?? 0) - clampedHeight) > 0.5) {
@@ -484,7 +529,7 @@ const Node: React.FC<NodeProps> = ({
       resizeObserver?.disconnect();
     };
 
-  }, [node.id, node.type, onUpdateData, isMinimized, inputHandles, outputHandles, node.data.handleYOffsets, node.data.text, node.data.imageUrl, node.data.imageUrls, node.data.prompt, node.data.numberOfImages, node.data.characters, zoom]);
+  }, [node.id, node.type, onUpdateData, isMinimized, inputHandles, outputHandles, node.data.handleYOffsets, node.data.text, node.data.imageUrl, node.data.imageUrls, node.data.prompt, node.data.numberOfImages, node.data.characters, node.data.characterSheets, zoom]);
 
   useLayoutEffect(() => {
     if (!nodeRef.current || !isMinimized) return;
@@ -550,7 +595,7 @@ const Node: React.FC<NodeProps> = ({
       resizeObserver?.disconnect();
     };
 
-  }, [isMinimized, node.id, node.type, node.data.characters, node.data.minimizedHandleYOffsets, outputHandles, onUpdateData, zoom]);
+  }, [isMinimized, node.id, node.type, node.data.characters, node.data.characterSheets, node.data.minimizedHandleYOffsets, outputHandles, onUpdateData, zoom]);
   
   const handleFileChange = (file: File | null) => {
     if (file && file.type.startsWith('image/')) {
@@ -838,6 +883,142 @@ const Node: React.FC<NodeProps> = ({
               ) : (
                 <div className="h-full flex items-center justify-center text-xs italic opacity-70">
                   No characters generated yet.
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {node.type === NodeType.StoryCharacterSheet && (
+        <>
+          <NodeHeader
+            title='Character Sheets'
+            icon={<Sparkles className="w-4 h-4 text-emerald-300" />}
+            isMinimized={isMinimized}
+            onToggleMinimize={() => onToggleMinimize(node.id)}
+            onDelete={handleDelete}
+            onShowDeleteConfirmation={handleShowDeleteConfirmation}
+            onMouseDown={handleHeaderMouseDown}
+            onContextMenu={handleHeaderContextMenu}
+          />
+          <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1600px] opacity-100'}`}>
+            <div className="p-2 space-y-3">
+              <div ref={el => handleAnchorRefs.current['prompt_input'] = el}>
+                <label htmlFor={`story-prompt-${node.id}`} className={labelClassName}>Story Prompt</label>
+                <textarea
+                  id={`story-prompt-${node.id}`}
+                  value={node.data.storyPrompt || ''}
+                  onChange={(e) => onUpdateData(node.id, { storyPrompt: e.target.value })}
+                  onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.StoryCharacterSheet)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className={`${textAreaClassName(connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input'))} h-28`}
+                  disabled={connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input')}
+                  placeholder="Paste your story here to build instant character sheets..."
+                />
+              </div>
+
+              <div>
+                <label className={labelClassName}>Character Sheets</label>
+                <div className="space-y-3">
+                  {node.data.error ? (
+                    <div className="text-red-400 text-xs text-center px-2 py-4 border rounded-md border-red-500/40" role="alert">
+                      {node.data.error}
+                    </div>
+                  ) : node.data.characterSheets && node.data.characterSheets.length > 0 ? (
+                    node.data.characterSheets.map((sheet, index) => {
+                      const hasImage = !!sheet.imageUrl;
+                      return (
+                        <div
+                          key={index}
+                          ref={el => {
+                            handleAnchorRefs.current[`character_sheet_output_${index + 1}`] = hasImage ? el : null;
+                          }}
+                          className={`rounded-md border ${styles.node.border} ${styles.node.inputBg} p-2 flex flex-col`}
+                          onMouseDown={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-semibold truncate" title={sheet.name || `Character ${index + 1}`}>
+                              {sheet.name || `Character ${index + 1}`}
+                            </p>
+                            {node.data.isLoading && !hasImage && (
+                              <span className="text-[10px] uppercase tracking-wide opacity-60">Generating…</span>
+                            )}
+                          </div>
+                          <div className={`${imagePreviewBaseClassName} h-48 mt-2`}>
+                            {hasImage ? (
+                              <img
+                                src={sheet.imageUrl!}
+                                alt={`${sheet.name || `Character ${index + 1}`} character sheet`}
+                                className="w-full h-full object-cover rounded-md cursor-zoom-in"
+                                onClick={() => onImageClick(sheet.imageUrl!)}
+                              />
+                            ) : (
+                              <div className="flex flex-col items-center justify-center text-xs opacity-70">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-300 mb-2"></div>
+                                <span>Creating sheet…</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : node.data.isLoading ? (
+                    <div className="flex items-center justify-center py-6 border rounded-md border-dashed border-emerald-300/60">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-300"></div>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-center italic opacity-70 py-6 border rounded-md border-dashed">
+                      Character sheets will appear here after generation.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <button
+                onClick={() => onGenerateCharacterSheets(node.id)}
+                disabled={node.data.isLoading}
+                className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-emerald-600 hover:bg-emerald-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`}
+              >
+                <Sparkles className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                {node.data.isLoading ? 'Building Sheets…' : 'Generate Character Sheets'}
+              </button>
+            </div>
+          </div>
+          {isMinimized && (
+            <div
+              ref={minimizedCharactersPreviewRef}
+              className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden p-2`}
+              style={{
+                height: node.data.minimizedHeight
+                  ? `${Math.max(node.data.minimizedHeight, DEFAULT_MINIMIZED_PREVIEW_HEIGHT)}px`
+                  : `${DEFAULT_MINIMIZED_PREVIEW_HEIGHT}px`,
+              }}
+            >
+              {node.data.characterSheets && node.data.characterSheets.some(sheet => sheet.imageUrl) ? (
+                <div className="grid grid-cols-2 gap-2 h-full">
+                  {node.data.characterSheets
+                    .map((sheet, index) => ({ sheet, index }))
+                    .filter(({ sheet }) => !!sheet.imageUrl)
+                    .map(({ sheet, index }) => (
+                      <div
+                        key={index}
+                        ref={el => {
+                          minimizedHandleAnchorRefs.current[`character_sheet_output_${index + 1}`] = sheet?.imageUrl ? el : null;
+                        }}
+                        className="w-full h-full rounded-md overflow-hidden"
+                      >
+                        <img
+                          src={sheet!.imageUrl!}
+                          alt={`${sheet!.name || `Character ${index + 1}`} sheet preview`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <div className="h-full flex items-center justify-center text-xs italic opacity-70 text-center px-2">
+                  {node.data.isLoading ? 'Generating character sheets…' : 'No character sheets yet.'}
                 </div>
               )}
             </div>
