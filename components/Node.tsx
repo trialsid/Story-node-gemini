@@ -365,45 +365,16 @@ const Node: React.FC<NodeProps> = ({
         };
     }
 
-    if (node.type === NodeType.StoryCharacterSheet) {
-        let resizeObserver: ResizeObserver | null = null;
-
-        const updateHeight = () => {
-          const container = minimizedCharactersPreviewRef.current;
-          const sheetCount = node.data.characterSheets?.filter(sheet => sheet?.imageUrl).length ?? 0;
-          const measuredHeight = container
-            ? container.scrollHeight
-            : sheetCount > 0
-              ? Math.ceil(sheetCount / 2) * 96
-              : DEFAULT_MINIMIZED_PREVIEW_HEIGHT;
-          const clampedHeight = Math.max(DEFAULT_MINIMIZED_PREVIEW_HEIGHT, measuredHeight);
-          if (Math.abs((node.data.minimizedHeight ?? 0) - clampedHeight) > 0.5) {
-              onUpdateData(node.id, { minimizedHeight: clampedHeight });
-          }
-        };
-
-        const ensureObserver = () => {
-          if (resizeObserver || typeof ResizeObserver === 'undefined') return;
-          const container = minimizedCharactersPreviewRef.current;
-          if (!container) return;
-          resizeObserver = new ResizeObserver(() => updateHeight());
-          resizeObserver.observe(container);
-        };
-
-        const measure = () => {
-          updateHeight();
-          ensureObserver();
-        };
-
-        const rafId = window.requestAnimationFrame(measure);
-        const timeoutId = window.setTimeout(measure, 0);
-        ensureObserver();
-
-        return () => {
-          window.cancelAnimationFrame(rafId);
-          window.clearTimeout(timeoutId);
-          resizeObserver?.disconnect();
-        };
+    if (node.type === NodeType.StoryCharacterSheet && node.data.characterSheets) {
+        const sheetsWithImages = node.data.characterSheets.filter(sheet => sheet?.imageUrl).length;
+        if (sheetsWithImages > 0) {
+            // Calculate height: padding (8px top + 8px bottom) + slices + gaps between slices (8px each)
+            const newHeight = 16 + (sheetsWithImages * SLICE_HEIGHT_PX) + ((sheetsWithImages - 1) * 8);
+            if (node.data.minimizedHeight !== newHeight) {
+                onUpdateData(node.id, { minimizedHeight: newHeight });
+            }
+        }
+        return;
     }
 
     let isMounted = true;
@@ -534,7 +505,7 @@ const Node: React.FC<NodeProps> = ({
   useLayoutEffect(() => {
     if (!nodeRef.current || !isMinimized) return;
 
-    if (node.type === NodeType.StoryCharacterCreator) {
+    if (node.type === NodeType.StoryCharacterCreator || node.type === NodeType.StoryCharacterSheet) {
       if (node.data.minimizedHandleYOffsets) {
         onUpdateData(node.id, { minimizedHandleYOffsets: undefined });
       }
@@ -950,7 +921,7 @@ const Node: React.FC<NodeProps> = ({
                               <img
                                 src={sheet.imageUrl!}
                                 alt={`${sheet.name || `Character ${index + 1}`} character sheet`}
-                                className="w-full h-full object-cover rounded-md cursor-zoom-in"
+                                className="w-full h-full object-contain rounded-md cursor-zoom-in"
                                 onClick={() => onImageClick(sheet.imageUrl!)}
                               />
                             ) : (
@@ -986,42 +957,44 @@ const Node: React.FC<NodeProps> = ({
             </div>
           </div>
           {isMinimized && (
-            <div
-              ref={minimizedCharactersPreviewRef}
-              className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden p-2`}
-              style={{
-                height: node.data.minimizedHeight
-                  ? `${Math.max(node.data.minimizedHeight, DEFAULT_MINIMIZED_PREVIEW_HEIGHT)}px`
-                  : `${DEFAULT_MINIMIZED_PREVIEW_HEIGHT}px`,
-              }}
-            >
-              {node.data.characterSheets && node.data.characterSheets.some(sheet => sheet.imageUrl) ? (
-                <div className="grid grid-cols-2 gap-2 h-full">
-                  {node.data.characterSheets
-                    .map((sheet, index) => ({ sheet, index }))
-                    .filter(({ sheet }) => !!sheet.imageUrl)
-                    .map(({ sheet, index }) => (
+            node.data.characterSheets && node.data.characterSheets.filter(sheet => sheet.imageUrl).length > 0 ? (
+              <div
+                className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden p-2 space-y-2`}
+                style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : 'auto' }}
+              >
+                {node.data.characterSheets
+                  .filter(sheet => sheet.imageUrl)
+                  .map((sheet, filteredIndex) => {
+                    const originalIndex = node.data.characterSheets!.findIndex(s => s === sheet);
+                    return (
                       <div
-                        key={index}
+                        key={originalIndex}
                         ref={el => {
-                          minimizedHandleAnchorRefs.current[`character_sheet_output_${index + 1}`] = sheet?.imageUrl ? el : null;
+                          minimizedHandleAnchorRefs.current[`character_sheet_output_${originalIndex + 1}`] = el;
                         }}
-                        className="w-full h-full rounded-md overflow-hidden"
+                        className="w-full rounded-md overflow-hidden"
+                        style={{ height: `${SLICE_HEIGHT_PX}px` }}
                       >
                         <img
-                          src={sheet!.imageUrl!}
-                          alt={`${sheet!.name || `Character ${index + 1}`} sheet preview`}
-                          className="w-full h-full object-cover"
+                          src={sheet.imageUrl!}
+                          alt={`Preview of ${sheet.name || `Character ${originalIndex + 1}`} sheet`}
+                          className="w-full h-full object-contain cursor-zoom-in"
+                          onClick={() => onImageClick(sheet.imageUrl!)}
                         />
                       </div>
-                    ))}
-                </div>
-              ) : (
-                <div className="h-full flex items-center justify-center text-xs italic opacity-70 text-center px-2">
+                    );
+                  })}
+              </div>
+            ) : (
+              <div
+                className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md flex items-center justify-center border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`}
+                style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }}
+              >
+                <div className="text-xs italic opacity-70 text-center px-2">
                   {node.data.isLoading ? 'Generating character sheets…' : 'No character sheets yet.'}
                 </div>
-              )}
-            </div>
+              </div>
+            )
           )}
         </>
       )}

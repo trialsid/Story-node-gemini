@@ -3,7 +3,7 @@ import { NODE_SPEC, NodeHandleSpec } from './node-spec';
 
 export const MINIMIZED_HEADER_HEIGHT = 40;
 export const DEFAULT_MINIMIZED_PREVIEW_HEIGHT = 64;
-export const SLICE_HEIGHT_PX = 32;
+export const SLICE_HEIGHT_PX = 150;
 
 const buildStoryCharacterHandles = (characters: StoryCharacter[] = []): NodeHandleSpec[] => {
   return characters.map((character, index) => ({
@@ -65,6 +65,18 @@ export const getMinimizedHandleY = (node: NodeData, handleId: string, side: 'inp
     const generatedImages = (node.data.imageUrls || []).filter(Boolean).length;
     if (generatedImages > 1 && generatedImages >= totalVisibleHandles && currentIndex !== -1) {
       return MINIMIZED_HEADER_HEIGHT + (SLICE_HEIGHT_PX * currentIndex) + (SLICE_HEIGHT_PX / 2);
+    }
+  }
+
+  if (node.type === NodeType.StoryCharacterSheet && side === 'output') {
+    const sheetsWithImages = (node.data.characterSheets || []).filter(sheet => sheet.imageUrl).length;
+    if (sheetsWithImages > 0 && currentIndex !== -1) {
+      // Calculate Y position: header + top padding (8px) + previous slices + gaps before this slice (8px each) + half of current slice
+      const topPadding = 8;
+      const gapSize = 8;
+      const previousSlicesHeight = SLICE_HEIGHT_PX * currentIndex;
+      const gapsBeforeThisSlice = gapSize * currentIndex;
+      return MINIMIZED_HEADER_HEIGHT + topPadding + previousSlicesHeight + gapsBeforeThisSlice + (SLICE_HEIGHT_PX / 2);
     }
   }
 
