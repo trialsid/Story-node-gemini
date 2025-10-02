@@ -1569,6 +1569,14 @@ const Node: React.FC<NodeProps> = ({
                 return sourceNode.data.imageUrls[imageIndex] ? [sourceNode.data.imageUrls[imageIndex]] : [];
               }
               return [];
+            } else if (sourceNode.type === NodeType.StoryCharacterSheet && sourceNode.data.characterSheets) {
+              const match = conn.fromHandleId.match(/character_sheet_output_(\d+)$/);
+              if (match) {
+                const sheetIndex = parseInt(match[1], 10) - 1;
+                const sheet = sourceNode.data.characterSheets[sheetIndex];
+                return sheet?.imageUrl ? [sheet.imageUrl] : [];
+              }
+              return [];
             } else if (sourceNode.data.imageUrl) {
               return [sourceNode.data.imageUrl];
             }

@@ -2202,6 +2202,14 @@ const AppContent: React.FC = () => {
                 return sourceNode.data.imageUrls[imageIndex] ? [sourceNode.data.imageUrls[imageIndex]] : [];
             }
             return [];
+        } else if (sourceNode.type === NodeType.StoryCharacterSheet && sourceNode.data.characterSheets) {
+            const match = conn.fromHandleId.match(/character_sheet_output_(\d+)$/);
+            if (match) {
+                const sheetIndex = parseInt(match[1], 10) - 1;
+                const sheet = sourceNode.data.characterSheets[sheetIndex];
+                return sheet?.imageUrl ? [sheet.imageUrl] : [];
+            }
+            return [];
         } else if (sourceNode.data.imageUrl) {
             return [sourceNode.data.imageUrl];
         }
@@ -2215,7 +2223,13 @@ const AppContent: React.FC = () => {
 
     updateNodeData(nodeId, { isLoading: true, error: undefined, imageUrl: undefined });
     try {
-        const mixedImageUrl = await mixImagesWithPrompt(inputImageUrls, editDescription, aspectRatio);
+        // Convert all image URLs to data URLs before mixing
+        const { convertToDataUrl } = await import('./utils/imageHelpers');
+        const dataUrls = await Promise.all(
+            inputImageUrls.map(url => convertToDataUrl(url))
+        );
+
+        const mixedImageUrl = await mixImagesWithPrompt(dataUrls, editDescription, aspectRatio);
         updateNodeData(nodeId, { imageUrl: mixedImageUrl, isLoading: false });
 
         // Save to gallery separately - don't let gallery errors affect node display
