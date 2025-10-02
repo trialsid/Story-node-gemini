@@ -1604,6 +1604,21 @@ const Node: React.FC<NodeProps> = ({
                     </div>
                   </div>
                   <div>
+                    <label htmlFor={`mixer-aspect-${node.id}`} className={labelClassName}>Aspect Ratio</label>
+                    <select id={`mixer-aspect-${node.id}`} className={selectClassName} value={node.data.aspectRatio || '1:1'} onChange={(e) => onUpdateData(node.id, { aspectRatio: e.target.value })} onMouseDown={(e) => e.stopPropagation()} >
+                      <option value="1:1">1:1 (Square)</option>
+                      <option value="16:9">16:9 (Widescreen)</option>
+                      <option value="9:16">9:16 (Portrait)</option>
+                      <option value="4:3">4:3 (Standard)</option>
+                      <option value="3:4">3:4 (Standard Portrait)</option>
+                      <option value="2:3">2:3 (Portrait)</option>
+                      <option value="3:2">3:2 (Landscape)</option>
+                      <option value="4:5">4:5 (Portrait)</option>
+                      <option value="5:4">5:4 (Landscape)</option>
+                      <option value="21:9">21:9 (Ultrawide)</option>
+                    </select>
+                  </div>
+                  <div>
                     <label htmlFor={`edit-desc-${node.id}`} className={labelClassName}>Mix Description</label>
                     <textarea id={`edit-desc-${node.id}`} value={node.data.editDescription || ''} onChange={(e) => onUpdateData(node.id, { editDescription: e.target.value })} onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.ImageMixer)} onMouseDown={(e) => e.stopPropagation()} className={`${textAreaClassName()} h-20`} placeholder="e.g., A photorealistic blend..." />
                   </div>

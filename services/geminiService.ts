@@ -689,10 +689,10 @@ export const editImageWithPrompt = async (
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash-image-preview',
+                model: 'gemini-2.5-flash-image',
                 contents: { parts: [imagePart, textPart] },
                 config: {
-                    responseModalities: [Modality.IMAGE, Modality.TEXT],
+                    responseModalities: [Modality.IMAGE],
                 },
             });
 
@@ -718,7 +718,8 @@ export const editImageWithPrompt = async (
 
 export const mixImagesWithPrompt = async (
     base64Images: string[],
-    prompt: string
+    prompt: string,
+    aspectRatio?: string
 ): Promise<string> => {
     if (!ai) {
         throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
@@ -737,10 +738,15 @@ export const mixImagesWithPrompt = async (
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash-image-preview',
+                model: 'gemini-2.5-flash-image',
                 contents: { parts: allParts },
                 config: {
-                    responseModalities: [Modality.IMAGE, Modality.TEXT],
+                    responseModalities: [Modality.IMAGE],
+                    ...(aspectRatio && {
+                        imageConfig: {
+                            aspectRatio: aspectRatio,
+                        },
+                    }),
                 },
             });
 

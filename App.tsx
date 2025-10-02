@@ -2183,12 +2183,12 @@ const AppContent: React.FC = () => {
     const sourceNode = nodes.find(n => n.id === nodeId);
     if (!sourceNode || sourceNode.type !== NodeType.ImageMixer) return;
 
-    const { editDescription } = sourceNode.data;
+    const { editDescription, aspectRatio } = sourceNode.data;
     if (!editDescription) {
         updateNodeData(nodeId, { error: 'Please provide a mixing prompt.' });
         return;
     }
-    
+
     // Dynamically find all connected image URLs
     const inputConnections = connections.filter(c => c.toNodeId === nodeId && c.toHandleId === 'image_input');
     const inputImageUrls = inputConnections.flatMap(conn => {
@@ -2215,7 +2215,7 @@ const AppContent: React.FC = () => {
 
     updateNodeData(nodeId, { isLoading: true, error: undefined, imageUrl: undefined });
     try {
-        const mixedImageUrl = await mixImagesWithPrompt(inputImageUrls, editDescription);
+        const mixedImageUrl = await mixImagesWithPrompt(inputImageUrls, editDescription, aspectRatio);
         updateNodeData(nodeId, { imageUrl: mixedImageUrl, isLoading: false });
 
         // Save to gallery separately - don't let gallery errors affect node display
