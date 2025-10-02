@@ -1,4 +1,4 @@
-import { NodeData, NodeType, StoryCharacter, HandleType } from '../types';
+import { NodeData, NodeType, StoryCharacter, StoryCharacterSheet, HandleType } from '../types';
 import { NODE_SPEC, NodeHandleSpec } from './node-spec';
 
 export const MINIMIZED_HEADER_HEIGHT = 40;
@@ -13,6 +13,18 @@ const buildStoryCharacterHandles = (characters: StoryCharacter[] = []): NodeHand
   }));
 };
 
+const buildCharacterSheetHandles = (sheets: StoryCharacterSheet[] = []): NodeHandleSpec[] => {
+  return sheets
+    .map((sheet, index) => ({
+      id: `character_sheet_output_${index + 1}`,
+      type: HandleType.Image,
+      label: sheet.name ? `${sheet.name} Sheet` : `Character Sheet ${index + 1}`,
+      hasImage: !!sheet.imageUrl,
+    }))
+    .filter((handle) => handle.hasImage)
+    .map(({ hasImage: _discard, ...handle }) => handle);
+};
+
 export const getHandlesForSide = (node: NodeData, side: 'input' | 'output'): NodeHandleSpec[] => {
   const spec = NODE_SPEC[node.type];
   const specHandles = side === 'input' ? spec.inputs : spec.outputs;
@@ -25,6 +37,11 @@ export const getHandlesForSide = (node: NodeData, side: 'input' | 'output'): Nod
   if (node.type === NodeType.StoryCharacterCreator && side === 'output') {
     const characters = buildStoryCharacterHandles(node.data.characters);
     return characters.length > 0 ? characters : [];
+  }
+
+  if (node.type === NodeType.StoryCharacterSheet && side === 'output') {
+    const sheets = buildCharacterSheetHandles(node.data.characterSheets);
+    return sheets.length > 0 ? sheets : [];
   }
 
   return specHandles;

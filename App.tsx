@@ -37,6 +37,7 @@ const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } }
   [NodeType.TextGenerator]: { width: 256 },
   [NodeType.ImageMixer]: { width: 256 },
   [NodeType.StoryCharacterCreator]: { width: 256 },
+  [NodeType.StoryCharacterSheet]: { width: 280 },
   [NodeType.StoryExpander]: { width: 256 },
   [NodeType.ShortStoryWriter]: { width: 280 },
   [NodeType.ScreenplayWriter]: { width: 280 },
@@ -106,6 +107,10 @@ const createDefaultDataForType = (type: NodeType): NodeData['data'] => {
       return {
         storyPrompt: 'A brave knight and a wise dragon meet in a forest to discuss an ancient prophecy.',
       } as NodeData['data'];
+    case NodeType.StoryCharacterSheet:
+      return {
+        storyPrompt: 'A ragtag crew of space explorers uncover a mysterious artifact on a distant planet.',
+      } as NodeData['data'];
     case NodeType.StoryExpander:
       return {
         premise: 'A detective finds a mysterious key',
@@ -157,6 +162,9 @@ const sanitizeNodeDataForDuplication = (node: NodeData): NodeData['data'] => {
       break;
     case NodeType.StoryCharacterCreator:
       delete (clone as any).characters;
+      break;
+    case NodeType.StoryCharacterSheet:
+      delete (clone as any).characterSheets;
       break;
     case NodeType.ScreenplayWriter:
       delete (clone as any).pitch;
@@ -904,6 +912,8 @@ const AppContent: React.FC = () => {
               dataToUpdate = { prompt: fromNode.data.text };
           } else if (toNode.type === NodeType.StoryCharacterCreator && conn.toHandleId === 'prompt_input') {
               dataToUpdate = { storyPrompt: fromNode.data.text };
+          } else if (toNode.type === NodeType.StoryCharacterSheet && conn.toHandleId === 'prompt_input') {
+              dataToUpdate = { storyPrompt: fromNode.data.text };
           } else if (toNode.type === NodeType.StoryExpander && conn.toHandleId === 'premise_input') {
               dataToUpdate = { premise: fromNode.data.text };
           } else if (toNode.type === NodeType.ShortStoryWriter && conn.toHandleId === 'premise_input') {
@@ -924,6 +934,17 @@ const AppContent: React.FC = () => {
             const characterDescription = fromNode.data.characters[characterIndex]?.description;
             if (characterDescription && toNode.type === NodeType.CharacterGenerator && conn.toHandleId === 'description_input') {
               dataToUpdate = { characterDescription };
+            }
+          }
+        }
+
+        if (fromNode.type === NodeType.StoryCharacterSheet && Array.isArray(fromNode.data.characterSheets)) {
+          const match = conn.fromHandleId.match(/^character_sheet_output_(\d+)$/);
+          if (match) {
+            const sheetIndex = parseInt(match[1], 10) - 1;
+            const sheetImage = fromNode.data.characterSheets[sheetIndex]?.imageUrl;
+            if (sheetImage && (toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && conn.toHandleId === 'image_input') {
+              dataToUpdate = { inputImageUrl: sheetImage };
             }
           }
         }
@@ -1260,6 +1281,28 @@ const AppContent: React.FC = () => {
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
 
+  const addStoryCharacterSheetNode = useCallback((pos?: { x: number; y: number }) => {
+    let newNodePosition: { x: number, y: number };
+    if (pos) {
+        newNodePosition = pos;
+        setLastAddedNodePosition(null);
+    } else {
+        const nextPos = lastAddedNodePosition
+            ? { x: lastAddedNodePosition.x + 32, y: lastAddedNodePosition.y + 32 }
+            : { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom };
+        newNodePosition = nextPos;
+        setLastAddedNodePosition(nextPos);
+    }
+
+    const newNode: NodeData = {
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type: NodeType.StoryCharacterSheet,
+      position: newNodePosition,
+      data: createDefaultDataForType(NodeType.StoryCharacterSheet),
+    };
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+  }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
+
   const addStoryExpanderNode = useCallback((pos?: { x: number; y: number }) => {
     let newNodePosition: { x: number, y: number };
     if (pos) {
@@ -1450,6 +1493,8 @@ const AppContent: React.FC = () => {
                       dataToUpdate = { prompt: data.text };
                     } else if (toNode.type === NodeType.StoryCharacterCreator && conn.toHandleId === 'prompt_input') {
                         dataToUpdate = { storyPrompt: data.text };
+                    } else if (toNode.type === NodeType.StoryCharacterSheet && conn.toHandleId === 'prompt_input') {
+                        dataToUpdate = { storyPrompt: data.text };
                     } else if (toNode.type === NodeType.StoryExpander && conn.toHandleId === 'premise_input') {
                         dataToUpdate = { premise: data.text };
                     } else if (toNode.type === NodeType.ShortStoryWriter && conn.toHandleId === 'premise_input') {
@@ -1486,6 +1531,17 @@ const AppContent: React.FC = () => {
                     }
                 }
 
+                if (updatedNode.type === NodeType.StoryCharacterSheet && 'characterSheets' in data && Array.isArray(data.characterSheets)) {
+                    const match = conn.fromHandleId.match(/^character_sheet_output_(\d+)$/);
+                    if (match) {
+                        const sheetIndex = parseInt(match[1], 10) - 1;
+                        const sheetImage = data.characterSheets?.[sheetIndex]?.imageUrl;
+                        if (sheetImage && (toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && conn.toHandleId === 'image_input') {
+                            dataToUpdate = { inputImageUrl: sheetImage };
+                        }
+                    }
+                }
+
                 if (Object.keys(dataToUpdate).length > 0) {
                     newNodes[toNodeIndex] = { ...toNode, data: { ...toNode.data, ...dataToUpdate }};
                 }
@@ -1496,6 +1552,19 @@ const AppContent: React.FC = () => {
             const validHandles = new Set(data.characters.map((_, index) => `character_output_${index + 1}`));
             newConnections = newConnections.filter(conn => {
                 if (conn.fromNodeId !== nodeId) return true;
+                return validHandles.has(conn.fromHandleId);
+            });
+        }
+
+        if (updatedNode.type === NodeType.StoryCharacterSheet && 'characterSheets' in data && Array.isArray(data.characterSheets)) {
+            const validHandles = new Set(
+              data.characterSheets
+                .map((sheet, index) => (sheet?.imageUrl ? `character_sheet_output_${index + 1}` : null))
+                .filter((handle): handle is string => handle !== null)
+            );
+            newConnections = newConnections.filter(conn => {
+                if (conn.fromNodeId !== nodeId) return true;
+                if (!conn.fromHandleId.startsWith('character_sheet_output_')) return true;
                 return validHandles.has(conn.fromHandleId);
             });
         }
@@ -1773,6 +1842,8 @@ const AppContent: React.FC = () => {
                     dataToUpdate = { prompt: fromNode.data.text };
                 } else if (toNode.type === NodeType.StoryCharacterCreator && toHandleId === 'prompt_input') {
                     dataToUpdate = { storyPrompt: fromNode.data.text };
+                } else if (toNode.type === NodeType.StoryCharacterSheet && toHandleId === 'prompt_input') {
+                    dataToUpdate = { storyPrompt: fromNode.data.text };
                 } else if (toNode.type === NodeType.StoryExpander && toHandleId === 'premise_input') {
                     dataToUpdate = { premise: fromNode.data.text };
                 } else if (toNode.type === NodeType.ShortStoryWriter && toHandleId === 'premise_input') {
@@ -1800,6 +1871,15 @@ const AppContent: React.FC = () => {
                     const characterDescription = fromNode.data.characters[characterIndex]?.description;
                     if (characterDescription && toNode.type === NodeType.CharacterGenerator && toHandleId === 'description_input') {
                         dataToUpdate = { characterDescription };
+                    }
+                }
+            } else if (fromNode.type === NodeType.StoryCharacterSheet && fromNode.data.characterSheets) {
+                const match = startHandleId.match(/^character_sheet_output_(\d+)$/);
+                if (match) {
+                    const sheetIndex = parseInt(match[1], 10) - 1;
+                    const sheetImage = fromNode.data.characterSheets[sheetIndex]?.imageUrl;
+                    if (sheetImage && (toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && toHandleId === 'image_input') {
+                        dataToUpdate = { inputImageUrl: sheetImage };
                     }
                 }
             } else if (fromNode.type === NodeType.ScreenplayWriter) {
@@ -1925,6 +2005,58 @@ const AppContent: React.FC = () => {
       updateNodeData(nodeId, { error: errorMessage, isLoading: false });
     }
   }, [nodes, updateNodeData]);
+
+  const handleGenerateCharacterSheets = useCallback(async (nodeId: string) => {
+    const sourceNode = nodes.find(n => n.id === nodeId);
+    if (!sourceNode || sourceNode.type !== NodeType.StoryCharacterSheet) {
+      return;
+    }
+
+    const storyPrompt = sourceNode.data.storyPrompt?.trim();
+    if (!storyPrompt) {
+      updateNodeData(nodeId, { error: 'Story prompt cannot be empty.' });
+      return;
+    }
+
+    updateNodeData(nodeId, { isLoading: true, error: undefined, characterSheets: [] });
+
+    try {
+      const characters = await generateCharactersFromStory(storyPrompt);
+      if (!characters || characters.length === 0) {
+        updateNodeData(nodeId, { error: 'No characters were returned. Try expanding your story prompt.', isLoading: false });
+        return;
+      }
+
+      let workingSheets = characters.map(character => ({ name: character.name, description: character.description }));
+      updateNodeData(nodeId, { characterSheets: workingSheets });
+
+      const finalSheets = [...workingSheets];
+      for (let index = 0; index < characters.length; index++) {
+        const character = characters[index];
+        const imageUrl = await generateCharacterSheet(character.description, 'Studio Portrait Photo', '6-panel grid', '16:9');
+        finalSheets[index] = { ...finalSheets[index], imageUrl };
+        updateNodeData(nodeId, { characterSheets: [...finalSheets] });
+
+        try {
+          await persistGalleryItem({
+            dataUrl: imageUrl,
+            type: 'image',
+            prompt: character.description,
+            nodeType: NodeType.StoryCharacterSheet,
+            nodeId,
+          });
+        } catch (galleryError) {
+          console.error('Failed to save character sheet to gallery:', galleryError);
+        }
+      }
+
+      updateNodeData(nodeId, { characterSheets: finalSheets, isLoading: false });
+    } catch (error) {
+      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      updateNodeData(nodeId, { error: errorMessage, isLoading: false });
+    }
+  }, [nodes, updateNodeData, persistGalleryItem]);
 
   const handleExpandStory = useCallback(async (nodeId: string) => {
     const sourceNode = nodes.find(n => n.id === nodeId);
@@ -2234,6 +2366,7 @@ const AppContent: React.FC = () => {
       onAddImageGeneratorNode: () => addImageGeneratorNode(position),
       onAddCharacterGeneratorNode: () => addNode(position),
       onAddStoryCharacterCreatorNode: () => addStoryCharacterCreatorNode(position),
+      onAddStoryCharacterSheetNode: () => addStoryCharacterSheetNode(position),
       onAddStoryExpanderNode: () => addStoryExpanderNode(position),
       onAddShortStoryWriterNode: () => addShortStoryWriterNode(position),
       onAddScreenplayWriterNode: () => addScreenplayWriterNode(position),
@@ -2249,6 +2382,7 @@ const AppContent: React.FC = () => {
     addImageGeneratorNode,
     addNode,
     addStoryCharacterCreatorNode,
+    addStoryCharacterSheetNode,
     addStoryExpanderNode,
     addScreenplayWriterNode,
     addImageEditorNode,
@@ -2297,6 +2431,7 @@ const AppContent: React.FC = () => {
         onAddTextNode={() => addTextNode()}
         onAddTextGeneratorNode={() => addTextGeneratorNode()}
         onAddStoryCharacterCreatorNode={() => addStoryCharacterCreatorNode()}
+        onAddStoryCharacterSheetNode={() => addStoryCharacterSheetNode()}
         onAddStoryExpanderNode={() => addStoryExpanderNode()}
         onAddShortStoryWriterNode={() => addShortStoryWriterNode()}
         onAddScreenplayWriterNode={() => addScreenplayWriterNode()}
@@ -2380,6 +2515,7 @@ const AppContent: React.FC = () => {
         onGenerateImages={handleGenerateImages}
         onGenerateText={handleGenerateText}
         onGenerateCharacters={handleGenerateCharacters}
+        onGenerateCharacterSheets={handleGenerateCharacterSheets}
         onExpandStory={handleExpandStory}
         onGenerateShortStory={handleGenerateShortStory}
         onGenerateScreenplay={handleGenerateScreenplay}
