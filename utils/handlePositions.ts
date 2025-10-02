@@ -1,4 +1,4 @@
-import { NodeData, NodeType, StoryCharacter, StoryCharacterSheet, HandleType } from '../types';
+import { NodeData, NodeType, StoryCharacter, CharacterPortfolioItem, HandleType } from '../types';
 import { NODE_SPEC, NodeHandleSpec } from './node-spec';
 
 export const MINIMIZED_HEADER_HEIGHT = 40;
@@ -13,13 +13,13 @@ const buildStoryCharacterHandles = (characters: StoryCharacter[] = []): NodeHand
   }));
 };
 
-const buildCharacterSheetHandles = (sheets: StoryCharacterSheet[] = []): NodeHandleSpec[] => {
-  return sheets
-    .map((sheet, index) => ({
-      id: `character_sheet_output_${index + 1}`,
+const buildCharacterPortfolioHandles = (items: CharacterPortfolioItem[] = []): NodeHandleSpec[] => {
+  return items
+    .map((item, index) => ({
+      id: `portfolio_output_${index + 1}`,
       type: HandleType.Image,
-      label: sheet.name ? `${sheet.name} Sheet` : `Character Sheet ${index + 1}`,
-      hasImage: !!sheet.imageUrl,
+      label: item.name ? `${item.name}` : `Character ${index + 1}`,
+      hasImage: !!item.imageUrl,
     }))
     .filter((handle) => handle.hasImage)
     .map(({ hasImage: _discard, ...handle }) => handle);
@@ -39,9 +39,9 @@ export const getHandlesForSide = (node: NodeData, side: 'input' | 'output'): Nod
     return characters.length > 0 ? characters : [];
   }
 
-  if (node.type === NodeType.StoryCharacterSheet && side === 'output') {
-    const sheets = buildCharacterSheetHandles(node.data.characterSheets);
-    return sheets.length > 0 ? sheets : [];
+  if (node.type === NodeType.CharacterPortfolio && side === 'output') {
+    const items = buildCharacterPortfolioHandles(node.data.portfolio);
+    return items.length > 0 ? items : [];
   }
 
   return specHandles;
@@ -68,9 +68,9 @@ export const getMinimizedHandleY = (node: NodeData, handleId: string, side: 'inp
     }
   }
 
-  if (node.type === NodeType.StoryCharacterSheet && side === 'output') {
-    const sheetsWithImages = (node.data.characterSheets || []).filter(sheet => sheet.imageUrl).length;
-    if (sheetsWithImages > 0 && currentIndex !== -1) {
+  if (node.type === NodeType.CharacterPortfolio && side === 'output') {
+    const itemsWithImages = (node.data.portfolio || []).filter(item => item.imageUrl).length;
+    if (itemsWithImages > 0 && currentIndex !== -1) {
       // Calculate Y position: header + top padding (8px) + previous slices + gaps before this slice (8px each) + half of current slice
       const topPadding = 8;
       const gapSize = 8;

@@ -25,7 +25,7 @@ interface ToolbarProps {
   onAddTextNode: () => void;
   onAddTextGeneratorNode: () => void;
   onAddStoryCharacterCreatorNode: () => void;
-  onAddStoryCharacterSheetNode: () => void;
+  onAddCharacterPortfolioNode: () => void;
   onAddStoryExpanderNode: () => void;
   onAddShortStoryWriterNode: () => void;
   onAddScreenplayWriterNode: () => void;
@@ -84,7 +84,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddTextNode,
     onAddTextGeneratorNode,
     onAddStoryCharacterCreatorNode,
-    onAddStoryCharacterSheetNode,
+    onAddCharacterPortfolioNode,
     onAddStoryExpanderNode,
     onAddShortStoryWriterNode,
     onAddScreenplayWriterNode,
@@ -163,7 +163,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddImageGeneratorNode,
     onAddCharacterGeneratorNode,
     onAddStoryCharacterCreatorNode,
-    onAddStoryCharacterSheetNode,
+    onAddCharacterPortfolioNode,
     onAddStoryExpanderNode,
     onAddShortStoryWriterNode,
     onAddScreenplayWriterNode,
@@ -177,7 +177,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddImageGeneratorNode,
     onAddCharacterGeneratorNode,
     onAddStoryCharacterCreatorNode,
-    onAddStoryCharacterSheetNode,
+    onAddCharacterPortfolioNode,
     onAddStoryExpanderNode,
     onAddShortStoryWriterNode,
     onAddScreenplayWriterNode,
@@ -193,7 +193,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddImageGeneratorNode,
     onAddCharacterGeneratorNode,
     onAddStoryCharacterCreatorNode,
-    onAddStoryCharacterSheetNode,
+    onAddCharacterPortfolioNode,
     onAddStoryExpanderNode,
     onAddShortStoryWriterNode,
     onAddScreenplayWriterNode,
@@ -203,7 +203,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   }), [
     onAddCharacterGeneratorNode,
     onAddStoryCharacterCreatorNode,
-    onAddStoryCharacterSheetNode,
+    onAddCharacterPortfolioNode,
     onAddStoryExpanderNode,
     onAddShortStoryWriterNode,
     onAddScreenplayWriterNode,

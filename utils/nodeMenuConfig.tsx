@@ -8,7 +8,7 @@ export interface NodeMenuCallbacks {
   onAddImageGeneratorNode: () => void;
   onAddCharacterGeneratorNode: () => void;
   onAddStoryCharacterCreatorNode: () => void;
-  onAddStoryCharacterSheetNode: () => void;
+  onAddCharacterPortfolioNode: () => void;
   onAddStoryExpanderNode: () => void;
   onAddShortStoryWriterNode: () => void;
   onAddScreenplayWriterNode: () => void;
@@ -41,7 +41,7 @@ export const buildStoryToolsCategories = (callbacks: NodeMenuCallbacks): NodeMen
     title: 'Character Tools',
     items: [
       { label: 'Character Extractor', icon: <UserCog className="w-5 h-5 text-teal-400" />, action: callbacks.onAddStoryCharacterCreatorNode },
-      { label: 'Character Sheets', icon: <Sparkles className="w-5 h-5 text-emerald-300" />, action: callbacks.onAddStoryCharacterSheetNode },
+      { label: 'Character Portfolio', icon: <Sparkles className="w-5 h-5 text-emerald-300" />, action: callbacks.onAddCharacterPortfolioNode },
       { label: 'Character Viz', icon: <UsersIcon className="w-5 h-5 text-cyan-400" />, action: callbacks.onAddCharacterGeneratorNode },
     ],
   },

@@ -38,7 +38,7 @@ interface CanvasProps {
   onGenerateVideo: (nodeId: string) => void;
   onGenerateText: (nodeId: string) => void;
   onGenerateCharacters: (nodeId: string) => void;
-  onGenerateCharacterSheets: (nodeId: string) => void;
+  onGenerateCharacterPortfolio: (nodeId: string) => void;
   onExpandStory: (nodeId: string) => void;
   onGenerateShortStory: (nodeId: string) => void;
   onGenerateScreenplay: (nodeId: string) => void;
@@ -84,7 +84,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
   onGenerateVideo,
   onGenerateText,
   onGenerateCharacters,
-  onGenerateCharacterSheets,
+  onGenerateCharacterPortfolio,
   onExpandStory,
   onGenerateShortStory,
   onGenerateScreenplay,
@@ -187,7 +187,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
             onGenerateVideo={onGenerateVideo}
             onGenerateText={onGenerateText}
             onGenerateCharacters={onGenerateCharacters}
-            onGenerateCharacterSheets={onGenerateCharacterSheets}
+            onGenerateCharacterPortfolio={onGenerateCharacterPortfolio}
             onExpandStory={onExpandStory}
             onGenerateShortStory={onGenerateShortStory}
             onGenerateScreenplay={onGenerateScreenplay}

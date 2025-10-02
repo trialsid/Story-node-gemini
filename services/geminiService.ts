@@ -30,7 +30,7 @@ const stylePrompts: { [key: string]: string } = {
 
 const layoutPrompts: { [key: string]: string } = {
   '4-panel grid': 'A 4-panel grid layout. Each panel should showcase the character from a different perspective to provide a comprehensive reference. Include a mix of shots such as a full body view, a close-up portrait, an action pose, and a view showing an alternate expression or costume.',
-  '6-panel grid': 'A 6-panel grid layout. Each panel must feature a distinct and unique shot of the character, showcasing various angles, costumes, and actions to create a detailed character sheet. Include front, back, and side profiles, along with action poses and emotional close-ups.',
+  '6-panel grid': 'A 6-panel grid layout. Each panel must feature a distinct and unique shot of the character, showcasing various angles, costumes, and actions to create a detailed character reference. Include front, back, and side profiles, along with action poses and emotional close-ups.',
   'T-pose reference sheet': 'A character reference sheet for 3D modeling. Display the character in a standard T-pose, providing clear, unobstructed front and back views on a neutral background.',
 };
 
@@ -441,7 +441,7 @@ export const generateCharactersFromStory = async (
                 },
                 description: {
                     type: Type.STRING,
-                    description: 'A detailed physical and personality description for the character, suitable for generating a character sheet image.',
+                    description: 'A detailed physical and personality description for the character, suitable for generating a character reference image.',
                 },
             },
             required: ['name', 'description'],

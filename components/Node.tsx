@@ -34,7 +34,7 @@ interface NodeProps {
   onGenerateVideo: (nodeId: string) => void;
   onGenerateText: (nodeId: string) => void;
   onGenerateCharacters: (nodeId: string) => void;
-  onGenerateCharacterSheets: (nodeId: string) => void;
+  onGenerateCharacterPortfolio: (nodeId: string) => void;
   onExpandStory: (nodeId: string) => void;
   onGenerateShortStory: (nodeId: string) => void;
   onGenerateScreenplay: (nodeId: string) => void;
@@ -138,7 +138,7 @@ const Node: React.FC<NodeProps> = ({
   onGenerateVideo,
   onGenerateText,
   onGenerateCharacters,
-  onGenerateCharacterSheets,
+  onGenerateCharacterPortfolio,
   onExpandStory,
   onGenerateShortStory,
   onGenerateScreenplay,
@@ -264,8 +264,8 @@ const Node: React.FC<NodeProps> = ({
         onGenerateText(node.id);
       } else if (nodeType === NodeType.StoryCharacterCreator) {
         onGenerateCharacters(node.id);
-      } else if (nodeType === NodeType.StoryCharacterSheet) {
-        onGenerateCharacterSheets(node.id);
+      } else if (nodeType === NodeType.CharacterPortfolio) {
+        onGenerateCharacterPortfolio(node.id);
       } else if (nodeType === NodeType.StoryExpander) {
         onExpandStory(node.id);
       } else if (nodeType === NodeType.ScreenplayWriter) {
@@ -365,11 +365,11 @@ const Node: React.FC<NodeProps> = ({
         };
     }
 
-    if (node.type === NodeType.StoryCharacterSheet && node.data.characterSheets) {
-        const sheetsWithImages = node.data.characterSheets.filter(sheet => sheet?.imageUrl).length;
-        if (sheetsWithImages > 0) {
+    if (node.type === NodeType.CharacterPortfolio && node.data.portfolio) {
+        const itemsWithImages = node.data.portfolio.filter(item => item?.imageUrl).length;
+        if (itemsWithImages > 0) {
             // Calculate height: padding (8px top + 8px bottom) + slices + gaps between slices (8px each)
-            const newHeight = 16 + (sheetsWithImages * SLICE_HEIGHT_PX) + ((sheetsWithImages - 1) * 8);
+            const newHeight = 16 + (itemsWithImages * SLICE_HEIGHT_PX) + ((itemsWithImages - 1) * 8);
             if (node.data.minimizedHeight !== newHeight) {
                 onUpdateData(node.id, { minimizedHeight: newHeight });
             }
@@ -500,12 +500,12 @@ const Node: React.FC<NodeProps> = ({
       resizeObserver?.disconnect();
     };
 
-  }, [node.id, node.type, onUpdateData, isMinimized, inputHandles, outputHandles, node.data.handleYOffsets, node.data.text, node.data.imageUrl, node.data.imageUrls, node.data.prompt, node.data.numberOfImages, node.data.characters, node.data.characterSheets, zoom]);
+  }, [node.id, node.type, onUpdateData, isMinimized, inputHandles, outputHandles, node.data.handleYOffsets, node.data.text, node.data.imageUrl, node.data.imageUrls, node.data.prompt, node.data.numberOfImages, node.data.characters, node.data.portfolio, zoom]);
 
   useLayoutEffect(() => {
     if (!nodeRef.current || !isMinimized) return;
 
-    if (node.type === NodeType.StoryCharacterCreator || node.type === NodeType.StoryCharacterSheet) {
+    if (node.type === NodeType.StoryCharacterCreator || node.type === NodeType.CharacterPortfolio) {
       if (node.data.minimizedHandleYOffsets) {
         onUpdateData(node.id, { minimizedHandleYOffsets: undefined });
       }
@@ -566,7 +566,7 @@ const Node: React.FC<NodeProps> = ({
       resizeObserver?.disconnect();
     };
 
-  }, [isMinimized, node.id, node.type, node.data.characters, node.data.characterSheets, node.data.minimizedHandleYOffsets, outputHandles, onUpdateData, zoom]);
+  }, [isMinimized, node.id, node.type, node.data.characters, node.data.portfolio, node.data.minimizedHandleYOffsets, outputHandles, onUpdateData, zoom]);
   
   const handleFileChange = (file: File | null) => {
     if (file && file.type.startsWith('image/')) {
@@ -861,10 +861,10 @@ const Node: React.FC<NodeProps> = ({
         </>
       )}
 
-      {node.type === NodeType.StoryCharacterSheet && (
+      {node.type === NodeType.CharacterPortfolio && (
         <>
           <NodeHeader
-            title='Character Sheets'
+            title='Character Portfolio'
             icon={<Sparkles className="w-4 h-4 text-emerald-300" />}
             isMinimized={isMinimized}
             onToggleMinimize={() => onToggleMinimize(node.id)}
@@ -881,36 +881,36 @@ const Node: React.FC<NodeProps> = ({
                   id={`story-prompt-${node.id}`}
                   value={node.data.storyPrompt || ''}
                   onChange={(e) => onUpdateData(node.id, { storyPrompt: e.target.value })}
-                  onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.StoryCharacterSheet)}
+                  onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.CharacterPortfolio)}
                   onMouseDown={(e) => e.stopPropagation()}
                   className={`${textAreaClassName(connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input'))} h-28`}
                   disabled={connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input')}
-                  placeholder="Paste your story here to build instant character sheets..."
+                  placeholder="Paste your story here to build instant character portfolio..."
                 />
               </div>
 
               <div>
-                <label className={labelClassName}>Character Sheets</label>
+                <label className={labelClassName}>Character Portfolio</label>
                 <div className="space-y-3">
                   {node.data.error ? (
                     <div className="text-red-400 text-xs text-center px-2 py-4 border rounded-md border-red-500/40" role="alert">
                       {node.data.error}
                     </div>
-                  ) : node.data.characterSheets && node.data.characterSheets.length > 0 ? (
-                    node.data.characterSheets.map((sheet, index) => {
-                      const hasImage = !!sheet.imageUrl;
+                  ) : node.data.portfolio && node.data.portfolio.length > 0 ? (
+                    node.data.portfolio.map((item, index) => {
+                      const hasImage = !!item.imageUrl;
                       return (
                         <div
                           key={index}
                           ref={el => {
-                            handleAnchorRefs.current[`character_sheet_output_${index + 1}`] = hasImage ? el : null;
+                            handleAnchorRefs.current[`portfolio_output_${index + 1}`] = hasImage ? el : null;
                           }}
                           className={`rounded-md border ${styles.node.border} ${styles.node.inputBg} p-2 flex flex-col`}
                           onMouseDown={(e) => e.stopPropagation()}
                         >
                           <div className="flex items-center justify-between">
-                            <p className="text-sm font-semibold truncate" title={sheet.name || `Character ${index + 1}`}>
-                              {sheet.name || `Character ${index + 1}`}
+                            <p className="text-sm font-semibold truncate" title={item.name || `Character ${index + 1}`}>
+                              {item.name || `Character ${index + 1}`}
                             </p>
                             {node.data.isLoading && !hasImage && (
                               <span className="text-[10px] uppercase tracking-wide opacity-60">Generating…</span>
@@ -919,15 +919,15 @@ const Node: React.FC<NodeProps> = ({
                           <div className={`${imagePreviewBaseClassName} h-48 mt-2`}>
                             {hasImage ? (
                               <img
-                                src={sheet.imageUrl!}
-                                alt={`${sheet.name || `Character ${index + 1}`} character sheet`}
+                                src={item.imageUrl!}
+                                alt={`${item.name || `Character ${index + 1}`} reference`}
                                 className="w-full h-full object-contain rounded-md cursor-zoom-in"
-                                onClick={() => onImageClick(sheet.imageUrl!)}
+                                onClick={() => onImageClick(item.imageUrl!)}
                               />
                             ) : (
                               <div className="flex flex-col items-center justify-center text-xs opacity-70">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-300 mb-2"></div>
-                                <span>Creating sheet…</span>
+                                <span>Creating reference…</span>
                               </div>
                             )}
                           </div>
@@ -940,46 +940,46 @@ const Node: React.FC<NodeProps> = ({
                     </div>
                   ) : (
                     <div className="text-xs text-center italic opacity-70 py-6 border rounded-md border-dashed">
-                      Character sheets will appear here after generation.
+                      Character portfolio will appear here after generation.
                     </div>
                   )}
                 </div>
               </div>
 
               <button
-                onClick={() => onGenerateCharacterSheets(node.id)}
+                onClick={() => onGenerateCharacterPortfolio(node.id)}
                 disabled={node.data.isLoading}
                 className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-emerald-600 hover:bg-emerald-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`}
               >
                 <Sparkles className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
-                {node.data.isLoading ? 'Building Sheets…' : 'Generate Character Sheets'}
+                {node.data.isLoading ? 'Building Portfolio…' : 'Generate Character Portfolio'}
               </button>
             </div>
           </div>
           {isMinimized && (
-            node.data.characterSheets && node.data.characterSheets.filter(sheet => sheet.imageUrl).length > 0 ? (
+            node.data.portfolio && node.data.portfolio.filter(item => item.imageUrl).length > 0 ? (
               <div
                 className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden p-2 space-y-2`}
                 style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : 'auto' }}
               >
-                {node.data.characterSheets
-                  .filter(sheet => sheet.imageUrl)
-                  .map((sheet, filteredIndex) => {
-                    const originalIndex = node.data.characterSheets!.findIndex(s => s === sheet);
+                {node.data.portfolio
+                  .filter(item => item.imageUrl)
+                  .map((item, filteredIndex) => {
+                    const originalIndex = node.data.portfolio!.findIndex(i => i === item);
                     return (
                       <div
                         key={originalIndex}
                         ref={el => {
-                          minimizedHandleAnchorRefs.current[`character_sheet_output_${originalIndex + 1}`] = el;
+                          minimizedHandleAnchorRefs.current[`portfolio_output_${originalIndex + 1}`] = el;
                         }}
                         className="w-full rounded-md overflow-hidden"
                         style={{ height: `${SLICE_HEIGHT_PX}px` }}
                       >
                         <img
-                          src={sheet.imageUrl!}
-                          alt={`Preview of ${sheet.name || `Character ${originalIndex + 1}`} sheet`}
+                          src={item.imageUrl!}
+                          alt={`Preview of ${item.name || `Character ${originalIndex + 1}`}`}
                           className="w-full h-full object-contain cursor-zoom-in"
-                          onClick={() => onImageClick(sheet.imageUrl!)}
+                          onClick={() => onImageClick(item.imageUrl!)}
                         />
                       </div>
                     );
@@ -991,7 +991,7 @@ const Node: React.FC<NodeProps> = ({
                 style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }}
               >
                 <div className="text-xs italic opacity-70 text-center px-2">
-                  {node.data.isLoading ? 'Generating character sheets…' : 'No character sheets yet.'}
+                  {node.data.isLoading ? 'Generating character portfolio…' : 'No character portfolio yet.'}
                 </div>
               </div>
             )
@@ -1569,12 +1569,12 @@ const Node: React.FC<NodeProps> = ({
                 return sourceNode.data.imageUrls[imageIndex] ? [sourceNode.data.imageUrls[imageIndex]] : [];
               }
               return [];
-            } else if (sourceNode.type === NodeType.StoryCharacterSheet && sourceNode.data.characterSheets) {
-              const match = conn.fromHandleId.match(/character_sheet_output_(\d+)$/);
+            } else if (sourceNode.type === NodeType.CharacterPortfolio && sourceNode.data.portfolio) {
+              const match = conn.fromHandleId.match(/portfolio_output_(\d+)$/);
               if (match) {
-                const sheetIndex = parseInt(match[1], 10) - 1;
-                const sheet = sourceNode.data.characterSheets[sheetIndex];
-                return sheet?.imageUrl ? [sheet.imageUrl] : [];
+                const itemIndex = parseInt(match[1], 10) - 1;
+                const item = sourceNode.data.portfolio[itemIndex];
+                return item?.imageUrl ? [item.imageUrl] : [];
               }
               return [];
             } else if (sourceNode.data.imageUrl) {

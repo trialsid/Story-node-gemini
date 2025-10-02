@@ -8,7 +8,7 @@ export enum NodeType {
   TextGenerator = 'TEXT_GENERATOR_NODE',
   ImageMixer = 'IMAGE_MIXER',
   StoryCharacterCreator = 'STORY_CHARACTER_CREATOR_NODE',
-  StoryCharacterSheet = 'STORY_CHARACTER_SHEET_NODE',
+  CharacterPortfolio = 'STORY_CHARACTER_SHEET_NODE',
   StoryExpander = 'STORY_EXPANDER_NODE',
   ShortStoryWriter = 'SHORT_STORY_WRITER_NODE',
   ScreenplayWriter = 'SCREENPLAY_WRITER_NODE',
@@ -33,7 +33,7 @@ export interface StoryCharacter {
   description: string;
 }
 
-export interface StoryCharacterSheet {
+export interface CharacterPortfolioItem {
   name: string;
   description: string;
   imageUrl?: string;
@@ -91,8 +91,8 @@ export interface NodeData {
     storyPrompt?: string;
     characters?: StoryCharacter[];
 
-    // For Story Character Sheet
-    characterSheets?: StoryCharacterSheet[];
+    // For Character Portfolio
+    portfolio?: CharacterPortfolioItem[];
 
     // For Story Expander
     premise?: string;
