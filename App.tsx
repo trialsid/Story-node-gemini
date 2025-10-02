@@ -2125,10 +2125,12 @@ const AppContent: React.FC = () => {
       return;
     }
 
+    const mode = sourceNode.data.screenplayMode || 'default';
+
     updateNodeData(nodeId, { isLoading: true, error: undefined, pitch: undefined, screenplayText: undefined });
 
     try {
-      const result = await generateScreenplay(storyPrompt);
+      const result = await generateScreenplay(storyPrompt, mode);
       updateNodeData(nodeId, { pitch: result.pitch, screenplayText: result.screenplay, isLoading: false });
     } catch (error) {
       console.error(error);

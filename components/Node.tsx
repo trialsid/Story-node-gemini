@@ -1187,6 +1187,20 @@ const Node: React.FC<NodeProps> = ({
           />
           <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
             <div className="p-2 space-y-2">
+              <div>
+                <label htmlFor={`screenplay-mode-${node.id}`} className={labelClassName}>Mode</label>
+                <select
+                  id={`screenplay-mode-${node.id}`}
+                  className={selectClassName}
+                  value={node.data.screenplayMode || 'default'}
+                  onChange={(e) => onUpdateData(node.id, { screenplayMode: e.target.value as 'default' | 'qt' })}
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <option value="default">Default</option>
+                  <option value="qt">QT Mode (Tarantino)</option>
+                </select>
+              </div>
+
               <div ref={el => handleAnchorRefs.current['prompt_input'] = el}>
                 <label htmlFor={`screenplay-prompt-${node.id}`} className={labelClassName}>Story Prompt</label>
                 <textarea

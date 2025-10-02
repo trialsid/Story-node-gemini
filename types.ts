@@ -105,6 +105,7 @@ export interface NodeData {
     fullStory?: string;
 
     // For Screenplay Writer
+    screenplayMode?: 'default' | 'qt';
     pitch?: string;
     screenplayText?: string;
   };
