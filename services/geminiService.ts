@@ -1,6 +1,7 @@
 
 
-import { GoogleGenAI, Modality, Type } from "@google/genai";
+import { GoogleGenAI, Modality, Type, VideoGenerationReferenceType } from "@google/genai";
+import type { VideoReferenceImageData } from "../types";
 
 // The API key is loaded from env.js, which should be created in the project root.
 const getApiKey = (): string | undefined => {
@@ -76,6 +77,18 @@ const dataUrlToPart = (dataUrl: string) => {
             mimeType,
             data: base64Data,
         },
+    };
+};
+
+const dataUrlToImageObject = (dataUrl: string) => {
+    const [header, base64Data] = dataUrl.split(',');
+    const mimeType = header.match(/:(.*?);/)?.[1];
+    if (!mimeType || !base64Data) {
+        throw new Error('Invalid data URL format for image.');
+    }
+    return {
+        imageBytes: base64Data,
+        mimeType,
     };
 };
 
@@ -604,7 +617,8 @@ export const generateVideoFromPrompt = async (
   prompt: string,
   inputImage: string | undefined,
   model: string,
-  onProgress: (message: string) => void
+  onProgress: (message: string) => void,
+  referenceImages?: VideoReferenceImageData[]
 ): Promise<string> => {
     if (!ai || !API_KEY) {
         throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
@@ -613,22 +627,31 @@ export const generateVideoFromPrompt = async (
     try {
         onProgress("Sending generation request...");
         
-        const imageParam = inputImage ? (() => {
-            const [header, base64Data] = inputImage.split(',');
-            const mimeType = header.match(/:(.*?);/)?.[1];
-            if (!mimeType || !base64Data) {
-                throw new Error('Invalid data URL format for image.');
-            }
-            return { imageBytes: base64Data, mimeType };
-        })() : undefined;
-        
+        const imageParam = inputImage ? dataUrlToImageObject(inputImage) : undefined;
+
+        const preparedReferenceImages = (referenceImages ?? [])
+            .filter(image => typeof image?.url === 'string' && image.url.trim().length > 0)
+            .slice(0, 3)
+            .map(image => ({
+                image: dataUrlToImageObject(image.url),
+                referenceType: VideoGenerationReferenceType.ASSET,
+            }));
+
+        const config: { numberOfVideos: number; referenceImages?: typeof preparedReferenceImages } = {
+            numberOfVideos: 1,
+        };
+
+        if (preparedReferenceImages.length > 0) {
+            config.referenceImages = preparedReferenceImages;
+        }
+
+        const shouldIncludeImage = !!imageParam && preparedReferenceImages.length === 0;
+
         let operation = await ai.models.generateVideos({
             model: model,
             prompt: prompt,
-            ...(imageParam && { image: imageParam }),
-            config: {
-                numberOfVideos: 1
-            }
+            ...(shouldIncludeImage && { image: imageParam }),
+            config,
         });
 
         let messageIndex = 0;

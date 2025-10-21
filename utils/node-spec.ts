@@ -71,6 +71,9 @@ export const NODE_SPEC: { [key in NodeType]: NodeSpec } = {
   [NodeType.VideoGenerator]: {
     inputs: [
       { id: 'image_input', type: HandleType.Image, label: 'Input Image (Optional)' },
+      { id: 'reference_image_1', type: HandleType.Image, label: 'Reference Image 1' },
+      { id: 'reference_image_2', type: HandleType.Image, label: 'Reference Image 2' },
+      { id: 'reference_image_3', type: HandleType.Image, label: 'Reference Image 3' },
       { id: 'prompt_input', type: HandleType.Text, label: 'Video Prompt' },
     ],
     outputs: [{ id: 'video_output', type: HandleType.Video, label: 'Output Video' }],

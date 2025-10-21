@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { NodeData, NodeType, Connection, CanvasState, HandleType, GalleryItem, GalleryStatus, ProjectMetadata, ProjectState } from './types';
+import { NodeData, NodeType, Connection, CanvasState, HandleType, GalleryItem, GalleryStatus, ProjectMetadata, ProjectState, VideoReferenceImageData } from './types';
 import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
 import ImageModal from './components/ImageModal';
@@ -100,6 +100,7 @@ const createDefaultDataForType = (type: NodeType): NodeData['data'] => {
       return {
         editDescription: 'A majestic eagle soaring over mountains',
         videoModel: 'veo-3.1-generate-preview',
+        referenceImages: [],
       } as NodeData['data'];
     case NodeType.TextGenerator:
       return { prompt: 'Write a short story about a robot who discovers music.' } as NodeData['data'];
@@ -129,6 +130,44 @@ const createDefaultDataForType = (type: NodeType): NodeData['data'] => {
     default:
       return {} as NodeData['data'];
   }
+};
+
+const parseReferenceImageHandle = (handleId: string): number | null => {
+  const match = handleId.match(/^reference_image_(\d+)$/);
+  if (!match) {
+    return null;
+  }
+  const slot = parseInt(match[1], 10) - 1;
+  return Number.isNaN(slot) ? null : slot;
+};
+
+const sortReferenceImages = (images: VideoReferenceImageData[]): VideoReferenceImageData[] => {
+  return [...images].sort((a, b) => {
+    const aOrder = a.order ?? a.slot;
+    const bOrder = b.order ?? b.slot;
+    return aOrder - bOrder;
+  });
+};
+
+const upsertReferenceImageSlot = (
+  existing: VideoReferenceImageData[] | undefined,
+  slot: number,
+  url: string,
+  source: VideoReferenceImageData['source']
+): VideoReferenceImageData[] => {
+  const current = existing ?? [];
+  const remaining = current.filter(image => image.slot !== slot);
+  const previous = current.find(image => image.slot === slot);
+
+  const next: VideoReferenceImageData = {
+    slot,
+    url,
+    order: previous?.order ?? slot + 1,
+    title: previous?.title,
+    source,
+  };
+
+  return sortReferenceImages([...remaining, next]);
 };
 
 const sanitizeNodeDataForDuplication = (node: NodeData): NodeData['data'] => {
@@ -1506,16 +1545,34 @@ const AppContent: React.FC = () => {
                   if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && conn.toHandleId === 'image_input') {
                       dataToUpdate = { inputImageUrl: data.imageUrl };
                   }
+
+                  if (toNode.type === NodeType.VideoGenerator) {
+                    const referenceSlot = parseReferenceImageHandle(conn.toHandleId);
+                    if (referenceSlot !== null && data.imageUrl) {
+                      dataToUpdate = {
+                        referenceImages: upsertReferenceImageSlot(toNode.data.referenceImages, referenceSlot, data.imageUrl, 'connection'),
+                      };
+                    }
+                  }
                 }
-                
+
                 if (updatedNode.type === NodeType.ImageGenerator && 'imageUrls' in data && Array.isArray(data.imageUrls)) {
                     const match = conn.fromHandleId.match(/_(\d+)$/);
                     if (match) {
                         const imageIndex = parseInt(match[1], 10) - 1;
                         const imageUrlToPropagate = data.imageUrls?.[imageIndex];
-        
+
                         if (imageUrlToPropagate && (toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && conn.toHandleId === 'image_input') {
                             dataToUpdate = { inputImageUrl: imageUrlToPropagate };
+                        }
+
+                        if (imageUrlToPropagate && toNode.type === NodeType.VideoGenerator) {
+                          const referenceSlot = parseReferenceImageHandle(conn.toHandleId);
+                          if (referenceSlot !== null) {
+                            dataToUpdate = {
+                              referenceImages: upsertReferenceImageSlot(toNode.data.referenceImages, referenceSlot, imageUrlToPropagate, 'connection'),
+                            };
+                          }
                         }
                     }
                 }
@@ -1538,6 +1595,15 @@ const AppContent: React.FC = () => {
                         const itemImage = data.portfolio?.[itemIndex]?.imageUrl;
                         if (itemImage && (toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && conn.toHandleId === 'image_input') {
                             dataToUpdate = { inputImageUrl: itemImage };
+                        }
+
+                        if (itemImage && toNode.type === NodeType.VideoGenerator) {
+                          const referenceSlot = parseReferenceImageHandle(conn.toHandleId);
+                          if (referenceSlot !== null) {
+                            dataToUpdate = {
+                              referenceImages: upsertReferenceImageSlot(toNode.data.referenceImages, referenceSlot, itemImage, 'connection'),
+                            };
+                          }
                         }
                     }
                 }
@@ -1855,6 +1921,15 @@ const AppContent: React.FC = () => {
                  if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && toHandleId === 'image_input') {
                     dataToUpdate = { inputImageUrl: fromNode.data.imageUrl };
                 }
+
+                if (toNode.type === NodeType.VideoGenerator) {
+                  const referenceSlot = parseReferenceImageHandle(toHandleId);
+                  if (referenceSlot !== null && fromNode.data.imageUrl) {
+                    dataToUpdate = {
+                      referenceImages: upsertReferenceImageSlot(toNode.data.referenceImages, referenceSlot, fromNode.data.imageUrl, 'connection'),
+                    };
+                  }
+                }
             } else if (fromNode.type === NodeType.ImageGenerator && fromNode.data.imageUrls) {
                 const match = startHandleId.match(/_(\d+)$/);
                 if (match) {
@@ -1862,6 +1937,15 @@ const AppContent: React.FC = () => {
                     const imageUrlToPropagate = fromNode.data.imageUrls?.[imageIndex];
                     if (imageUrlToPropagate && (toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && toHandleId === 'image_input') {
                         dataToUpdate = { inputImageUrl: imageUrlToPropagate };
+                    }
+
+                    if (imageUrlToPropagate && toNode.type === NodeType.VideoGenerator) {
+                      const referenceSlot = parseReferenceImageHandle(toHandleId);
+                      if (referenceSlot !== null) {
+                        dataToUpdate = {
+                          referenceImages: upsertReferenceImageSlot(toNode.data.referenceImages, referenceSlot, imageUrlToPropagate, 'connection'),
+                        };
+                      }
                     }
                 }
             } else if (fromNode.type === NodeType.StoryCharacterCreator && fromNode.data.characters) {
@@ -1880,6 +1964,15 @@ const AppContent: React.FC = () => {
                     const itemImage = fromNode.data.portfolio[itemIndex]?.imageUrl;
                     if (itemImage && (toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && toHandleId === 'image_input') {
                         dataToUpdate = { inputImageUrl: itemImage };
+                    }
+
+                    if (itemImage && toNode.type === NodeType.VideoGenerator) {
+                      const referenceSlot = parseReferenceImageHandle(toHandleId);
+                      if (referenceSlot !== null) {
+                        dataToUpdate = {
+                          referenceImages: upsertReferenceImageSlot(toNode.data.referenceImages, referenceSlot, itemImage, 'connection'),
+                        };
+                      }
                     }
                 }
             } else if (fromNode.type === NodeType.ScreenplayWriter) {
@@ -2256,12 +2349,14 @@ const AppContent: React.FC = () => {
     const sourceNode = nodes.find(n => n.id === nodeId);
     if (!sourceNode || sourceNode.type !== NodeType.VideoGenerator) return;
   
-    const { inputImageUrl, editDescription, videoModel } = sourceNode.data;
-    
+    const { inputImageUrl, editDescription, videoModel, referenceImages } = sourceNode.data;
+
     if (!editDescription) {
         updateNodeData(nodeId, { error: 'Please provide a video prompt.' });
         return;
     }
+
+    const orderedReferenceImages = referenceImages ? sortReferenceImages(referenceImages).filter(image => !!image.url) : [];
 
     const startTime = Date.now();
     updateNodeData(nodeId, {
@@ -2281,7 +2376,8 @@ const AppContent: React.FC = () => {
           editDescription,
           inputImageUrl,
           videoModel || 'veo-3.1-generate-preview',
-          onProgress
+          onProgress,
+          orderedReferenceImages
         );
         const elapsed = Date.now() - startTime;
         updateNodeData(nodeId, {

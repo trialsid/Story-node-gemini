@@ -39,8 +39,16 @@ export interface CharacterPortfolioItem {
   imageUrl?: string;
 }
 
+export interface VideoReferenceImageData {
+  slot: number;
+  url: string;
+  order?: number;
+  title?: string;
+  source?: 'upload' | 'connection';
+}
+
 export interface NodeData {
-  id:string;
+  id: string;
   type: NodeType;
   position: { x: number; y: number };
   data: {
@@ -75,6 +83,7 @@ export interface NodeData {
     generationProgressMessage?: string;
     generationStartTimeMs?: number;
     generationElapsedMs?: number;
+    referenceImages?: VideoReferenceImageData[];
     // `inputImageUrl` is shared
     // `editDescription` is used for the video prompt
 

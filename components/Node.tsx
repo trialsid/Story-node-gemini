@@ -120,6 +120,7 @@ const formatDuration = (ms?: number | null) => {
 };
 
 const CHARACTER_BLOCK_HEIGHT_PX = 128;
+const VIDEO_REFERENCE_SLOTS = [0, 1, 2] as const;
 
 const Node: React.FC<NodeProps> = ({
   node,
@@ -276,6 +277,7 @@ const Node: React.FC<NodeProps> = ({
 
   const nodeRef = useRef<HTMLDivElement>(null);
   const imageUploadRef = useRef<HTMLInputElement>(null);
+  const referenceUploadRefs = useRef<{ [slot: number]: HTMLInputElement | null }>({});
 
   // Refs for handle anchor elements
   const handleAnchorRefs = useRef<{ [handleId: string]: HTMLElement | null }>({});
@@ -287,6 +289,7 @@ const Node: React.FC<NodeProps> = ({
 
   const previewImage = node.data.imageUrl || node.data.inputImageUrl || node.data.imageUrls?.[0];
   const previewVideo = node.data.videoUrl;
+  const referenceImages = node.data.referenceImages ?? [];
   const hasVisuals = !!(previewImage || previewVideo);
 
   useEffect(() => {
@@ -597,7 +600,59 @@ const Node: React.FC<NodeProps> = ({
           handleFileChange(e.dataTransfer.files[0]);
       }
   };
-  
+
+  const sortReferenceImages = (images: typeof referenceImages) => {
+    return [...images].sort((a, b) => {
+      const aOrder = a.order ?? a.slot;
+      const bOrder = b.order ?? b.slot;
+      return aOrder - bOrder;
+    });
+  };
+
+  const handleReferenceImageUpload = (slot: number, file: File | null) => {
+    if (!file || !file.type.startsWith('image/')) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (!event.target?.result) {
+        return;
+      }
+
+      const current = referenceImages ?? [];
+      const remaining = current.filter(image => image.slot !== slot);
+      const previous = current.find(image => image.slot === slot);
+      const updated = sortReferenceImages([
+        ...remaining,
+        {
+          slot,
+          url: event.target.result as string,
+          order: previous?.order ?? slot + 1,
+          title: previous?.title,
+          source: 'upload' as const,
+        },
+      ]);
+
+      onUpdateData(node.id, { referenceImages: updated });
+      const input = referenceUploadRefs.current[slot];
+      if (input) {
+        input.value = '';
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleReferenceImageClear = (slot: number) => {
+    const current = referenceImages ?? [];
+    const updated = current.filter(image => image.slot !== slot);
+    onUpdateData(node.id, { referenceImages: updated });
+    const input = referenceUploadRefs.current[slot];
+    if (input) {
+      input.value = '';
+    }
+  };
+
   const renderHandles = (handles: NodeHandleSpec[], side: 'input' | 'output') => {
     return handles.map(handle => {
       const isConnected = connections.some(c =>
@@ -1673,6 +1728,69 @@ const Node: React.FC<NodeProps> = ({
                     <div className={`${imagePreviewBaseClassName} h-24`}>
                         {node.data.inputImageUrl ? <img src={node.data.inputImageUrl} alt="Input for video" className="w-full h-full object-cover rounded-md" /> : <Image className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
                     </div>
+                </div>
+                <div className="space-y-2">
+                  <label className={labelClassName}>Reference Images (Optional)</label>
+                  <p className="text-[11px] text-gray-400">Guide Veo 3.1 with up to three reference images for characters or props.</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {VIDEO_REFERENCE_SLOTS.map((slot) => {
+                      const handleId = `reference_image_${slot + 1}`;
+                      const slotData = referenceImages.find(image => image.slot === slot);
+                      const isConnected = connections.some(c => c.toNodeId === node.id && c.toHandleId === handleId);
+
+                      return (
+                        <div key={handleId} className="space-y-1">
+                          <div
+                            ref={el => { handleAnchorRefs.current[handleId] = el ?? null; }}
+                            className={`${imagePreviewBaseClassName} h-20 relative ${isConnected ? 'cursor-default' : 'cursor-pointer'}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!isConnected) {
+                                referenceUploadRefs.current[slot]?.click();
+                              }
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                          >
+                            <input
+                              type="file"
+                              accept="image/*"
+                              ref={el => { referenceUploadRefs.current[slot] = el ?? null; }}
+                              className="hidden"
+                              disabled={isConnected}
+                              onChange={(event) => handleReferenceImageUpload(slot, event.target.files?.[0] ?? null)}
+                            />
+                            {slotData?.url ? (
+                              <>
+                                <img src={slotData.url} alt={`Reference ${slot + 1}`} className="w-full h-full object-cover rounded-md" />
+                                {!isConnected && (
+                                  <button
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      handleReferenceImageClear(slot);
+                                    }}
+                                    className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-1 hover:bg-black/80 transition-colors"
+                                    aria-label={`Remove reference image ${slot + 1}`}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </>
+                            ) : (
+                              <div className="flex flex-col items-center justify-center text-center text-xs text-gray-400 select-none">
+                                <Upload className={`w-6 h-6 ${styles.node.imagePlaceholderIcon} mb-1`} />
+                                <span>{isConnected ? 'Connected' : 'Upload'}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex justify-between text-[11px] text-gray-400 px-1">
+                            <span>Slot {slot + 1}</span>
+                            {isConnected && <span className="text-green-400 font-medium">Linked</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
                 <div>
                     <label htmlFor={`video-model-${node.id}`} className={labelClassName}>Video Model</label>
