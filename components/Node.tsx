@@ -1676,10 +1676,23 @@ const Node: React.FC<NodeProps> = ({
                 </div>
                 <div>
                     <label htmlFor={`video-model-${node.id}`} className={labelClassName}>Video Model</label>
-                    <select id={`video-model-${node.id}`} className={selectClassName} value={node.data.videoModel || 'veo-3.0-fast-generate-001'} onChange={(e) => onUpdateData(node.id, { videoModel: e.target.value })} onMouseDown={(e) => e.stopPropagation()} >
-                        <option value="veo-3.0-fast-generate-001">Veo 3.0 (Fast)</option>
-                        <option value="veo-2.0-generate-001">Veo 2.0</option>
+                    <select
+                      id={`video-model-${node.id}`}
+                      className={selectClassName}
+                      value={node.data.videoModel || 'veo-3.1-generate-preview'}
+                      onChange={(e) => onUpdateData(node.id, { videoModel: e.target.value })}
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                        <option value="veo-3.1-generate-preview">Veo 3.1 Preview</option>
+                        <option value="veo-3.1-fast-generate-preview">Veo 3.1 Fast Preview</option>
+                        <optgroup label="Legacy">
+                          <option value="veo-3.0-fast-generate-001">Veo 3.0 Fast</option>
+                          <option value="veo-2.0-generate-001">Veo 2.0</option>
+                        </optgroup>
                     </select>
+                    <p className="mt-1 text-[11px] text-gray-400">
+                      Preview models (veo-3.1-*-preview) return the latest Veo 3.1 clips quickly; choose Fast Preview when turnarounds matter most.
+                    </p>
                 </div>
                 <div ref={el => handleAnchorRefs.current['prompt_input'] = el}>
                     <label htmlFor={`video-desc-${node.id}`} className={labelClassName}>Video Prompt</label>

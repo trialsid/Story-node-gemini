@@ -99,7 +99,7 @@ const createDefaultDataForType = (type: NodeType): NodeData['data'] => {
     case NodeType.VideoGenerator:
       return {
         editDescription: 'A majestic eagle soaring over mountains',
-        videoModel: 'veo-3.0-fast-generate-001',
+        videoModel: 'veo-3.1-generate-preview',
       } as NodeData['data'];
     case NodeType.TextGenerator:
       return { prompt: 'Write a short story about a robot who discovers music.' } as NodeData['data'];
@@ -2277,7 +2277,12 @@ const AppContent: React.FC = () => {
         const onProgress = (message: string) => {
             updateNodeData(nodeId, { generationProgressMessage: message });
         };
-        const videoUrl = await generateVideoFromPrompt(editDescription, inputImageUrl, videoModel || 'veo-2.0-generate-001', onProgress);
+        const videoUrl = await generateVideoFromPrompt(
+          editDescription,
+          inputImageUrl,
+          videoModel || 'veo-3.1-generate-preview',
+          onProgress
+        );
         const elapsed = Date.now() - startTime;
         updateNodeData(nodeId, {
             videoUrl,

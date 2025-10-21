@@ -110,7 +110,7 @@ export const templates: { [key: string]: Template } = {
                 type: NodeType.VideoGenerator,
                 position: { x: 400, y: 240 },
                 data: {
-                    videoModel: 'veo-3.0-fast-generate-001',
+                    videoModel: 'veo-3.1-generate-preview',
                     editDescription: 'A sweeping camera move through neon rain as the crew escapes across suspended railways.',
                 },
             },
