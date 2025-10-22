@@ -18,7 +18,7 @@ A visual node-based editor for creating powerful AI workflows using the Gemini A
 - **Image Generator** - Create images from text prompts with aspect ratio control
 - **Image Editor** - Edit images using natural language prompts
 - **Image Mixer** - Blend multiple images with AI-powered mixing
-- **Video Generator** - Generate videos from text descriptions
+- **Video Generator** - Generate videos from text or image prompts with Veo 3.1 resolution, aspect ratio, and duration controls
 
 ### Workflow Features
 - **Visual Node Canvas** - Intuitive drag-and-drop interface for connecting AI operations

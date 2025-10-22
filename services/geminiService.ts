@@ -12,10 +12,18 @@ const getApiKey = (): string | undefined => {
     return undefined;
 };
 
-const API_KEY = getApiKey();
+const requireApiKey = (): string => {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+        throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
+    }
+    return apiKey;
+};
 
-// Initialize the GenAI client only if the API key is available.
-const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
+const createGenAIClient = () => {
+    const apiKey = requireApiKey();
+    return { apiKey, client: new GoogleGenAI({ apiKey }) };
+};
 
 const stylePrompts: { [key: string]: string } = {
   'Studio Portrait Photo': 'A professional studio portrait with controlled lighting. Use a three-point lighting setup (key, fill, and back light) to create depth. The background should be a solid, neutral color. The subject should be in sharp focus with a shallow depth of field (e.g., f/2.8). High-resolution, crisp details.',
@@ -83,9 +91,7 @@ export const generateShortStory = async (
     premise: string,
     pointOfView: string
 ): Promise<string> => {
-    if (!ai) {
-        throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
-    }
+    const { client: ai } = createGenAIClient();
     if (!premise) {
         throw new Error("Please provide a story premise.");
     }
@@ -160,9 +166,7 @@ export const generateScreenplay = async (
     storyPrompt: string,
     mode: 'default' | 'qt' = 'default'
 ): Promise<{ pitch: string; screenplay: string }> => {
-    if (!ai) {
-        throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
-    }
+    const { client: ai } = createGenAIClient();
 
     const trimmedPrompt = storyPrompt?.trim();
     if (!trimmedPrompt) {
@@ -337,9 +341,7 @@ export const expandStoryFromPremise = async (
     length: 'short' | 'medium' = 'short',
     genre?: string
 ): Promise<string> => {
-    if (!ai) {
-        throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
-    }
+    const { client: ai } = createGenAIClient();
 
     const trimmedPremise = premise?.trim();
     if (!trimmedPremise) {
@@ -393,9 +395,7 @@ Write the story in prose format. Focus on showing rather than telling. Create me
 export const generateTextFromPrompt = async (
     prompt: string
 ): Promise<string> => {
-    if (!ai) {
-        throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
-    }
+    const { client: ai } = createGenAIClient();
 
     let lastError: unknown;
 
@@ -421,9 +421,7 @@ export const generateTextFromPrompt = async (
 export const generateCharactersFromStory = async (
     storyPrompt: string,
 ): Promise<Array<{ name: string; description: string }>> => {
-    if (!ai) {
-        throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
-    }
+    const { client: ai } = createGenAIClient();
 
     const trimmedPrompt = storyPrompt?.trim();
     if (!trimmedPrompt) {
@@ -503,9 +501,7 @@ export const generateCharacterSheet = async (
   layout: string,
   aspectRatio: string
 ): Promise<string> => {
-    if (!ai) {
-        throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
-    }
+    const { client: ai } = createGenAIClient();
 
     const layoutInstruction = layoutPrompts[layout] || '';
     const styleInstruction = stylePrompts[style] || `A ${style}.`;
@@ -552,9 +548,7 @@ export const generateImages = async (
     numberOfImages: number,
     aspectRatio: string
 ): Promise<string[]> => {
-    if (!ai) {
-        throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
-    }
+    const { client: ai } = createGenAIClient();
 
     let lastError: unknown;
 
@@ -600,19 +594,24 @@ const VIDEO_GENERATION_MESSAGES = [
     "Almost there, preparing for premiere..."
 ];
 
+type VideoGenerationConfig = {
+    resolution: '720p' | '1080p';
+    aspectRatio: '16:9' | '9:16' | '1:1';
+    duration: '4' | '6' | '8';
+};
+
 export const generateVideoFromPrompt = async (
   prompt: string,
   inputImage: string | undefined,
   model: string,
+  config: VideoGenerationConfig,
   onProgress: (message: string) => void
 ): Promise<string> => {
-    if (!ai || !API_KEY) {
-        throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
-    }
-    
+    const { apiKey, client: aiClient } = createGenAIClient();
+
     try {
         onProgress("Sending generation request...");
-        
+
         const imageParam = inputImage ? (() => {
             const [header, base64Data] = inputImage.split(',');
             const mimeType = header.match(/:(.*?);/)?.[1];
@@ -621,13 +620,19 @@ export const generateVideoFromPrompt = async (
             }
             return { imageBytes: base64Data, mimeType };
         })() : undefined;
-        
-        let operation = await ai.models.generateVideos({
-            model: model,
-            prompt: prompt,
+
+        const { resolution, aspectRatio, duration } = config;
+        const normalizedDuration = resolution === '1080p' ? '8' : duration;
+
+        let operation = await aiClient.models.generateVideos({
+            model,
+            prompt,
             ...(imageParam && { image: imageParam }),
             config: {
-                numberOfVideos: 1
+                numberOfVideos: 1,
+                resolution,
+                aspectRatio,
+                duration: normalizedDuration,
             }
         });
 
@@ -638,7 +643,7 @@ export const generateVideoFromPrompt = async (
             onProgress(VIDEO_GENERATION_MESSAGES[messageIndex % totalMessages]);
             messageIndex++;
             await sleep(10000); // Poll every 10 seconds
-            operation = await ai.operations.getVideosOperation({ operation: operation });
+            operation = await aiClient.operations.getVideosOperation({ operation });
         }
 
         if (operation.error) {
@@ -653,13 +658,13 @@ export const generateVideoFromPrompt = async (
         onProgress("Downloading generated video...");
 
         // The API key is required to download the video
-        const videoResponse = await fetch(`${downloadLink}&key=${API_KEY}`);
+        const videoResponse = await fetch(`${downloadLink}&key=${apiKey}`);
         if (!videoResponse.ok) {
             throw new Error(`Failed to download video: ${videoResponse.statusText}`);
         }
 
         const videoBlob = await videoResponse.blob();
-        
+
         // Convert Blob to data URL to display in the app
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -677,9 +682,7 @@ export const editImageWithPrompt = async (
     base64Image: string,
     prompt: string
 ): Promise<string> => {
-    if (!ai) {
-        throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
-    }
+    const { client: ai } = createGenAIClient();
     
     const imagePart = dataUrlToPart(base64Image);
     const textPart = { text: prompt };
@@ -739,9 +742,7 @@ export const mixImagesWithPrompt = async (
     prompt: string,
     aspectRatio?: string
 ): Promise<string> => {
-    if (!ai) {
-        throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
-    }
+    const { client: ai } = createGenAIClient();
 
     if (base64Images.length === 0) {
         throw new Error("At least one input image is required for mixing.");

@@ -99,7 +99,10 @@ const createDefaultDataForType = (type: NodeType): NodeData['data'] => {
     case NodeType.VideoGenerator:
       return {
         editDescription: 'A majestic eagle soaring over mountains',
-        videoModel: 'veo-3.0-fast-generate-001',
+        videoModel: 'veo-3.1-fast-generate-preview',
+        videoResolution: '720p',
+        videoDuration: '6',
+        videoAspectRatio: '16:9',
       } as NodeData['data'];
     case NodeType.TextGenerator:
       return { prompt: 'Write a short story about a robot who discovers music.' } as NodeData['data'];
@@ -2256,7 +2259,7 @@ const AppContent: React.FC = () => {
     const sourceNode = nodes.find(n => n.id === nodeId);
     if (!sourceNode || sourceNode.type !== NodeType.VideoGenerator) return;
   
-    const { inputImageUrl, editDescription, videoModel } = sourceNode.data;
+    const { inputImageUrl, editDescription, videoModel, videoResolution, videoDuration, videoAspectRatio } = sourceNode.data;
     
     if (!editDescription) {
         updateNodeData(nodeId, { error: 'Please provide a video prompt.' });
@@ -2277,7 +2280,21 @@ const AppContent: React.FC = () => {
         const onProgress = (message: string) => {
             updateNodeData(nodeId, { generationProgressMessage: message });
         };
-        const videoUrl = await generateVideoFromPrompt(editDescription, inputImageUrl, videoModel || 'veo-2.0-generate-001', onProgress);
+        const resolution = videoResolution || '720p';
+        const aspectRatio = videoAspectRatio || '16:9';
+        const duration = resolution === '1080p' ? '8' : (videoDuration || '6');
+
+        const videoUrl = await generateVideoFromPrompt(
+            editDescription,
+            inputImageUrl,
+            videoModel || 'veo-3.1-fast-generate-preview',
+            {
+                resolution,
+                aspectRatio,
+                duration,
+            },
+            onProgress
+        );
         const elapsed = Date.now() - startTime;
         updateNodeData(nodeId, {
             videoUrl,

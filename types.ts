@@ -71,6 +71,9 @@ export interface NodeData {
     
     // For Video Generator
     videoModel?: string;
+    videoResolution?: '720p' | '1080p';
+    videoDuration?: '4' | '6' | '8';
+    videoAspectRatio?: '16:9' | '9:16' | '1:1';
     videoUrl?: string;
     generationProgressMessage?: string;
     generationStartTimeMs?: number;
