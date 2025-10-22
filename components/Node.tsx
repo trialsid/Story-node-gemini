@@ -1654,8 +1654,15 @@ const Node: React.FC<NodeProps> = ({
           )
       })()}
 
-      {node.type === NodeType.VideoGenerator && (
-        <>
+      {node.type === NodeType.VideoGenerator && (() => {
+        const resolution = node.data.videoResolution || '720p';
+        const durationOptions = resolution === '1080p' ? ['8'] : ['4', '6', '8'];
+        const durationValue = resolution === '1080p' ? '8' : (node.data.videoDuration || '6');
+        const aspectRatio = node.data.videoAspectRatio || '16:9';
+        const modelValue = node.data.videoModel || 'veo-3.1-fast-generate-preview';
+
+        return (
+          <>
             <NodeHeader
                 title='Video Generator'
                 icon={<Clapperboard className="w-4 h-4 text-green-400" />}
@@ -1676,10 +1683,73 @@ const Node: React.FC<NodeProps> = ({
                 </div>
                 <div>
                     <label htmlFor={`video-model-${node.id}`} className={labelClassName}>Video Model</label>
-                    <select id={`video-model-${node.id}`} className={selectClassName} value={node.data.videoModel || 'veo-3.0-fast-generate-001'} onChange={(e) => onUpdateData(node.id, { videoModel: e.target.value })} onMouseDown={(e) => e.stopPropagation()} >
+                    <select
+                        id={`video-model-${node.id}`}
+                        className={selectClassName}
+                        value={modelValue}
+                        onChange={(e) => onUpdateData(node.id, { videoModel: e.target.value })}
+                        onMouseDown={(e) => e.stopPropagation()}
+                    >
+                        <option value="veo-3.1-fast-generate-preview">Veo 3.1 (Fast Preview)</option>
                         <option value="veo-3.0-fast-generate-001">Veo 3.0 (Fast)</option>
                         <option value="veo-2.0-generate-001">Veo 2.0</option>
                     </select>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                        <label htmlFor={`video-resolution-${node.id}`} className={labelClassName}>Resolution</label>
+                        <select
+                            id={`video-resolution-${node.id}`}
+                            className={selectClassName}
+                            value={resolution}
+                            onChange={(e) => {
+                                const newResolution = e.target.value as '720p' | '1080p';
+                                const updates: Partial<NodeData['data']> = { videoResolution: newResolution };
+                                if (newResolution === '1080p') {
+                                    updates.videoDuration = '8';
+                                } else if (resolution === '1080p' && node.data.videoDuration === '8') {
+                                    updates.videoDuration = '6';
+                                }
+                                onUpdateData(node.id, updates);
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                        >
+                            <option value="720p">720p</option>
+                            <option value="1080p">1080p</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label htmlFor={`video-aspect-${node.id}`} className={labelClassName}>Aspect Ratio</label>
+                        <select
+                            id={`video-aspect-${node.id}`}
+                            className={selectClassName}
+                            value={aspectRatio}
+                            onChange={(e) => onUpdateData(node.id, { videoAspectRatio: e.target.value })}
+                            onMouseDown={(e) => e.stopPropagation()}
+                        >
+                            <option value="16:9">16:9 (Landscape)</option>
+                            <option value="9:16">9:16 (Vertical)</option>
+                            <option value="1:1">1:1 (Square)</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label htmlFor={`video-duration-${node.id}`} className={labelClassName}>Duration (seconds)</label>
+                    <select
+                        id={`video-duration-${node.id}`}
+                        className={selectClassName}
+                        value={durationValue}
+                        onChange={(e) => onUpdateData(node.id, { videoDuration: e.target.value })}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        disabled={resolution === '1080p'}
+                    >
+                        {durationOptions.map(option => (
+                            <option key={option} value={option}>{option}</option>
+                        ))}
+                    </select>
+                    {resolution === '1080p' && (
+                        <p className="text-[10px] text-gray-400 mt-1">1080p clips are limited to 8 seconds.</p>
+                    )}
                 </div>
                 <div ref={el => handleAnchorRefs.current['prompt_input'] = el}>
                     <label htmlFor={`video-desc-${node.id}`} className={labelClassName}>Video Prompt</label>
@@ -1717,8 +1787,9 @@ const Node: React.FC<NodeProps> = ({
                 : previewImage ? <img key={previewImage} ref={minimizedImageRef} src={previewImage} alt="Preview" className="w-full h-full object-contain" />
                 : <Video className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
             </div> )}
-        </>
-      )}
+          </>
+        );
+      })()}
       {contextMenuPosition && (
         <NodeContextMenu
           position={contextMenuPosition}
