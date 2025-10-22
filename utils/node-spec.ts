@@ -70,8 +70,13 @@ export const NODE_SPEC: { [key in NodeType]: NodeSpec } = {
   },
   [NodeType.VideoGenerator]: {
     inputs: [
-      { id: 'image_input', type: HandleType.Image, label: 'Input Image (Optional)' },
       { id: 'prompt_input', type: HandleType.Text, label: 'Video Prompt' },
+      { id: 'image_input', type: HandleType.Image, label: 'First Frame (Optional)' },
+      { id: 'last_frame_input', type: HandleType.Image, label: 'Last Frame (Optional)' },
+      { id: 'reference_image_1', type: HandleType.Image, label: 'Reference Image 1' },
+      { id: 'reference_image_2', type: HandleType.Image, label: 'Reference Image 2' },
+      { id: 'reference_image_3', type: HandleType.Image, label: 'Reference Image 3' },
+      { id: 'video_input', type: HandleType.Video, label: 'Source Video (Extend)' },
     ],
     outputs: [{ id: 'video_output', type: HandleType.Video, label: 'Output Video' }],
   },

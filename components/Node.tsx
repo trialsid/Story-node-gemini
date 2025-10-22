@@ -1654,71 +1654,286 @@ const Node: React.FC<NodeProps> = ({
           )
       })()}
 
-      {node.type === NodeType.VideoGenerator && (
-        <>
+      {node.type === NodeType.VideoGenerator && (() => {
+        const videoMode = node.data.videoMode || 'text-to-video';
+        const isExtendMode = videoMode === 'extend';
+        const referenceImageSlots = [...(node.data.referenceImageUrls || [])];
+        while (referenceImageSlots.length < 3) {
+          referenceImageSlots.push(undefined);
+        }
+        const durationSeconds = node.data.durationSeconds ?? (isExtendMode ? 7 : 8);
+        const aspectRatio = node.data.aspectRatio || '16:9';
+        const resolution = node.data.resolution || '1080p';
+        const audioCuePreset = node.data.audioCuePreset || 'none';
+
+        const audioCueSnippets: Record<'dialogue' | 'ambient' | 'sfx_rise', string> = {
+          dialogue: 'Include naturalistic dialogue beats and note the vocal performance and pacing for each line.',
+          ambient: 'Describe the ambience and background audio bed, calling out environmental cues and emotional texture.',
+          sfx_rise: 'List key sound effects with precise timing, including risers, impacts, and transitions to support the action.',
+        };
+
+        const handleAudioCuePresetChange = (preset: 'none' | 'dialogue' | 'ambient' | 'sfx_rise') => {
+          if (preset === 'none') {
+            onUpdateData(node.id, { audioCuePreset: 'none' });
+            return;
+          }
+          const snippet = audioCueSnippets[preset];
+          if (!snippet) {
+            onUpdateData(node.id, { audioCuePreset: preset });
+            return;
+          }
+          const currentPrompt = node.data.editDescription || '';
+          if (currentPrompt.includes(snippet)) {
+            onUpdateData(node.id, { audioCuePreset: preset });
+            return;
+          }
+          const newPrompt = currentPrompt.trim().length > 0
+            ? `${currentPrompt.trim()}\n\n${snippet}`
+            : snippet;
+          onUpdateData(node.id, { audioCuePreset: preset, editDescription: newPrompt });
+        };
+
+        return (
+          <>
             <NodeHeader
-                title='Video Generator'
-                icon={<Clapperboard className="w-4 h-4 text-green-400" />}
-                isMinimized={isMinimized}
-                onToggleMinimize={() => onToggleMinimize(node.id)}
-                onDelete={handleDelete}
-                onShowDeleteConfirmation={handleShowDeleteConfirmation}
-                onMouseDown={handleHeaderMouseDown}
-                onContextMenu={handleHeaderContextMenu}
+              title='Video Generator'
+              icon={<Clapperboard className="w-4 h-4 text-green-400" />}
+              isMinimized={isMinimized}
+              onToggleMinimize={() => onToggleMinimize(node.id)}
+              onDelete={handleDelete}
+              onShowDeleteConfirmation={handleShowDeleteConfirmation}
+              onMouseDown={handleHeaderMouseDown}
+              onContextMenu={handleHeaderContextMenu}
             />
-            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
-              <div className="p-2 space-y-2">
-                <div ref={el => handleAnchorRefs.current['image_input'] = el}>
-                    <label className={labelClassName}>Input Image (Optional)</label>
-                    <div className={`${imagePreviewBaseClassName} h-24`}>
-                        {node.data.inputImageUrl ? <img src={node.data.inputImageUrl} alt="Input for video" className="w-full h-full object-cover rounded-md" /> : <Image className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
-                    </div>
-                </div>
-                <div>
-                    <label htmlFor={`video-model-${node.id}`} className={labelClassName}>Video Model</label>
-                    <select id={`video-model-${node.id}`} className={selectClassName} value={node.data.videoModel || 'veo-3.0-fast-generate-001'} onChange={(e) => onUpdateData(node.id, { videoModel: e.target.value })} onMouseDown={(e) => e.stopPropagation()} >
-                        <option value="veo-3.0-fast-generate-001">Veo 3.0 (Fast)</option>
-                        <option value="veo-2.0-generate-001">Veo 2.0</option>
+            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1400px] opacity-100'}`}>
+              <div className="p-2 space-y-3">
+                <div className="grid gap-2">
+                  <div>
+                    <label className={labelClassName}>Generation Mode</label>
+                    <select
+                      className={selectClassName}
+                      value={videoMode}
+                      onChange={(e) => onUpdateData(node.id, { videoMode: e.target.value as 'text-to-video' | 'extend' })}
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      <option value="text-to-video">Text to Video</option>
+                      <option value="extend">Extend Existing Clip</option>
                     </select>
+                  </div>
+                  <div>
+                    <label htmlFor={`video-model-${node.id}`} className={labelClassName}>Veo Model</label>
+                    <select
+                      id={`video-model-${node.id}`}
+                      className={selectClassName}
+                      value={node.data.videoModel || 'veo-3.1-generate-preview'}
+                      onChange={(e) => onUpdateData(node.id, { videoModel: e.target.value })}
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      <optgroup label="Veo 3.1 Preview">
+                        <option value="veo-3.1-generate-preview">Veo 3.1 Generate (Preview)</option>
+                        <option value="veo-3.1-fast-generate-preview">Veo 3.1 Fast Generate (Preview)</option>
+                      </optgroup>
+                      <optgroup label="Legacy">
+                        <option value="veo-3.0-fast-generate-001">Veo 3.0 Fast</option>
+                        <option value="veo-2.0-generate-001">Veo 2.0</option>
+                      </optgroup>
+                    </select>
+                    <p className="text-[10px] text-gray-400 mt-1">Preview tiers unlock reference images, first/last frame blending, and extension workflows.</p>
+                  </div>
                 </div>
+
                 <div ref={el => handleAnchorRefs.current['prompt_input'] = el}>
-                    <label htmlFor={`video-desc-${node.id}`} className={labelClassName}>Video Prompt</label>
-                    <textarea id={`video-desc-${node.id}`} value={node.data.editDescription || ''} onChange={(e) => onUpdateData(node.id, { editDescription: e.target.value })} onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.VideoGenerator)} onMouseDown={(e) => e.stopPropagation()} className={`${textAreaClassName(connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input'))} h-20`} disabled={connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input')} placeholder="e.g., A majestic eagle soaring" />
+                  <label htmlFor={`video-desc-${node.id}`} className={labelClassName}>Video Prompt</label>
+                  <textarea
+                    id={`video-desc-${node.id}`}
+                    value={node.data.editDescription || ''}
+                    onChange={(e) => onUpdateData(node.id, { editDescription: e.target.value })}
+                    onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.VideoGenerator)}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className={`${textAreaClassName(connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input'))} h-24`}
+                    disabled={connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input')}
+                    placeholder="Describe the scene, camera, motion, and audio cues."
+                  />
                 </div>
-                <div ref={el => handleAnchorRefs.current['video_output'] = el}>
-                    <label className={labelClassName}>Output Video</label>
-                    <div className={`${imagePreviewBaseClassName} h-40`}>
-                        {node.data.isLoading ? (
-                            <div className="text-center">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-400 mx-auto"></div>
-                                <p className="text-xs mt-2 text-green-300 animate-pulse">{node.data.generationProgressMessage || 'Generating...'}</p>
-                                <p className="text-xs mt-1 text-gray-300">Elapsed: {formatDuration(videoElapsedMs)}</p>
-                            </div>
-                        )
-                        : node.data.error ? <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
-                        : node.data.videoUrl ? <video src={node.data.videoUrl} controls autoPlay muted loop className="w-full h-full object-cover rounded-md" />
-                        : <Video className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+
+                <div>
+                  <label className={labelClassName}>Audio Cue Helper</label>
+                  <select
+                    className={selectClassName}
+                    value={audioCuePreset}
+                    onChange={(e) => handleAudioCuePresetChange(e.target.value as 'none' | 'dialogue' | 'ambient' | 'sfx_rise')}
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    <option value="none">No preset</option>
+                    <option value="dialogue">Dialogue scaffold</option>
+                    <option value="ambient">Ambient bed</option>
+                    <option value="sfx_rise">SFX rise & impacts</option>
+                  </select>
+                  <p className="text-[10px] text-gray-400 mt-1">Quickly inject dialogue, ambience, or sound design notes into your prompt.</p>
+                </div>
+
+                <div className="grid gap-2 md:grid-cols-2">
+                  <div ref={el => handleAnchorRefs.current['image_input'] = el}>
+                    <label className={labelClassName}>First Frame (Optional)</label>
+                    <div className={`${imagePreviewBaseClassName} h-24`}>
+                      {node.data.inputImageUrl ? (
+                        <img src={node.data.inputImageUrl} alt="First frame" className="w-full h-full object-cover rounded-md" />
+                      ) : (
+                        <Image className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
+                      )}
                     </div>
-                    {!node.data.isLoading && node.data.generationElapsedMs !== undefined && !node.data.error && (
-                        <p className="text-xs mt-1 text-center text-gray-300">Completed in {formatDuration(node.data.generationElapsedMs)}</p>
-                    )}
-                    {!node.data.isLoading && node.data.generationElapsedMs !== undefined && node.data.error && (
-                        <p className="text-xs mt-1 text-center text-gray-300">Attempt took {formatDuration(node.data.generationElapsedMs)}</p>
-                    )}
+                  </div>
+                  <div ref={el => handleAnchorRefs.current['last_frame_input'] = el}>
+                    <label className={labelClassName}>Last Frame (Optional)</label>
+                    <div className={`${imagePreviewBaseClassName} h-24`}>
+                      {node.data.lastFrameImageUrl ? (
+                        <img src={node.data.lastFrameImageUrl} alt="Last frame" className="w-full h-full object-cover rounded-md" />
+                      ) : (
+                        <Image className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <button onClick={() => onGenerateVideo(node.id)} disabled={node.data.isLoading} className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-green-600 hover:bg-green-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`} >
-                    <Sparkles className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
-                    {node.data.isLoading ? 'Generating...' : 'Generate Video'}
+
+                <div className="grid gap-2 md:grid-cols-3">
+                  {referenceImageSlots.map((url, index) => (
+                    <div key={`reference-${index}`} ref={el => { handleAnchorRefs.current[`reference_image_${index + 1}`] = el; }}>
+                      <label className={labelClassName}>Reference Image {index + 1}</label>
+                      <div className={`${imagePreviewBaseClassName} h-24`}>
+                        {url ? (
+                          <img src={url} alt={`Reference ${index + 1}`} className="w-full h-full object-cover rounded-md" />
+                        ) : (
+                          <Image className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div ref={el => handleAnchorRefs.current['video_input'] = el}>
+                  <label className={labelClassName}>Source Clip for Extension</label>
+                  <div className={`${imagePreviewBaseClassName} h-28`}>
+                    {node.data.inputVideoUrl ? (
+                      <video src={node.data.inputVideoUrl} controls playsInline className="w-full h-full object-cover rounded-md" />
+                    ) : (
+                      <Video className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
+                    )}
+                  </div>
+                  {isExtendMode && !node.data.inputVideoUrl && (
+                    <p className="text-[10px] text-amber-300 mt-1">Connect a Veo-created clip to extend it by up to 7 seconds per call.</p>
+                  )}
+                </div>
+
+                <div className="grid gap-2 md:grid-cols-3">
+                  <div>
+                    <label className={labelClassName}>Aspect Ratio</label>
+                    <select
+                      className={selectClassName}
+                      value={aspectRatio}
+                      onChange={(e) => onUpdateData(node.id, { aspectRatio: e.target.value })}
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      <option value="16:9">16:9 (Widescreen)</option>
+                      <option value="9:16">9:16 (Vertical)</option>
+                      <option value="1:1">1:1 (Square)</option>
+                      <option value="4:5">4:5 (Portrait)</option>
+                      <option value="21:9">21:9 (Ultrawide)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClassName}>Resolution</label>
+                    <select
+                      className={selectClassName}
+                      value={resolution}
+                      onChange={(e) => onUpdateData(node.id, { resolution: e.target.value as '720p' | '1080p' })}
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      <option value="1080p">1080p</option>
+                      <option value="720p">720p</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClassName}>Duration (seconds)</label>
+                    <input
+                      type="number"
+                      min={isExtendMode ? 1 : 1}
+                      max={isExtendMode ? 7 : 8}
+                      value={durationSeconds}
+                      onChange={(e) => {
+                        const rawValue = e.target.value;
+                        const parsedValue = rawValue === '' ? undefined : Number(rawValue);
+                        onUpdateData(node.id, { durationSeconds: parsedValue });
+                      }}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      className={`${selectClassName} appearance-none`}
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1">{isExtendMode ? 'Extensions add up to 7s of motion per request.' : 'Veo 3.1 supports clips up to 8s long.'}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className={labelClassName}>Negative Prompt (Optional)</label>
+                  <textarea
+                    value={node.data.negativePrompt || ''}
+                    onChange={(e) => onUpdateData(node.id, { negativePrompt: e.target.value })}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className={`${textAreaClassName()} h-20`}
+                    placeholder="List elements to avoid (e.g., motion blur, shaky cam)."
+                  />
+                </div>
+
+                <div ref={el => handleAnchorRefs.current['video_output'] = el}>
+                  <label className={labelClassName}>Output Video</label>
+                  <div className={`${imagePreviewBaseClassName} h-40`}>
+                    {node.data.isLoading ? (
+                      <div className="text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-400 mx-auto"></div>
+                        <p className="text-xs mt-2 text-green-300 animate-pulse">{node.data.generationProgressMessage || 'Generating...'}</p>
+                        <p className="text-xs mt-1 text-gray-300">Elapsed: {formatDuration(videoElapsedMs)}</p>
+                      </div>
+                    ) : node.data.error ? (
+                      <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
+                    ) : node.data.videoUrl ? (
+                      <video src={node.data.videoUrl} controls autoPlay muted loop className="w-full h-full object-cover rounded-md" />
+                    ) : (
+                      <Video className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
+                    )}
+                  </div>
+                  {!node.data.isLoading && node.data.generationElapsedMs !== undefined && !node.data.error && (
+                    <p className="text-xs mt-1 text-center text-gray-300">Completed in {formatDuration(node.data.generationElapsedMs)}</p>
+                  )}
+                  {!node.data.isLoading && node.data.generationElapsedMs !== undefined && node.data.error && (
+                    <p className="text-xs mt-1 text-center text-gray-300">Attempt took {formatDuration(node.data.generationElapsedMs)}</p>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => onGenerateVideo(node.id)}
+                  disabled={node.data.isLoading}
+                  className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-green-600 hover:bg-green-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`}
+                >
+                  <Sparkles className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                  {node.data.isLoading ? 'Generating...' : 'Generate Video'}
                 </button>
               </div>
             </div>
-             {isMinimized && ( <div className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md flex items-center justify-center border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`} style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }} >
-                {previewVideo ? <video key={previewVideo} ref={minimizedVideoRef} src={previewVideo} muted loop autoPlay playsInline className="w-full h-full object-contain" />
-                : previewImage ? <img key={previewImage} ref={minimizedImageRef} src={previewImage} alt="Preview" className="w-full h-full object-contain" />
-                : <Video className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
-            </div> )}
-        </>
-      )}
+            {isMinimized && (
+              <div
+                className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md flex items-center justify-center border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`}
+                style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }}
+              >
+                {previewVideo ? (
+                  <video key={previewVideo} ref={minimizedVideoRef} src={previewVideo} muted loop autoPlay playsInline className="w-full h-full object-contain" />
+                ) : previewImage ? (
+                  <img key={previewImage} ref={minimizedImageRef} src={previewImage} alt="Preview" className="w-full h-full object-contain" />
+                ) : (
+                  <Video className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
+                )}
+              </div>
+            )}
+          </>
+        );
+      })()}
       {contextMenuPosition && (
         <NodeContextMenu
           position={contextMenuPosition}

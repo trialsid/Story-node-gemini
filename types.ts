@@ -75,8 +75,16 @@ export interface NodeData {
     generationProgressMessage?: string;
     generationStartTimeMs?: number;
     generationElapsedMs?: number;
+    videoMode?: 'text-to-video' | 'extend';
     // `inputImageUrl` is shared
     // `editDescription` is used for the video prompt
+    referenceImageUrls?: (string | undefined)[];
+    lastFrameImageUrl?: string;
+    inputVideoUrl?: string;
+    resolution?: '720p' | '1080p';
+    durationSeconds?: number;
+    negativePrompt?: string;
+    audioCuePreset?: 'none' | 'dialogue' | 'ambient' | 'sfx_rise';
 
     // For Image Node
     // `imageUrl` is used for the uploaded image

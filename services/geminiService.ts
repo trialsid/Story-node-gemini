@@ -600,36 +600,110 @@ const VIDEO_GENERATION_MESSAGES = [
     "Almost there, preparing for premiere..."
 ];
 
+interface GenerateVideoOptions {
+    prompt: string;
+    inputImage?: string;
+    lastFrameImage?: string;
+    referenceImages?: string[];
+    inputVideo?: string;
+    model: string;
+    aspectRatio?: string;
+    resolution?: '720p' | '1080p';
+    durationSeconds?: number;
+    negativePrompt?: string;
+}
+
+const dataUrlToImageParam = (dataUrl: string) => {
+    const [header, base64Data] = dataUrl.split(',');
+    const mimeType = header.match(/:(.*?);/)?.[1];
+    if (!mimeType || !base64Data) {
+        throw new Error('Invalid data URL format for image.');
+    }
+    return { imageBytes: base64Data, mimeType };
+};
+
+const dataUrlToVideoParam = (dataUrl: string) => {
+    const [header, base64Data] = dataUrl.split(',');
+    const mimeType = header.match(/:(.*?);/)?.[1];
+    if (!mimeType || !base64Data) {
+        throw new Error('Invalid data URL format for video.');
+    }
+    return { videoBytes: base64Data, mimeType };
+};
+
 export const generateVideoFromPrompt = async (
-  prompt: string,
-  inputImage: string | undefined,
-  model: string,
+  options: GenerateVideoOptions,
   onProgress: (message: string) => void
 ): Promise<string> => {
     if (!ai || !API_KEY) {
         throw new Error("API Key is not configured. Please add your key to the `env.js` file in the project root.");
     }
-    
+
     try {
         onProgress("Sending generation request...");
-        
-        const imageParam = inputImage ? (() => {
-            const [header, base64Data] = inputImage.split(',');
-            const mimeType = header.match(/:(.*?);/)?.[1];
-            if (!mimeType || !base64Data) {
-                throw new Error('Invalid data URL format for image.');
-            }
-            return { imageBytes: base64Data, mimeType };
-        })() : undefined;
-        
-        let operation = await ai.models.generateVideos({
-            model: model,
-            prompt: prompt,
-            ...(imageParam && { image: imageParam }),
-            config: {
-                numberOfVideos: 1
-            }
-        });
+
+        const {
+            prompt,
+            inputImage,
+            lastFrameImage,
+            referenceImages,
+            inputVideo,
+            model,
+            aspectRatio,
+            resolution,
+            durationSeconds,
+            negativePrompt,
+        } = options;
+
+        const imageParam = inputImage ? dataUrlToImageParam(inputImage) : undefined;
+        const lastFrameParam = lastFrameImage ? dataUrlToImageParam(lastFrameImage) : undefined;
+        const referenceImageParams = (referenceImages || [])
+            .map((url) => {
+                try {
+                    return dataUrlToImageParam(url);
+                } catch (error) {
+                    console.warn('Skipping invalid reference image', error);
+                    return null;
+                }
+            })
+            .filter((param): param is { imageBytes: string; mimeType: string } => param !== null)
+            .map(param => ({ image: param }));
+        const videoParam = inputVideo ? dataUrlToVideoParam(inputVideo) : undefined;
+
+        const config: Record<string, unknown> = { numberOfVideos: 1 };
+        if (aspectRatio) {
+            config.aspectRatio = aspectRatio;
+        }
+        if (resolution) {
+            config.resolution = resolution;
+        }
+        if (durationSeconds && Number.isFinite(durationSeconds)) {
+            config.durationSeconds = durationSeconds;
+        }
+
+        const request: Record<string, unknown> = {
+            model,
+            prompt,
+            config,
+        };
+
+        if (imageParam) {
+            request.image = imageParam;
+        }
+        if (lastFrameParam) {
+            request.lastFrame = lastFrameParam;
+        }
+        if (referenceImageParams.length > 0) {
+            request.referenceImages = referenceImageParams;
+        }
+        if (videoParam) {
+            request.video = videoParam;
+        }
+        if (negativePrompt && negativePrompt.trim().length > 0) {
+            request.negativePrompt = negativePrompt.trim();
+        }
+
+        let operation = await ai.models.generateVideos(request as any);
 
         let messageIndex = 0;
         const totalMessages = VIDEO_GENERATION_MESSAGES.length;
