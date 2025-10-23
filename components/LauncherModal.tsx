@@ -106,33 +106,33 @@ const LauncherModal: React.FC<LauncherModalProps> = ({
         <>
           <button
             onClick={onStartFresh}
-            className={`w-full text-left p-4 rounded-lg flex items-center space-x-4 transition-colors ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg}`}
+            className={`w-full text-left p-3 rounded-lg flex items-center space-x-3 transition-colors ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg}`}
           >
-            <div className={`p-3 rounded-md ${styles.node.bg}`}>
-              <Plus className="w-6 h-6" />
+            <div className={`p-2.5 rounded-md ${styles.node.bg}`}>
+              <Plus className="w-5 h-5" />
             </div>
             <div>
-              <p className="font-semibold">New Project</p>
-              <p className={`text-sm ${styles.node.labelText}`}>Start a new project in draft mode.</p>
+              <p className="font-semibold text-sm">New Project</p>
+              <p className={`text-xs ${styles.node.labelText}`}>Start a new project in draft mode.</p>
             </div>
           </button>
-          
-          <h3 className={`text-base font-semibold ${styles.modal.text} mt-8 mb-4`}>Or start from a template</h3>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+
+          <h3 className={`text-sm font-semibold ${styles.modal.text} mt-6 mb-3`}>Or start from a template</h3>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
             {Object.entries(templates).map(([key, template]) => (
               <button
                 key={key}
                 onClick={() => onLoadTemplate(key as keyof typeof templates)}
-                className={`w-full text-left p-4 rounded-lg flex flex-col gap-3 transition-colors ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${styles.gallery.itemFocusRing}`}
+                className={`w-full text-left p-3 rounded-lg flex flex-col gap-2 transition-colors ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${styles.gallery.itemFocusRing}`}
               >
-                <div className="flex items-start gap-3 h-[3rem]">
-                  <div className={`p-3 rounded-md ${styles.node.bg} flex-shrink-0`}>
+                <div className="flex items-start gap-2.5">
+                  <div className={`p-2 rounded-md ${styles.node.bg} flex-shrink-0`}>
                     {templateIcons[key as keyof typeof templates]}
                   </div>
-                  <p className="font-bold text-sm leading-tight">{template.name}</p>
+                  <p className="font-bold text-xs leading-tight pt-0.5">{template.name}</p>
                 </div>
-                <p className={`text-sm ${styles.node.labelText} leading-relaxed`}>{template.description}</p>
+                <p className={`text-[11px] ${styles.node.labelText} leading-snug`}>{template.description}</p>
               </button>
             ))}
           </div>
@@ -146,7 +146,7 @@ const LauncherModal: React.FC<LauncherModalProps> = ({
         <>
           {isLoadingProjects ? (
             <div className="w-full h-48 flex items-center justify-center">
-              <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+              <Loader2 className={`w-8 h-8 animate-spin ${styles.gallery.accentText}`} />
             </div>
           ) : projects.length === 0 ? (
             <div className={`w-full h-48 flex items-center justify-center text-center border-2 border-dashed ${styles.node.imagePlaceholderBorder} rounded-lg p-4 mt-4`}>
@@ -156,7 +156,7 @@ const LauncherModal: React.FC<LauncherModalProps> = ({
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
               {projects.slice(0, 10).map((project) => (
                 <div
                   key={project.id}
@@ -169,23 +169,23 @@ const LauncherModal: React.FC<LauncherModalProps> = ({
                       handleLoadProject(project.id);
                     }
                   }}
-                  className={`w-full text-left p-4 rounded-lg flex flex-col gap-3 transition-colors cursor-pointer ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${styles.gallery.itemFocusRing}`}
+                  className={`w-full text-left p-3 rounded-lg flex flex-col gap-2 transition-colors cursor-pointer ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${styles.gallery.itemFocusRing}`}
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-base truncate mb-2">{project.name}</p>
-                    <p className={`text-xs ${styles.node.labelText}`}>Created {formatDate(project.createdAt)}</p>
+                    <p className="font-bold text-sm truncate mb-1">{project.name}</p>
+                    <p className={`text-[11px] ${styles.node.labelText}`}>Created {formatDate(project.createdAt)}</p>
                   </div>
-                  <div className={`pt-3 border-t ${styles.toolbar.border} flex items-center justify-between gap-3`}>
-                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded ${styles.gallery.accentBadge}`}>
-                      Updated {formatDate(project.updatedAt)}
+                  <div className={`pt-2 border-t ${styles.toolbar.border} flex items-center justify-between gap-2`}>
+                    <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded ${styles.gallery.accentBadge}`}>
+                      {formatDate(project.updatedAt)}
                     </span>
                     <button
                       type="button"
                       onClick={(e) => handleDeleteClick(e, project.id)}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded transition-colors ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} ${styles.gallery.accentText} hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${styles.gallery.itemFocusRing}`}
+                      className={`inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded transition-colors ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} text-gray-400 hover:text-red-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${styles.gallery.itemFocusRing}`}
+                      aria-label={`Delete ${project.name}`}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Remove
+                      <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
                 </div>
@@ -229,7 +229,7 @@ const LauncherModal: React.FC<LauncherModalProps> = ({
                 id="show-on-startup"
                 checked={showOnStartup}
                 onChange={(e) => onShowOnStartupChange(e.target.checked)}
-                className={`h-4 w-4 rounded ${styles.node.inputBorder} text-cyan-600 focus:ring-cyan-500 bg-transparent`}
+                className={`h-4 w-4 rounded ${styles.node.inputBorder} text-blue-600 focus:ring-sky-500 bg-transparent`}
               />
               <label htmlFor="show-on-startup" className={`ml-2 text-sm ${styles.modal.messageText}`}>
                 Show on startup
@@ -247,19 +247,23 @@ const LauncherModal: React.FC<LauncherModalProps> = ({
 
         {/* Content */}
         <div className="flex-1 flex flex-col relative">
-            <button 
+            <button
                 onClick={onClose}
-                className="absolute top-3 right-3 p-2 rounded-full text-gray-400 hover:bg-gray-600/50 hover:text-white transition-colors z-10"
+                className="absolute top-3 right-3 p-2 rounded-full text-gray-400 hover:bg-gray-600/50 hover:text-white transition-colors z-20"
                 aria-label="Close launcher screen"
             >
                 <X className="w-5 h-5" />
             </button>
-            <main className="flex-grow p-8 overflow-y-auto custom-scrollbar">
+            {/* Sticky Header */}
+            <div className={`sticky top-0 z-10 ${styles.modal.bg} border-b ${styles.modal.border} px-8 pt-8 pb-4`}>
                 <h1 id="launcher-title-main" className={`text-2xl font-bold ${styles.modal.text} mb-1`}>
                     {content[activeTab as keyof typeof content].title}
                 </h1>
-                <p className={`${styles.modal.messageText} mb-6`}>{content[activeTab as keyof typeof content].description}</p>
-                <div className="mx-auto max-w-3xl space-y-8">
+                <p className={`${styles.modal.messageText} text-sm`}>{content[activeTab as keyof typeof content].description}</p>
+            </div>
+            {/* Scrollable Content */}
+            <main className="flex-grow px-8 py-6 overflow-y-auto custom-scrollbar">
+                <div className="mx-auto max-w-3xl">
                   {content[activeTab as keyof typeof content].component}
                 </div>
             </main>
