@@ -75,6 +75,14 @@ export const NODE_SPEC: { [key in NodeType]: NodeSpec } = {
     ],
     outputs: [{ id: 'video_output', type: HandleType.Video, label: 'Output Video' }],
   },
+  [NodeType.VideoInterpolator]: {
+    inputs: [
+      { id: 'start_image_input', type: HandleType.Image, label: 'Start Image' },
+      { id: 'end_image_input', type: HandleType.Image, label: 'End Image' },
+      { id: 'prompt_input', type: HandleType.Text, label: 'Prompt (Optional)' },
+    ],
+    outputs: [{ id: 'video_output', type: HandleType.Video, label: 'Output Video' }],
+  },
 };
 
 // Compatibility check

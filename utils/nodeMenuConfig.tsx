@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, ScrollText, Edit3, Users as UsersIcon, PenTool, ImagePlus, Wand2, Layers, Clapperboard, UserCog, Sparkles } from 'lucide-react';
+import { FileText, ScrollText, Edit3, Users as UsersIcon, PenTool, ImagePlus, Wand2, Layers, Clapperboard, UserCog, Sparkles, Film } from 'lucide-react';
 
 export interface NodeMenuCallbacks {
   onAddTextNode: () => void;
@@ -15,6 +15,7 @@ export interface NodeMenuCallbacks {
   onAddImageEditorNode: () => void;
   onAddImageMixerNode: () => void;
   onAddVideoGeneratorNode: () => void;
+  onAddVideoInterpolatorNode: () => void;
 }
 
 export interface NodeMenuItem {
@@ -68,6 +69,7 @@ export const buildNodeMenuCategories = (callbacks: NodeMenuCallbacks): NodeMenuC
     title: 'Video Tools',
     items: [
       { label: 'Video Generator', icon: <Clapperboard className="w-5 h-5 text-green-400" />, action: callbacks.onAddVideoGeneratorNode },
+      { label: 'Video Interpolator', icon: <Film className="w-5 h-5 text-teal-400" />, action: callbacks.onAddVideoInterpolatorNode },
     ],
   },
 ];
@@ -94,6 +96,7 @@ export const buildAllNodeMenuCategories = (callbacks: NodeMenuCallbacks): NodeMe
     title: 'Video Tools',
     items: [
       { label: 'Video Generator', icon: <Clapperboard className="w-5 h-5 text-green-400" />, action: callbacks.onAddVideoGeneratorNode },
+      { label: 'Video Interpolator', icon: <Film className="w-5 h-5 text-teal-400" />, action: callbacks.onAddVideoInterpolatorNode },
     ],
   },
 ];

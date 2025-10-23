@@ -5,6 +5,7 @@ export enum NodeType {
   Image = 'IMAGE_NODE',
   ImageEditor = 'IMAGE_EDITOR',
   VideoGenerator = 'VIDEO_GENERATOR',
+  VideoInterpolator = 'VIDEO_INTERPOLATOR',
   TextGenerator = 'TEXT_GENERATOR_NODE',
   ImageMixer = 'IMAGE_MIXER',
   StoryCharacterCreator = 'STORY_CHARACTER_CREATOR_NODE',
@@ -80,6 +81,14 @@ export interface NodeData {
     generationElapsedMs?: number;
     // `inputImageUrl` is shared
     // `editDescription` is used for the video prompt
+
+    // For Video Interpolator
+    startImageUrl?: string;
+    endImageUrl?: string;
+    // `videoUrl`, `videoResolution`, `videoAspectRatio`, `generationProgressMessage`,
+    // `generationStartTimeMs`, `generationElapsedMs` are shared with Video Generator
+    // `editDescription` is used for the interpolation prompt (optional)
+    // videoDuration is fixed to '8' for interpolation
 
     // For Image Node
     // `imageUrl` is used for the uploaded image

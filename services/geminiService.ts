@@ -678,6 +678,98 @@ export const generateVideoFromPrompt = async (
     }
 };
 
+export const generateVideoWithInterpolation = async (
+  prompt: string | undefined,
+  startImage: string,
+  endImage: string,
+  config: VideoGenerationConfig,
+  onProgress: (message: string) => void
+): Promise<string> => {
+    const { apiKey, client: aiClient } = createGenAIClient();
+
+    try {
+        onProgress("Preparing interpolation request...");
+
+        // Convert both start and end images from data URLs to base64 and mimeType
+        const startImageParam = (() => {
+            const [header, base64Data] = startImage.split(',');
+            const mimeType = header.match(/:(.*?);/)?.[1];
+            if (!mimeType || !base64Data) {
+                throw new Error('Invalid data URL format for start image.');
+            }
+            return { imageBytes: base64Data, mimeType };
+        })();
+
+        const endImageParam = (() => {
+            const [header, base64Data] = endImage.split(',');
+            const mimeType = header.match(/:(.*?);/)?.[1];
+            if (!mimeType || !base64Data) {
+                throw new Error('Invalid data URL format for end image.');
+            }
+            return { imageBytes: base64Data, mimeType };
+        })();
+
+        const { resolution, aspectRatio } = config;
+        // Duration must be "8" when using interpolation (start and end frames)
+        const duration = '8';
+
+        onProgress("Starting interpolation generation...");
+
+        let operation = await aiClient.models.generateVideos({
+            model: 'veo-3.1-fast-generate-preview',
+            ...(prompt && { prompt }), // Optional prompt
+            image: startImageParam, // Start frame
+            config: {
+                numberOfVideos: 1,
+                resolution,
+                aspectRatio,
+                duration,
+                lastFrame: endImageParam, // End frame for interpolation
+            }
+        });
+
+        let messageIndex = 0;
+        const totalMessages = VIDEO_GENERATION_MESSAGES.length;
+
+        while (!operation.done) {
+            onProgress(VIDEO_GENERATION_MESSAGES[messageIndex % totalMessages]);
+            messageIndex++;
+            await sleep(10000); // Poll every 10 seconds
+            operation = await aiClient.operations.getVideosOperation({ operation });
+        }
+
+        if (operation.error) {
+            throw new Error(`Video interpolation failed: ${operation.error.message}`);
+        }
+
+        const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
+        if (!downloadLink) {
+            throw new Error('Video generation finished, but no video was returned. This may be due to safety filters or an issue with the images/prompt.');
+        }
+
+        onProgress("Downloading interpolated video...");
+
+        // The API key is required to download the video
+        const videoResponse = await fetch(`${downloadLink}&key=${apiKey}`);
+        if (!videoResponse.ok) {
+            throw new Error(`Failed to download video: ${videoResponse.statusText}`);
+        }
+
+        const videoBlob = await videoResponse.blob();
+
+        // Convert Blob to data URL to display in the app
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(videoBlob);
+        });
+
+    } catch (error) {
+        throw new Error(getFriendlyErrorMessage(error));
+    }
+};
+
 export const editImageWithPrompt = async (
     base64Image: string,
     prompt: string

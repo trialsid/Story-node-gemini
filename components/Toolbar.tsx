@@ -33,6 +33,7 @@ interface ToolbarProps {
   onAddImageEditorNode: () => void;
   onAddImageMixerNode: () => void;
   onAddVideoGeneratorNode: () => void;
+  onAddVideoInterpolatorNode: () => void;
   onUndo: () => void;
   onRedo: () => void;
   canUndo: boolean;
@@ -92,6 +93,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddImageEditorNode,
     onAddImageMixerNode,
     onAddVideoGeneratorNode,
+    onAddVideoInterpolatorNode,
     onUndo,
     onRedo,
     canUndo,
@@ -170,6 +172,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddImageEditorNode,
     onAddImageMixerNode,
     onAddVideoGeneratorNode,
+    onAddVideoInterpolatorNode,
   }), [
     onAddTextNode,
     onAddTextGeneratorNode,
@@ -184,6 +187,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddImageEditorNode,
     onAddImageMixerNode,
     onAddVideoGeneratorNode,
+    onAddVideoInterpolatorNode,
   ]);
 
   const storyToolsCategories = useMemo(() => buildStoryToolsCategories({
@@ -200,6 +204,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddImageEditorNode,
     onAddImageMixerNode,
     onAddVideoGeneratorNode,
+    onAddVideoInterpolatorNode,
   }), [
     onAddCharacterGeneratorNode,
     onAddStoryCharacterCreatorNode,

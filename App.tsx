@@ -5,7 +5,7 @@ import Toolbar from './components/Toolbar';
 import ImageModal from './components/ImageModal';
 import ConfirmationModal from './components/ConfirmationModal';
 import TextModal from './components/TextModal';
-import { generateCharacterSheet, editImageWithPrompt, generateVideoFromPrompt, generateTextFromPrompt, generateImages, mixImagesWithPrompt, generateCharactersFromStory, expandStoryFromPremise, generateShortStory, generateScreenplay } from './services/geminiService';
+import { generateCharacterSheet, editImageWithPrompt, generateVideoFromPrompt, generateVideoWithInterpolation, generateTextFromPrompt, generateImages, mixImagesWithPrompt, generateCharactersFromStory, expandStoryFromPremise, generateShortStory, generateScreenplay } from './services/geminiService';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { useUserPreferences } from './contexts/UserPreferencesContext';
 import ThemeSwitcher from './components/ThemeSwitcher';
@@ -33,6 +33,7 @@ const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } }
   [NodeType.Text]: { width: 256 },
   [NodeType.ImageEditor]: { width: 256 },
   [NodeType.VideoGenerator]: { width: 256 },
+  [NodeType.VideoInterpolator]: { width: 256 },
   [NodeType.Image]: { width: 256 },
   [NodeType.TextGenerator]: { width: 256 },
   [NodeType.ImageMixer]: { width: 256 },
@@ -104,6 +105,13 @@ const createDefaultDataForType = (type: NodeType): NodeData['data'] => {
         videoDuration: '6',
         videoAspectRatio: '16:9',
       } as NodeData['data'];
+    case NodeType.VideoInterpolator:
+      return {
+        editDescription: 'A flower blooming from bud to full blossom',
+        videoResolution: '720p',
+        videoDuration: '8',
+        videoAspectRatio: '1:1',
+      } as NodeData['data'];
     case NodeType.TextGenerator:
       return { prompt: 'Write a short story about a robot who discovers music.' } as NodeData['data'];
     case NodeType.StoryCharacterCreator:
@@ -157,6 +165,7 @@ const sanitizeNodeDataForDuplication = (node: NodeData): NodeData['data'] => {
       delete (clone as any).imageUrl;
       break;
     case NodeType.VideoGenerator:
+    case NodeType.VideoInterpolator:
       delete (clone as any).videoUrl;
       break;
     case NodeType.TextGenerator:
@@ -911,6 +920,8 @@ const AppContent: React.FC = () => {
               dataToUpdate = { prompt: fromNode.data.text };
           } else if (toNode.type === NodeType.VideoGenerator && conn.toHandleId === 'prompt_input') {
               dataToUpdate = { editDescription: fromNode.data.text };
+          } else if (toNode.type === NodeType.VideoInterpolator && conn.toHandleId === 'prompt_input') {
+              dataToUpdate = { editDescription: fromNode.data.text };
           } else if (toNode.type === NodeType.TextGenerator && conn.toHandleId === 'prompt_input') {
               dataToUpdate = { prompt: fromNode.data.text };
           } else if (toNode.type === NodeType.StoryCharacterCreator && conn.toHandleId === 'prompt_input') {
@@ -927,6 +938,12 @@ const AppContent: React.FC = () => {
         if ((fromNode.type === NodeType.CharacterGenerator || fromNode.type === NodeType.ImageEditor || fromNode.type === NodeType.Image) && 'imageUrl' in fromNode.data) {
           if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator || toNode.type === NodeType.ImageMixer) && conn.toHandleId === 'image_input') {
               dataToUpdate = { inputImageUrl: fromNode.data.imageUrl };
+          }
+          if (toNode.type === NodeType.VideoInterpolator && conn.toHandleId === 'start_image_input') {
+              dataToUpdate = { startImageUrl: fromNode.data.imageUrl };
+          }
+          if (toNode.type === NodeType.VideoInterpolator && conn.toHandleId === 'end_image_input') {
+              dataToUpdate = { endImageUrl: fromNode.data.imageUrl };
           }
         }
 
@@ -948,6 +965,12 @@ const AppContent: React.FC = () => {
             const itemImage = fromNode.data.portfolio[itemIndex]?.imageUrl;
             if (itemImage && (toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && conn.toHandleId === 'image_input') {
               dataToUpdate = { inputImageUrl: itemImage };
+            }
+            if (itemImage && toNode.type === NodeType.VideoInterpolator && conn.toHandleId === 'start_image_input') {
+              dataToUpdate = { startImageUrl: itemImage };
+            }
+            if (itemImage && toNode.type === NodeType.VideoInterpolator && conn.toHandleId === 'end_image_input') {
+              dataToUpdate = { endImageUrl: itemImage };
             }
           }
         }
@@ -1240,6 +1263,27 @@ const AppContent: React.FC = () => {
     };
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
+
+  const addVideoInterpolatorNode = useCallback((pos?: { x: number; y: number }) => {
+    let newNodePosition: { x: number, y: number };
+    if (pos) {
+        newNodePosition = pos;
+        setLastAddedNodePosition(null);
+    } else {
+        const nextPos = lastAddedNodePosition
+            ? { x: lastAddedNodePosition.x + 32, y: lastAddedNodePosition.y + 32 }
+            : { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom };
+        newNodePosition = nextPos;
+        setLastAddedNodePosition(nextPos);
+    }
+    const newNode: NodeData = {
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type: NodeType.VideoInterpolator,
+      position: newNodePosition,
+      data: createDefaultDataForType(NodeType.VideoInterpolator),
+    };
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+  }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
   
   const addTextGeneratorNode = useCallback((pos?: { x: number; y: number }) => {
     let newNodePosition: { x: number, y: number };
@@ -1509,6 +1553,12 @@ const AppContent: React.FC = () => {
                   if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && conn.toHandleId === 'image_input') {
                       dataToUpdate = { inputImageUrl: data.imageUrl };
                   }
+                  if (toNode.type === NodeType.VideoInterpolator && conn.toHandleId === 'start_image_input') {
+                      dataToUpdate = { startImageUrl: data.imageUrl };
+                  }
+                  if (toNode.type === NodeType.VideoInterpolator && conn.toHandleId === 'end_image_input') {
+                      dataToUpdate = { endImageUrl: data.imageUrl };
+                  }
                 }
                 
                 if (updatedNode.type === NodeType.ImageGenerator && 'imageUrls' in data && Array.isArray(data.imageUrls)) {
@@ -1519,6 +1569,12 @@ const AppContent: React.FC = () => {
         
                         if (imageUrlToPropagate && (toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && conn.toHandleId === 'image_input') {
                             dataToUpdate = { inputImageUrl: imageUrlToPropagate };
+                        }
+                        if (imageUrlToPropagate && toNode.type === NodeType.VideoInterpolator && conn.toHandleId === 'start_image_input') {
+                            dataToUpdate = { startImageUrl: imageUrlToPropagate };
+                        }
+                        if (imageUrlToPropagate && toNode.type === NodeType.VideoInterpolator && conn.toHandleId === 'end_image_input') {
+                            dataToUpdate = { endImageUrl: imageUrlToPropagate };
                         }
                     }
                 }
@@ -1858,6 +1914,12 @@ const AppContent: React.FC = () => {
                  if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && toHandleId === 'image_input') {
                     dataToUpdate = { inputImageUrl: fromNode.data.imageUrl };
                 }
+                 if (toNode.type === NodeType.VideoInterpolator && toHandleId === 'start_image_input') {
+                    dataToUpdate = { startImageUrl: fromNode.data.imageUrl };
+                }
+                 if (toNode.type === NodeType.VideoInterpolator && toHandleId === 'end_image_input') {
+                    dataToUpdate = { endImageUrl: fromNode.data.imageUrl };
+                }
             } else if (fromNode.type === NodeType.ImageGenerator && fromNode.data.imageUrls) {
                 const match = startHandleId.match(/_(\d+)$/);
                 if (match) {
@@ -1899,6 +1961,8 @@ const AppContent: React.FC = () => {
                     } else if (toNode.type === NodeType.ImageGenerator && toHandleId === 'prompt_input') {
                         dataToUpdate = { prompt: textToPropagate };
                     } else if (toNode.type === NodeType.VideoGenerator && toHandleId === 'prompt_input') {
+                        dataToUpdate = { editDescription: textToPropagate };
+                    } else if (toNode.type === NodeType.VideoInterpolator && toHandleId === 'prompt_input') {
                         dataToUpdate = { editDescription: textToPropagate };
                     } else if (toNode.type === NodeType.TextGenerator && toHandleId === 'prompt_input') {
                         dataToUpdate = { prompt: textToPropagate };
@@ -2257,10 +2321,84 @@ const AppContent: React.FC = () => {
 
   const handleGenerateVideo = useCallback(async (nodeId: string) => {
     const sourceNode = nodes.find(n => n.id === nodeId);
-    if (!sourceNode || sourceNode.type !== NodeType.VideoGenerator) return;
-  
+    if (!sourceNode || (sourceNode.type !== NodeType.VideoGenerator && sourceNode.type !== NodeType.VideoInterpolator)) return;
+
+    // Handle VideoInterpolator
+    if (sourceNode.type === NodeType.VideoInterpolator) {
+      const { startImageUrl, endImageUrl, editDescription, videoResolution, videoAspectRatio } = sourceNode.data;
+
+      if (!startImageUrl || !endImageUrl) {
+          updateNodeData(nodeId, { error: 'Please provide both start and end images for interpolation.' });
+          return;
+      }
+
+      const startTime = Date.now();
+      updateNodeData(nodeId, {
+          isLoading: true,
+          error: undefined,
+          videoUrl: undefined,
+          generationProgressMessage: 'Initializing...',
+          generationStartTimeMs: startTime,
+          generationElapsedMs: undefined,
+      });
+
+      try {
+          const onProgress = (message: string) => {
+              updateNodeData(nodeId, { generationProgressMessage: message });
+          };
+          const resolution = videoResolution || '720p';
+          const aspectRatio = videoAspectRatio || '1:1';
+
+          const videoUrl = await generateVideoWithInterpolation(
+              editDescription, // Optional prompt
+              startImageUrl,
+              endImageUrl,
+              {
+                  resolution,
+                  aspectRatio,
+                  duration: '8', // Always 8 for interpolation
+              },
+              onProgress
+          );
+          const elapsed = Date.now() - startTime;
+          updateNodeData(nodeId, {
+              videoUrl,
+              isLoading: false,
+              generationProgressMessage: undefined,
+              generationElapsedMs: elapsed,
+              generationStartTimeMs: undefined,
+          });
+
+          // Save to gallery separately
+          try {
+            await persistGalleryItem({
+              dataUrl: videoUrl,
+              type: 'video',
+              prompt: editDescription || 'Video interpolation',
+              nodeType: NodeType.VideoInterpolator,
+              nodeId,
+            });
+          } catch (galleryError) {
+            console.error('Failed to save to gallery:', galleryError);
+          }
+      } catch (error) {
+          console.error('Video interpolation failed:', error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          const elapsed = Date.now() - startTime;
+          updateNodeData(nodeId, {
+              error: errorMessage,
+              isLoading: false,
+              generationProgressMessage: undefined,
+              generationElapsedMs: elapsed,
+              generationStartTimeMs: undefined,
+          });
+      }
+      return;
+    }
+
+    // Handle VideoGenerator
     const { inputImageUrl, editDescription, videoModel, videoResolution, videoDuration, videoAspectRatio } = sourceNode.data;
-    
+
     if (!editDescription) {
         updateNodeData(nodeId, { error: 'Please provide a video prompt.' });
         return;
@@ -2406,6 +2544,7 @@ const AppContent: React.FC = () => {
       onAddImageEditorNode: () => addImageEditorNode(position),
       onAddImageMixerNode: () => addImageMixerNode(position),
       onAddVideoGeneratorNode: () => addVideoGeneratorNode(position),
+      onAddVideoInterpolatorNode: () => addVideoInterpolatorNode(position),
     });
   }, [
     contextMenu,
@@ -2421,6 +2560,7 @@ const AppContent: React.FC = () => {
     addImageEditorNode,
     addImageMixerNode,
     addVideoGeneratorNode,
+    addVideoInterpolatorNode,
   ]);
 
   return (
@@ -2472,6 +2612,7 @@ const AppContent: React.FC = () => {
         onAddImageEditorNode={() => addImageEditorNode()}
         onAddImageMixerNode={() => addImageMixerNode()}
         onAddVideoGeneratorNode={() => addVideoGeneratorNode()}
+        onAddVideoInterpolatorNode={() => addVideoInterpolatorNode()}
         onUndo={undo}
         onRedo={redo}
         canUndo={canUndo}
