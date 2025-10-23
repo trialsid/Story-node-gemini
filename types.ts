@@ -6,6 +6,8 @@ export enum NodeType {
   ImageEditor = 'IMAGE_EDITOR',
   VideoGenerator = 'VIDEO_GENERATOR',
   VideoInterpolator = 'VIDEO_INTERPOLATOR',
+  VideoComposer = 'VIDEO_COMPOSER',
+  VideoExtender = 'VIDEO_EXTENDER',
   TextGenerator = 'TEXT_GENERATOR_NODE',
   ImageMixer = 'IMAGE_MIXER',
   StoryCharacterCreator = 'STORY_CHARACTER_CREATOR_NODE',
@@ -90,6 +92,27 @@ export interface NodeData {
     // `editDescription` is used for the interpolation prompt (optional)
     // videoDuration is fixed to '8' for interpolation
 
+    // For Video Composer
+    referenceImage1Url?: string;
+    referenceImage2Url?: string;
+    referenceImage3Url?: string;
+    // `videoUrl`, `videoResolution`, `generationProgressMessage`,
+    // `generationStartTimeMs`, `generationElapsedMs` are shared with Video Generator
+    // `editDescription` is used for the composition prompt (required)
+    // videoAspectRatio is fixed to '16:9' and videoDuration is fixed to '8' for composition
+
+    // For Video Extender
+    inputVideoUrl?: string;
+    // `videoUrl`, `generationProgressMessage`,
+    // `generationStartTimeMs`, `generationElapsedMs` are shared with Video Generator
+    // `editDescription` is used for the extension prompt (required)
+    // videoResolution is fixed to '720p' and videoDuration is fixed to '8' for extension
+    // videoAspectRatio is inherited from the input video
+
+    // Veo metadata (shared across all Veo video nodes)
+    veoVideoObject?: any; // Original video object from API for extension support
+    veoModel?: string; // Model that generated the video (e.g., "veo-3.1-generate-preview")
+
     // For Image Node
     // `imageUrl` is used for the uploaded image
 
@@ -143,6 +166,10 @@ export interface GalleryItem {
   mimeType: string;
   url: string;
   projectId?: string;
+
+  // Veo-specific metadata for video extension support
+  veoVideoObject?: any; // Original video object from API response
+  veoModel?: string; // Model that generated it (e.g., "veo-3.1-generate-preview")
 }
 
 export interface ProjectMetadata {

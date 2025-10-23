@@ -7,6 +7,8 @@ type CreateGalleryItemRequest = {
   nodeType?: NodeType;
   nodeId?: string;
   projectId?: string;
+  veoVideoObject?: any;
+  veoModel?: string;
 };
 
 const handleResponse = async (response: Response) => {

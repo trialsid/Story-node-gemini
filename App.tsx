@@ -5,7 +5,7 @@ import Toolbar from './components/Toolbar';
 import ImageModal from './components/ImageModal';
 import ConfirmationModal from './components/ConfirmationModal';
 import TextModal from './components/TextModal';
-import { generateCharacterSheet, editImageWithPrompt, generateVideoFromPrompt, generateVideoWithInterpolation, generateTextFromPrompt, generateImages, mixImagesWithPrompt, generateCharactersFromStory, expandStoryFromPremise, generateShortStory, generateScreenplay } from './services/geminiService';
+import { generateCharacterSheet, editImageWithPrompt, generateVideoFromPrompt, generateVideoWithInterpolation, generateVideoWithReferenceImages, generateExtendedVideo, generateTextFromPrompt, generateImages, mixImagesWithPrompt, generateCharactersFromStory, expandStoryFromPremise, generateShortStory, generateScreenplay } from './services/geminiService';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { useUserPreferences } from './contexts/UserPreferencesContext';
 import ThemeSwitcher from './components/ThemeSwitcher';
@@ -34,6 +34,8 @@ const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } }
   [NodeType.ImageEditor]: { width: 256 },
   [NodeType.VideoGenerator]: { width: 256 },
   [NodeType.VideoInterpolator]: { width: 256 },
+  [NodeType.VideoComposer]: { width: 256 },
+  [NodeType.VideoExtender]: { width: 256 },
   [NodeType.Image]: { width: 256 },
   [NodeType.TextGenerator]: { width: 256 },
   [NodeType.ImageMixer]: { width: 256 },
@@ -112,6 +114,19 @@ const createDefaultDataForType = (type: NodeType): NodeData['data'] => {
         videoDuration: '8',
         videoAspectRatio: '1:1',
       } as NodeData['data'];
+    case NodeType.VideoComposer:
+      return {
+        editDescription: 'A video of this character, in this environment, using this item',
+        videoResolution: '720p',
+        videoDuration: '8',
+        videoAspectRatio: '16:9',
+      } as NodeData['data'];
+    case NodeType.VideoExtender:
+      return {
+        editDescription: 'and then something unexpected happens',
+        videoResolution: '720p',
+        videoDuration: '8',
+      } as NodeData['data'];
     case NodeType.TextGenerator:
       return { prompt: 'Write a short story about a robot who discovers music.' } as NodeData['data'];
     case NodeType.StoryCharacterCreator:
@@ -166,6 +181,7 @@ const sanitizeNodeDataForDuplication = (node: NodeData): NodeData['data'] => {
       break;
     case NodeType.VideoGenerator:
     case NodeType.VideoInterpolator:
+    case NodeType.VideoComposer:
       delete (clone as any).videoUrl;
       break;
     case NodeType.TextGenerator:
@@ -804,6 +820,8 @@ const AppContent: React.FC = () => {
     prompt?: string;
     nodeType?: NodeType;
     nodeId?: string;
+    veoVideoObject?: any;
+    veoModel?: string;
   }>) => {
     if (itemsData.length === 0) return;
 
@@ -823,7 +841,9 @@ const AppContent: React.FC = () => {
             nodeId: params.nodeId,
             mimeType: params.type === 'image' ? 'image/jpeg' : 'video/mp4',
             url: params.dataUrl, // Use data URL directly for draft items
-            projectId: 'draft' // Special draft project ID
+            projectId: 'draft', // Special draft project ID
+            veoVideoObject: params.veoVideoObject,
+            veoModel: params.veoModel,
           };
           newItems.push(draftItem);
         }
@@ -850,6 +870,8 @@ const AppContent: React.FC = () => {
     prompt?: string;
     nodeType?: NodeType;
     nodeId?: string;
+    veoVideoObject?: any;
+    veoModel?: string;
   }) => {
     return persistGalleryItems([params]);
   }, [persistGalleryItems]);
@@ -922,6 +944,8 @@ const AppContent: React.FC = () => {
               dataToUpdate = { editDescription: fromNode.data.text };
           } else if (toNode.type === NodeType.VideoInterpolator && conn.toHandleId === 'prompt_input') {
               dataToUpdate = { editDescription: fromNode.data.text };
+          } else if (toNode.type === NodeType.VideoComposer && conn.toHandleId === 'prompt_input') {
+              dataToUpdate = { editDescription: fromNode.data.text };
           } else if (toNode.type === NodeType.TextGenerator && conn.toHandleId === 'prompt_input') {
               dataToUpdate = { prompt: fromNode.data.text };
           } else if (toNode.type === NodeType.StoryCharacterCreator && conn.toHandleId === 'prompt_input') {
@@ -944,6 +968,29 @@ const AppContent: React.FC = () => {
           }
           if (toNode.type === NodeType.VideoInterpolator && conn.toHandleId === 'end_image_input') {
               dataToUpdate = { endImageUrl: fromNode.data.imageUrl };
+          }
+          if (toNode.type === NodeType.VideoComposer && conn.toHandleId === 'reference_image_1_input') {
+              dataToUpdate = { referenceImage1Url: fromNode.data.imageUrl };
+          }
+          if (toNode.type === NodeType.VideoComposer && conn.toHandleId === 'reference_image_2_input') {
+              dataToUpdate = { referenceImage2Url: fromNode.data.imageUrl };
+          }
+          if (toNode.type === NodeType.VideoComposer && conn.toHandleId === 'reference_image_3_input') {
+              dataToUpdate = { referenceImage3Url: fromNode.data.imageUrl };
+          }
+        }
+
+        // Video connections for Video Extender
+        if ((fromNode.type === NodeType.VideoGenerator || fromNode.type === NodeType.VideoInterpolator ||
+             fromNode.type === NodeType.VideoComposer || fromNode.type === NodeType.VideoExtender ||
+             fromNode.type === NodeType.Image) && 'videoUrl' in fromNode.data) {
+          if (toNode.type === NodeType.VideoExtender && conn.toHandleId === 'video_input') {
+              dataToUpdate = {
+                inputVideoUrl: fromNode.data.videoUrl,
+                veoVideoObject: fromNode.data.veoVideoObject,
+                veoModel: fromNode.data.veoModel,
+                videoAspectRatio: fromNode.data.videoAspectRatio,
+              };
           }
         }
 
@@ -971,6 +1018,15 @@ const AppContent: React.FC = () => {
             }
             if (itemImage && toNode.type === NodeType.VideoInterpolator && conn.toHandleId === 'end_image_input') {
               dataToUpdate = { endImageUrl: itemImage };
+            }
+            if (itemImage && toNode.type === NodeType.VideoComposer && conn.toHandleId === 'reference_image_1_input') {
+              dataToUpdate = { referenceImage1Url: itemImage };
+            }
+            if (itemImage && toNode.type === NodeType.VideoComposer && conn.toHandleId === 'reference_image_2_input') {
+              dataToUpdate = { referenceImage2Url: itemImage };
+            }
+            if (itemImage && toNode.type === NodeType.VideoComposer && conn.toHandleId === 'reference_image_3_input') {
+              dataToUpdate = { referenceImage3Url: itemImage };
             }
           }
         }
@@ -1284,7 +1340,49 @@ const AppContent: React.FC = () => {
     };
     setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
   }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
-  
+
+  const addVideoComposerNode = useCallback((pos?: { x: number; y: number }) => {
+    let newNodePosition: { x: number, y: number };
+    if (pos) {
+        newNodePosition = pos;
+        setLastAddedNodePosition(null);
+    } else {
+        const nextPos = lastAddedNodePosition
+            ? { x: lastAddedNodePosition.x + 32, y: lastAddedNodePosition.y + 32 }
+            : { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom };
+        newNodePosition = nextPos;
+        setLastAddedNodePosition(nextPos);
+    }
+    const newNode: NodeData = {
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type: NodeType.VideoComposer,
+      position: newNodePosition,
+      data: createDefaultDataForType(NodeType.VideoComposer),
+    };
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+  }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
+
+  const addVideoExtenderNode = useCallback((pos?: { x: number; y: number }) => {
+    let newNodePosition: { x: number, y: number };
+    if (pos) {
+        newNodePosition = pos;
+        setLastAddedNodePosition(null);
+    } else {
+        const nextPos = lastAddedNodePosition
+            ? { x: lastAddedNodePosition.x + 32, y: lastAddedNodePosition.y + 32 }
+            : { x: (150 - canvasOffset.x) / zoom, y: (150 - canvasOffset.y) / zoom };
+        newNodePosition = nextPos;
+        setLastAddedNodePosition(nextPos);
+    }
+    const newNode: NodeData = {
+      id: `node_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type: NodeType.VideoExtender,
+      position: newNodePosition,
+      data: createDefaultDataForType(NodeType.VideoExtender),
+    };
+    setCanvasState(prevState => ({ ...prevState, nodes: [...prevState.nodes, newNode] }));
+  }, [canvasOffset, zoom, setCanvasState, lastAddedNodePosition]);
+
   const addTextGeneratorNode = useCallback((pos?: { x: number; y: number }) => {
     let newNodePosition: { x: number, y: number };
     if (pos) {
@@ -1559,8 +1657,31 @@ const AppContent: React.FC = () => {
                   if (toNode.type === NodeType.VideoInterpolator && conn.toHandleId === 'end_image_input') {
                       dataToUpdate = { endImageUrl: data.imageUrl };
                   }
+                  if (toNode.type === NodeType.VideoComposer && conn.toHandleId === 'reference_image_1_input') {
+                      dataToUpdate = { referenceImage1Url: data.imageUrl };
+                  }
+                  if (toNode.type === NodeType.VideoComposer && conn.toHandleId === 'reference_image_2_input') {
+                      dataToUpdate = { referenceImage2Url: data.imageUrl };
+                  }
+                  if (toNode.type === NodeType.VideoComposer && conn.toHandleId === 'reference_image_3_input') {
+                      dataToUpdate = { referenceImage3Url: data.imageUrl };
+                  }
                 }
-                
+
+                // Video propagation for Video Extender
+                if ((updatedNode.type === NodeType.VideoGenerator || updatedNode.type === NodeType.VideoInterpolator ||
+                     updatedNode.type === NodeType.VideoComposer || updatedNode.type === NodeType.VideoExtender ||
+                     updatedNode.type === NodeType.Image) && 'videoUrl' in data) {
+                  if (toNode.type === NodeType.VideoExtender && conn.toHandleId === 'video_input') {
+                      dataToUpdate = {
+                        inputVideoUrl: data.videoUrl,
+                        veoVideoObject: data.veoVideoObject,
+                        veoModel: data.veoModel,
+                        videoAspectRatio: data.videoAspectRatio,
+                      };
+                  }
+                }
+
                 if (updatedNode.type === NodeType.ImageGenerator && 'imageUrls' in data && Array.isArray(data.imageUrls)) {
                     const match = conn.fromHandleId.match(/_(\d+)$/);
                     if (match) {
@@ -1575,6 +1696,15 @@ const AppContent: React.FC = () => {
                         }
                         if (imageUrlToPropagate && toNode.type === NodeType.VideoInterpolator && conn.toHandleId === 'end_image_input') {
                             dataToUpdate = { endImageUrl: imageUrlToPropagate };
+                        }
+                        if (imageUrlToPropagate && toNode.type === NodeType.VideoComposer && conn.toHandleId === 'reference_image_1_input') {
+                            dataToUpdate = { referenceImage1Url: imageUrlToPropagate };
+                        }
+                        if (imageUrlToPropagate && toNode.type === NodeType.VideoComposer && conn.toHandleId === 'reference_image_2_input') {
+                            dataToUpdate = { referenceImage2Url: imageUrlToPropagate };
+                        }
+                        if (imageUrlToPropagate && toNode.type === NodeType.VideoComposer && conn.toHandleId === 'reference_image_3_input') {
+                            dataToUpdate = { referenceImage3Url: imageUrlToPropagate };
                         }
                     }
                 }
@@ -1713,6 +1843,21 @@ const AppContent: React.FC = () => {
         const canvasX = (e.clientX - canvasOffset.x) / zoom;
         const canvasY = (e.clientY - canvasOffset.y) / zoom;
         addImageNodeWithImage({ x: canvasX, y: canvasY }, data.url);
+      } else if (data.type === 'gallery-video' && data.url) {
+        const canvasX = (e.clientX - canvasOffset.x) / zoom;
+        const canvasY = (e.clientY - canvasOffset.y) / zoom;
+        // Create an Image node with video data and Veo metadata
+        const newNode: NodeData = {
+          id: crypto.randomUUID(),
+          type: NodeType.Image,
+          position: { x: canvasX, y: canvasY },
+          data: {
+            videoUrl: data.url,
+            veoVideoObject: data.veoVideoObject,
+            veoModel: data.veoModel,
+          },
+        };
+        setNodes(prevNodes => [...prevNodes, newNode]);
       }
     } catch (error) {
       // Ignore invalid drop data
@@ -1920,6 +2065,26 @@ const AppContent: React.FC = () => {
                  if (toNode.type === NodeType.VideoInterpolator && toHandleId === 'end_image_input') {
                     dataToUpdate = { endImageUrl: fromNode.data.imageUrl };
                 }
+                 if (toNode.type === NodeType.VideoComposer && toHandleId === 'reference_image_1_input') {
+                    dataToUpdate = { referenceImage1Url: fromNode.data.imageUrl };
+                }
+                 if (toNode.type === NodeType.VideoComposer && toHandleId === 'reference_image_2_input') {
+                    dataToUpdate = { referenceImage2Url: fromNode.data.imageUrl };
+                }
+                 if (toNode.type === NodeType.VideoComposer && toHandleId === 'reference_image_3_input') {
+                    dataToUpdate = { referenceImage3Url: fromNode.data.imageUrl };
+                }
+            } else if ((fromNode.type === NodeType.VideoGenerator || fromNode.type === NodeType.VideoInterpolator ||
+                        fromNode.type === NodeType.VideoComposer || fromNode.type === NodeType.VideoExtender ||
+                        fromNode.type === NodeType.Image) && 'videoUrl' in fromNode.data) {
+                if (toNode.type === NodeType.VideoExtender && toHandleId === 'video_input') {
+                    dataToUpdate = {
+                      inputVideoUrl: fromNode.data.videoUrl,
+                      veoVideoObject: fromNode.data.veoVideoObject,
+                      veoModel: fromNode.data.veoModel,
+                      videoAspectRatio: fromNode.data.videoAspectRatio,
+                    };
+                }
             } else if (fromNode.type === NodeType.ImageGenerator && fromNode.data.imageUrls) {
                 const match = startHandleId.match(/_(\d+)$/);
                 if (match) {
@@ -1927,6 +2092,15 @@ const AppContent: React.FC = () => {
                     const imageUrlToPropagate = fromNode.data.imageUrls?.[imageIndex];
                     if (imageUrlToPropagate && (toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && toHandleId === 'image_input') {
                         dataToUpdate = { inputImageUrl: imageUrlToPropagate };
+                    }
+                    if (imageUrlToPropagate && toNode.type === NodeType.VideoComposer && toHandleId === 'reference_image_1_input') {
+                        dataToUpdate = { referenceImage1Url: imageUrlToPropagate };
+                    }
+                    if (imageUrlToPropagate && toNode.type === NodeType.VideoComposer && toHandleId === 'reference_image_2_input') {
+                        dataToUpdate = { referenceImage2Url: imageUrlToPropagate };
+                    }
+                    if (imageUrlToPropagate && toNode.type === NodeType.VideoComposer && toHandleId === 'reference_image_3_input') {
+                        dataToUpdate = { referenceImage3Url: imageUrlToPropagate };
                     }
                 }
             } else if (fromNode.type === NodeType.StoryCharacterCreator && fromNode.data.characters) {
@@ -2321,7 +2495,7 @@ const AppContent: React.FC = () => {
 
   const handleGenerateVideo = useCallback(async (nodeId: string) => {
     const sourceNode = nodes.find(n => n.id === nodeId);
-    if (!sourceNode || (sourceNode.type !== NodeType.VideoGenerator && sourceNode.type !== NodeType.VideoInterpolator)) return;
+    if (!sourceNode || (sourceNode.type !== NodeType.VideoGenerator && sourceNode.type !== NodeType.VideoInterpolator && sourceNode.type !== NodeType.VideoComposer)) return;
 
     // Handle VideoInterpolator
     if (sourceNode.type === NodeType.VideoInterpolator) {
@@ -2349,7 +2523,7 @@ const AppContent: React.FC = () => {
           const resolution = videoResolution || '720p';
           const aspectRatio = videoAspectRatio || '1:1';
 
-          const videoUrl = await generateVideoWithInterpolation(
+          const { dataUrl: videoUrl, videoObject: veoVideoObject, model: veoModel } = await generateVideoWithInterpolation(
               editDescription, // Optional prompt
               startImageUrl,
               endImageUrl,
@@ -2363,6 +2537,8 @@ const AppContent: React.FC = () => {
           const elapsed = Date.now() - startTime;
           updateNodeData(nodeId, {
               videoUrl,
+              veoVideoObject,
+              veoModel,
               isLoading: false,
               generationProgressMessage: undefined,
               generationElapsedMs: elapsed,
@@ -2377,12 +2553,95 @@ const AppContent: React.FC = () => {
               prompt: editDescription || 'Video interpolation',
               nodeType: NodeType.VideoInterpolator,
               nodeId,
+              veoVideoObject,
+              veoModel,
             });
           } catch (galleryError) {
             console.error('Failed to save to gallery:', galleryError);
           }
       } catch (error) {
           console.error('Video interpolation failed:', error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          const elapsed = Date.now() - startTime;
+          updateNodeData(nodeId, {
+              error: errorMessage,
+              isLoading: false,
+              generationProgressMessage: undefined,
+              generationElapsedMs: elapsed,
+              generationStartTimeMs: undefined,
+          });
+      }
+      return;
+    }
+
+    // Handle VideoComposer
+    if (sourceNode.type === NodeType.VideoComposer) {
+      const { referenceImage1Url, referenceImage2Url, referenceImage3Url, editDescription, videoResolution } = sourceNode.data;
+
+      if (!editDescription) {
+          updateNodeData(nodeId, { error: 'Please provide a prompt for video composition.' });
+          return;
+      }
+
+      const referenceImages = [referenceImage1Url, referenceImage2Url, referenceImage3Url].filter(Boolean);
+      if (referenceImages.length === 0) {
+          updateNodeData(nodeId, { error: 'Please provide at least one reference image for composition.' });
+          return;
+      }
+
+      const startTime = Date.now();
+      updateNodeData(nodeId, {
+          isLoading: true,
+          error: undefined,
+          videoUrl: undefined,
+          generationProgressMessage: 'Initializing...',
+          generationStartTimeMs: startTime,
+          generationElapsedMs: undefined,
+      });
+
+      try {
+          const onProgress = (message: string) => {
+              updateNodeData(nodeId, { generationProgressMessage: message });
+          };
+          const resolution = videoResolution || '720p';
+
+          const { dataUrl: videoUrl, videoObject: veoVideoObject, model: veoModel } = await generateVideoWithReferenceImages(
+              editDescription,
+              referenceImages,
+              {
+                  resolution,
+                  aspectRatio: '16:9', // Fixed for composition
+                  duration: '8', // Fixed for composition
+              },
+              onProgress
+          );
+          const elapsed = Date.now() - startTime;
+          updateNodeData(nodeId, {
+              videoUrl,
+              veoVideoObject,
+              veoModel,
+              isLoading: false,
+              generationProgressMessage: undefined,
+              generationElapsedMs: elapsed,
+              generationStartTimeMs: undefined,
+          });
+
+          // Save to gallery separately
+          try {
+            await persistGalleryItem({
+              dataUrl: videoUrl,
+              type: 'video',
+              prompt: editDescription,
+              nodeType: NodeType.VideoComposer,
+              nodeId,
+              veoVideoObject,
+              veoModel,
+            });
+          } catch (galleryError) {
+            console.error('Failed to save to gallery:', galleryError);
+          }
+      } catch (error) {
+          console.error('Video composition failed:', error);
           const errorMessage = error instanceof Error ? error.message : String(error);
           const elapsed = Date.now() - startTime;
           updateNodeData(nodeId, {
@@ -2422,7 +2681,7 @@ const AppContent: React.FC = () => {
         const aspectRatio = videoAspectRatio || '16:9';
         const duration = resolution === '1080p' ? '8' : (videoDuration || '6');
 
-        const videoUrl = await generateVideoFromPrompt(
+        const { dataUrl: videoUrl, videoObject: veoVideoObject, model: veoModel } = await generateVideoFromPrompt(
             editDescription,
             inputImageUrl,
             videoModel || 'veo-3.1-fast-generate-preview',
@@ -2436,6 +2695,8 @@ const AppContent: React.FC = () => {
         const elapsed = Date.now() - startTime;
         updateNodeData(nodeId, {
             videoUrl,
+            veoVideoObject,
+            veoModel,
             isLoading: false,
             generationProgressMessage: undefined,
             generationElapsedMs: elapsed,
@@ -2450,6 +2711,8 @@ const AppContent: React.FC = () => {
             prompt: editDescription,
             nodeType: NodeType.VideoGenerator,
             nodeId,
+            veoVideoObject,
+            veoModel,
           });
         } catch (galleryError) {
           console.error('Failed to save to gallery:', galleryError);
@@ -2457,6 +2720,93 @@ const AppContent: React.FC = () => {
         }
     } catch (error) {
         console.error('Video generation failed:', error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const elapsed = Date.now() - startTime;
+        updateNodeData(nodeId, {
+            error: errorMessage,
+            isLoading: false,
+            generationProgressMessage: undefined,
+            generationElapsedMs: elapsed,
+            generationStartTimeMs: undefined,
+        });
+    }
+  }, [nodes, updateNodeData, persistGalleryItem]);
+
+  const handleExtendVideo = useCallback(async (nodeId: string) => {
+    const sourceNode = nodes.find(n => n.id === nodeId);
+    if (!sourceNode || sourceNode.type !== NodeType.VideoExtender) return;
+
+    const { editDescription, inputVideoUrl, veoVideoObject, videoAspectRatio } = sourceNode.data;
+
+    // Validate inputs
+    if (!inputVideoUrl) {
+        updateNodeData(nodeId, { error: 'Please connect a video to extend.' });
+        return;
+    }
+
+    if (!veoVideoObject) {
+        updateNodeData(nodeId, { error: 'This video was not generated by Veo and cannot be extended. Only Veo-generated videos can be extended.' });
+        return;
+    }
+
+    if (!videoAspectRatio) {
+        updateNodeData(nodeId, { error: 'Could not determine aspect ratio from the input video.' });
+        return;
+    }
+
+    if (!editDescription?.trim()) {
+        updateNodeData(nodeId, { error: 'Please provide a prompt for the video extension.' });
+        return;
+    }
+
+    const startTime = Date.now();
+    updateNodeData(nodeId, {
+        isLoading: true,
+        error: undefined,
+        videoUrl: undefined,
+        generationProgressMessage: 'Initializing...',
+        generationStartTimeMs: startTime,
+        generationElapsedMs: undefined,
+    });
+
+    try {
+        const onProgress = (message: string) => {
+            updateNodeData(nodeId, { generationProgressMessage: message });
+        };
+
+        const { dataUrl: videoUrl, videoObject: newVeoVideoObject, model: veoModel } = await generateExtendedVideo(
+            editDescription,
+            veoVideoObject,
+            videoAspectRatio,
+            onProgress
+        );
+        const elapsed = Date.now() - startTime;
+        updateNodeData(nodeId, {
+            videoUrl,
+            veoVideoObject: newVeoVideoObject,
+            veoModel,
+            isLoading: false,
+            generationProgressMessage: undefined,
+            generationElapsedMs: elapsed,
+            generationStartTimeMs: undefined,
+        });
+
+        // Save to gallery separately
+        try {
+          await persistGalleryItem({
+            dataUrl: videoUrl,
+            type: 'video',
+            prompt: editDescription,
+            nodeType: NodeType.VideoExtender,
+            nodeId,
+            veoVideoObject: newVeoVideoObject,
+            veoModel,
+          });
+        } catch (galleryError) {
+          console.error('Failed to save to gallery:', galleryError);
+        }
+    } catch (error) {
+        console.error('Video extension failed:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         const elapsed = Date.now() - startTime;
         updateNodeData(nodeId, {
@@ -2545,6 +2895,7 @@ const AppContent: React.FC = () => {
       onAddImageMixerNode: () => addImageMixerNode(position),
       onAddVideoGeneratorNode: () => addVideoGeneratorNode(position),
       onAddVideoInterpolatorNode: () => addVideoInterpolatorNode(position),
+      onAddVideoComposerNode: () => addVideoComposerNode(position),
     });
   }, [
     contextMenu,
@@ -2561,6 +2912,7 @@ const AppContent: React.FC = () => {
     addImageMixerNode,
     addVideoGeneratorNode,
     addVideoInterpolatorNode,
+    addVideoComposerNode,
   ]);
 
   return (
@@ -2613,6 +2965,8 @@ const AppContent: React.FC = () => {
         onAddImageMixerNode={() => addImageMixerNode()}
         onAddVideoGeneratorNode={() => addVideoGeneratorNode()}
         onAddVideoInterpolatorNode={() => addVideoInterpolatorNode()}
+        onAddVideoComposerNode={() => addVideoComposerNode()}
+        onAddVideoExtenderNode={() => addVideoExtenderNode()}
         onUndo={undo}
         onRedo={redo}
         canUndo={canUndo}
@@ -2697,6 +3051,7 @@ const AppContent: React.FC = () => {
         onEditImage={handleEditImage}
         onMixImages={handleMixImages}
         onGenerateVideo={handleGenerateVideo}
+        onExtendVideo={handleExtendVideo}
         onImageClick={handleImageClick}
         onOutputMouseDown={handleOutputMouseDown}
         onInputMouseDown={handleInputMouseDown}

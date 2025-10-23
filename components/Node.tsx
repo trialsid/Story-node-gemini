@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useLayoutEffect } from 'react';
 import { NodeData, NodeType, Connection, HandleType } from '../types';
-import { FileText, ScrollText, Users as UsersIcon, UserCog, PenTool, PenSquare, Edit3, Image, ImagePlus, Wand2, Sparkles, Trash2, ChevronDown, ChevronUp, Video, Clapperboard, Film, Upload, Bot, Shuffle, Layers } from 'lucide-react';
+import { FileText, ScrollText, Users as UsersIcon, UserCog, PenTool, PenSquare, Edit3, Image, ImagePlus, Wand2, Sparkles, Trash2, ChevronDown, ChevronUp, Video, Clapperboard, Film, Upload, Bot, Shuffle, Layers, Box, ChevronsRight } from 'lucide-react';
 import NodeHandle from './NodeHandle';
 import { useTheme } from '../contexts/ThemeContext';
 import { areHandlesCompatible, NodeHandleSpec } from '../utils/node-spec';
@@ -32,6 +32,7 @@ interface NodeProps {
   onEditImage: (nodeId: string) => void;
   onMixImages: (nodeId: string) => void;
   onGenerateVideo: (nodeId: string) => void;
+  onExtendVideo: (nodeId: string) => void;
   onGenerateText: (nodeId: string) => void;
   onGenerateCharacters: (nodeId: string) => void;
   onGenerateCharacterPortfolio: (nodeId: string) => void;
@@ -136,6 +137,7 @@ const Node: React.FC<NodeProps> = ({
   onEditImage,
   onMixImages,
   onGenerateVideo,
+  onExtendVideo,
   onGenerateText,
   onGenerateCharacters,
   onGenerateCharacterPortfolio,
@@ -1882,6 +1884,213 @@ const Node: React.FC<NodeProps> = ({
           </>
         );
       })()}
+      {node.type === NodeType.VideoComposer && (() => {
+        const resolution = node.data.videoResolution || '720p';
+        const aspectRatio = '16:9'; // Fixed to 16:9 for composition
+        const duration = '8'; // Fixed to 8 seconds for composition
+
+        return (
+          <>
+            <NodeHeader
+                title='Video Composer'
+                icon={<Box className="w-4 h-4 text-purple-400" />}
+                isMinimized={isMinimized}
+                onToggleMinimize={() => onToggleMinimize(node.id)}
+                onDelete={handleDelete}
+                onShowDeleteConfirmation={handleShowDeleteConfirmation}
+                onMouseDown={handleHeaderMouseDown}
+                onContextMenu={handleHeaderContextMenu}
+            />
+            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
+              <div className="p-2 space-y-2">
+                <div ref={el => handleAnchorRefs.current['reference_image_1_input'] = el}>
+                    <label className={labelClassName}>Reference 1</label>
+                    <div className={`${imagePreviewBaseClassName} h-24`}>
+                        {node.data.referenceImage1Url ? <img src={node.data.referenceImage1Url} alt="Reference 1" className="w-full h-full object-cover rounded-md" /> : <Image className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+                    </div>
+                </div>
+                <div ref={el => handleAnchorRefs.current['reference_image_2_input'] = el}>
+                    <label className={labelClassName}>Reference 2</label>
+                    <div className={`${imagePreviewBaseClassName} h-24`}>
+                        {node.data.referenceImage2Url ? <img src={node.data.referenceImage2Url} alt="Reference 2" className="w-full h-full object-cover rounded-md" /> : <Image className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+                    </div>
+                </div>
+                <div ref={el => handleAnchorRefs.current['reference_image_3_input'] = el}>
+                    <label className={labelClassName}>Reference 3</label>
+                    <div className={`${imagePreviewBaseClassName} h-24`}>
+                        {node.data.referenceImage3Url ? <img src={node.data.referenceImage3Url} alt="Reference 3" className="w-full h-full object-cover rounded-md" /> : <Image className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+                    </div>
+                </div>
+                <div>
+                    <label htmlFor={`video-resolution-${node.id}`} className={labelClassName}>Resolution</label>
+                    <select
+                        id={`video-resolution-${node.id}`}
+                        className={selectClassName}
+                        value={resolution}
+                        onChange={(e) => onUpdateData(node.id, { videoResolution: e.target.value as '720p' | '1080p' })}
+                        onMouseDown={(e) => e.stopPropagation()}
+                    >
+                        <option value="720p">720p</option>
+                        <option value="1080p">1080p</option>
+                    </select>
+                </div>
+                <div>
+                    <label htmlFor={`video-aspect-${node.id}`} className={labelClassName}>Aspect Ratio</label>
+                    <div className={`${selectClassName} bg-gray-700 cursor-not-allowed opacity-50`}>
+                        {aspectRatio}
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1">Fixed to 16:9 when using reference images.</p>
+                </div>
+                <div>
+                    <label htmlFor={`video-duration-${node.id}`} className={labelClassName}>Duration (seconds)</label>
+                    <div className={`${selectClassName} bg-gray-700 cursor-not-allowed opacity-50`}>
+                        {duration}
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1">Fixed to 8 seconds when using reference images.</p>
+                </div>
+                <div ref={el => handleAnchorRefs.current['prompt_input'] = el}>
+                    <label htmlFor={`video-desc-${node.id}`} className={labelClassName}>Prompt (Required)</label>
+                    <textarea id={`video-desc-${node.id}`} value={node.data.editDescription || ''} onChange={(e) => onUpdateData(node.id, { editDescription: e.target.value })} onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.VideoComposer)} onMouseDown={(e) => e.stopPropagation()} className={`${textAreaClassName(connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input'))} h-20`} disabled={connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input')} placeholder="e.g., A video of this character..." />
+                </div>
+                <div ref={el => handleAnchorRefs.current['video_output'] = el}>
+                    <label className={labelClassName}>Output Video</label>
+                    <div className={`${imagePreviewBaseClassName} h-40`}>
+                        {node.data.isLoading ? (
+                            <div className="text-center">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mx-auto"></div>
+                                <p className="text-xs mt-2 text-purple-300 animate-pulse">{node.data.generationProgressMessage || 'Generating...'}</p>
+                                <p className="text-xs mt-1 text-gray-300">Elapsed: {formatDuration(videoElapsedMs)}</p>
+                            </div>
+                        )
+                        : node.data.error ? <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
+                        : node.data.videoUrl ? <video src={node.data.videoUrl} controls autoPlay muted loop className="w-full h-full object-cover rounded-md" />
+                        : <Video className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+                    </div>
+                    {!node.data.isLoading && node.data.generationElapsedMs !== undefined && !node.data.error && (
+                        <p className="text-xs mt-1 text-center text-gray-300">Completed in {formatDuration(node.data.generationElapsedMs)}</p>
+                    )}
+                    {!node.data.isLoading && node.data.generationElapsedMs !== undefined && node.data.error && (
+                        <p className="text-xs mt-1 text-center text-gray-300">Attempt took {formatDuration(node.data.generationElapsedMs)}</p>
+                    )}
+                </div>
+                <button onClick={() => onGenerateVideo(node.id)} disabled={node.data.isLoading} className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-purple-600 hover:bg-purple-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`} >
+                    <Sparkles className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                    {node.data.isLoading ? 'Generating...' : 'Generate Video'}
+                </button>
+              </div>
+            </div>
+             {isMinimized && ( <div className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md flex items-center justify-center border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`} style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }} >
+                {previewVideo ? <video key={previewVideo} ref={minimizedVideoRef} src={previewVideo} muted loop autoPlay playsInline className="w-full h-full object-contain" />
+                : previewImage ? <img key={previewImage} ref={minimizedImageRef} src={previewImage} alt="Preview" className="w-full h-full object-contain" />
+                : <Video className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+            </div> )}
+          </>
+        );
+      })()}
+
+      {node.type === NodeType.VideoExtender && (() => {
+        const resolution = '720p'; // Fixed to 720p for extension
+        const aspectRatio = node.data.videoAspectRatio || '16:9'; // Inherited from input video
+        const duration = '8'; // Fixed to 8 seconds for extension
+
+        return (
+          <>
+            <NodeHeader
+                title='Video Extender'
+                icon={<ChevronsRight className="w-4 h-4 text-emerald-400" />}
+                isMinimized={isMinimized}
+                onToggleMinimize={() => onToggleMinimize(node.id)}
+                onDelete={handleDelete}
+                onShowDeleteConfirmation={handleShowDeleteConfirmation}
+                onMouseDown={handleHeaderMouseDown}
+                onContextMenu={handleHeaderContextMenu}
+            />
+            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
+              <div className="p-2 space-y-2">
+                <div ref={el => handleAnchorRefs.current['video_input'] = el}>
+                    <label className={labelClassName}>Input Video</label>
+                    <div className={`${imagePreviewBaseClassName} h-32`}>
+                        {node.data.inputVideoUrl ? <video src={node.data.inputVideoUrl} controls muted loop className="w-full h-full object-cover rounded-md" />
+                        : <Video className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+                    </div>
+                    {node.data.inputVideoUrl && !node.data.veoVideoObject && (
+                        <p className="text-[10px] text-amber-400 mt-1">⚠ This video cannot be extended (not generated by Veo)</p>
+                    )}
+                </div>
+                <div ref={el => handleAnchorRefs.current['prompt_input'] = el}>
+                    <label htmlFor={`video-desc-${node.id}`} className={labelClassName}>Prompt (Required)</label>
+                    <textarea
+                        id={`video-desc-${node.id}`}
+                        value={node.data.editDescription || ''}
+                        onChange={(e) => onUpdateData(node.id, { editDescription: e.target.value })}
+                        onKeyDown={(e) => handleTextAreaKeyDown(e, NodeType.VideoExtender)}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className={`${textAreaClassName(connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input'))} h-20`}
+                        disabled={connections.some(c => c.toNodeId === node.id && c.toHandleId === 'prompt_input')}
+                        placeholder="e.g., and then something unexpected happens"
+                    />
+                </div>
+                <div>
+                    <label htmlFor={`video-resolution-${node.id}`} className={labelClassName}>Resolution</label>
+                    <div className={`${selectClassName} bg-gray-700 cursor-not-allowed opacity-50`}>
+                        {resolution}
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1">Fixed to 720p for video extension.</p>
+                </div>
+                <div>
+                    <label htmlFor={`video-aspect-${node.id}`} className={labelClassName}>Aspect Ratio</label>
+                    <div className={`${selectClassName} bg-gray-700 cursor-not-allowed opacity-50`}>
+                        {aspectRatio}
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1">Inherited from input video.</p>
+                </div>
+                <div>
+                    <label htmlFor={`video-duration-${node.id}`} className={labelClassName}>Duration (seconds)</label>
+                    <div className={`${selectClassName} bg-gray-700 cursor-not-allowed opacity-50`}>
+                        {duration}
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1">Fixed to 8 seconds for video extension.</p>
+                </div>
+                <div ref={el => handleAnchorRefs.current['video_output'] = el}>
+                    <label className={labelClassName}>Output Video</label>
+                    <div className={`${imagePreviewBaseClassName} h-40`}>
+                        {node.data.isLoading ? (
+                            <div className="text-center">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400 mx-auto"></div>
+                                <p className="text-xs mt-2 text-emerald-300 animate-pulse">{node.data.generationProgressMessage || 'Extending...'}</p>
+                                <p className="text-xs mt-1 text-gray-300">Elapsed: {formatDuration(videoElapsedMs)}</p>
+                            </div>
+                        )
+                        : node.data.error ? <div className="text-red-400 text-xs p-2 text-center">{node.data.error}</div>
+                        : node.data.videoUrl ? <video src={node.data.videoUrl} controls autoPlay muted loop className="w-full h-full object-cover rounded-md" />
+                        : <Video className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+                    </div>
+                    {!node.data.isLoading && node.data.generationElapsedMs !== undefined && !node.data.error && (
+                        <p className="text-xs mt-1 text-center text-gray-300">Completed in {formatDuration(node.data.generationElapsedMs)}</p>
+                    )}
+                    {!node.data.isLoading && node.data.generationElapsedMs !== undefined && node.data.error && (
+                        <p className="text-xs mt-1 text-center text-gray-300">Attempt took {formatDuration(node.data.generationElapsedMs)}</p>
+                    )}
+                </div>
+                <button
+                    onClick={() => onExtendVideo(node.id)}
+                    disabled={node.data.isLoading}
+                    className={`w-full flex items-center justify-center p-2 ${node.data.isLoading ? 'bg-gray-600' : 'bg-emerald-600 hover:bg-emerald-500'} text-white font-bold rounded-md transition-colors text-sm disabled:cursor-not-allowed`}
+                >
+                    <ChevronsRight className={`w-4 h-4 mr-2 ${node.data.isLoading ? 'animate-pulse' : ''}`} />
+                    {node.data.isLoading ? 'Extending...' : 'Extend Video'}
+                </button>
+              </div>
+            </div>
+             {isMinimized && ( <div className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md flex items-center justify-center border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`} style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }} >
+                {previewVideo ? <video key={previewVideo} ref={minimizedVideoRef} src={previewVideo} muted loop autoPlay playsInline className="w-full h-full object-contain" />
+                : previewImage ? <img key={previewImage} ref={minimizedImageRef} src={previewImage} alt="Preview" className="w-full h-full object-contain" />
+                : <Video className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />}
+            </div> )}
+          </>
+        );
+      })()}
+
       {contextMenuPosition && (
         <NodeContextMenu
           position={contextMenuPosition}

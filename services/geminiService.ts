@@ -606,7 +606,7 @@ export const generateVideoFromPrompt = async (
   model: string,
   config: VideoGenerationConfig,
   onProgress: (message: string) => void
-): Promise<string> => {
+): Promise<{ dataUrl: string; videoObject: any; model: string }> => {
     const { apiKey, client: aiClient } = createGenAIClient();
 
     try {
@@ -650,15 +650,15 @@ export const generateVideoFromPrompt = async (
             throw new Error(`Video generation failed: ${operation.error.message}`);
         }
 
-        const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
-        if (!downloadLink) {
+        const videoObject = operation.response?.generatedVideos?.[0]?.video;
+        if (!videoObject?.uri) {
             throw new Error('Video generation finished, but no video was returned. This may be due to safety filters or an issue with the prompt.');
         }
 
         onProgress("Downloading generated video...");
 
         // The API key is required to download the video
-        const videoResponse = await fetch(`${downloadLink}&key=${apiKey}`);
+        const videoResponse = await fetch(`${videoObject.uri}&key=${apiKey}`);
         if (!videoResponse.ok) {
             throw new Error(`Failed to download video: ${videoResponse.statusText}`);
         }
@@ -666,12 +666,14 @@ export const generateVideoFromPrompt = async (
         const videoBlob = await videoResponse.blob();
 
         // Convert Blob to data URL to display in the app
-        return new Promise((resolve, reject) => {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onloadend = () => resolve(reader.result as string);
             reader.onerror = reject;
             reader.readAsDataURL(videoBlob);
         });
+
+        return { dataUrl, videoObject, model };
 
     } catch (error) {
         throw new Error(getFriendlyErrorMessage(error));
@@ -684,8 +686,9 @@ export const generateVideoWithInterpolation = async (
   endImage: string,
   config: VideoGenerationConfig,
   onProgress: (message: string) => void
-): Promise<string> => {
+): Promise<{ dataUrl: string; videoObject: any; model: string }> => {
     const { apiKey, client: aiClient } = createGenAIClient();
+    const model = 'veo-3.1-fast-generate-preview';
 
     try {
         onProgress("Preparing interpolation request...");
@@ -716,7 +719,7 @@ export const generateVideoWithInterpolation = async (
         onProgress("Starting interpolation generation...");
 
         let operation = await aiClient.models.generateVideos({
-            model: 'veo-3.1-fast-generate-preview',
+            model,
             ...(prompt && { prompt }), // Optional prompt
             image: startImageParam, // Start frame
             config: {
@@ -742,15 +745,15 @@ export const generateVideoWithInterpolation = async (
             throw new Error(`Video interpolation failed: ${operation.error.message}`);
         }
 
-        const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
-        if (!downloadLink) {
+        const videoObject = operation.response?.generatedVideos?.[0]?.video;
+        if (!videoObject?.uri) {
             throw new Error('Video generation finished, but no video was returned. This may be due to safety filters or an issue with the images/prompt.');
         }
 
         onProgress("Downloading interpolated video...");
 
         // The API key is required to download the video
-        const videoResponse = await fetch(`${downloadLink}&key=${apiKey}`);
+        const videoResponse = await fetch(`${videoObject.uri}&key=${apiKey}`);
         if (!videoResponse.ok) {
             throw new Error(`Failed to download video: ${videoResponse.statusText}`);
         }
@@ -758,12 +761,190 @@ export const generateVideoWithInterpolation = async (
         const videoBlob = await videoResponse.blob();
 
         // Convert Blob to data URL to display in the app
-        return new Promise((resolve, reject) => {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
             reader.onloadend = () => resolve(reader.result as string);
             reader.onerror = reject;
             reader.readAsDataURL(videoBlob);
         });
+
+        return { dataUrl, videoObject, model };
+
+    } catch (error) {
+        throw new Error(getFriendlyErrorMessage(error));
+    }
+};
+
+export const generateVideoWithReferenceImages = async (
+  prompt: string,
+  referenceImages: string[],
+  config: VideoGenerationConfig,
+  onProgress: (message: string) => void
+): Promise<{ dataUrl: string; videoObject: any; model: string }> => {
+    const { apiKey, client: aiClient } = createGenAIClient();
+    const model = 'veo-3.1-generate-preview';
+
+    try {
+        onProgress("Preparing composition request...");
+
+        // Convert reference images to the format required by the API
+        const referenceImageParams = referenceImages
+            .filter(img => img) // Filter out any undefined/null images
+            .map(imageUrl => {
+                const [header, base64Data] = imageUrl.split(',');
+                const mimeType = header.match(/:(.*?);/)?.[1];
+                if (!mimeType || !base64Data) {
+                    throw new Error('Invalid data URL format for reference image.');
+                }
+                return {
+                    image: { imageBytes: base64Data, mimeType },
+                    referenceType: 'ASSET' // Using ASSET reference type as per the example
+                };
+            });
+
+        if (referenceImageParams.length === 0) {
+            throw new Error('At least one reference image is required for composition.');
+        }
+
+        const { resolution } = config;
+        // Aspect ratio must be 16:9 and duration must be 8 seconds when using reference images
+        const aspectRatio = '16:9';
+        const duration = '8';
+
+        onProgress("Starting composition generation...");
+
+        let operation = await aiClient.models.generateVideos({
+            model,
+            prompt, // Prompt is required for reference images
+            config: {
+                numberOfVideos: 1,
+                referenceImages: referenceImageParams,
+                resolution,
+                aspectRatio,
+                duration,
+            }
+        });
+
+        let messageIndex = 0;
+        const totalMessages = VIDEO_GENERATION_MESSAGES.length;
+
+        while (!operation.done) {
+            onProgress(VIDEO_GENERATION_MESSAGES[messageIndex % totalMessages]);
+            messageIndex++;
+            await sleep(10000); // Poll every 10 seconds
+            operation = await aiClient.operations.getVideosOperation({ operation });
+        }
+
+        if (operation.error) {
+            throw new Error(`Video composition failed: ${operation.error.message}`);
+        }
+
+        const videoObject = operation.response?.generatedVideos?.[0]?.video;
+        if (!videoObject?.uri) {
+            throw new Error('Video generation finished, but no video was returned. This may be due to safety filters or an issue with the reference images/prompt.');
+        }
+
+        onProgress("Downloading composed video...");
+
+        // The API key is required to download the video
+        const videoResponse = await fetch(`${videoObject.uri}&key=${apiKey}`);
+        if (!videoResponse.ok) {
+            throw new Error(`Failed to download video: ${videoResponse.statusText}`);
+        }
+
+        const videoBlob = await videoResponse.blob();
+
+        // Convert Blob to data URL to display in the app
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(videoBlob);
+        });
+
+        return { dataUrl, videoObject, model };
+
+    } catch (error) {
+        throw new Error(getFriendlyErrorMessage(error));
+    }
+};
+
+export const generateExtendedVideo = async (
+  prompt: string,
+  previousVideoObject: any,
+  aspectRatio: string,
+  onProgress: (message: string) => void
+): Promise<{ dataUrl: string; videoObject: any; model: string }> => {
+    const { apiKey, client: aiClient } = createGenAIClient();
+    const model = 'veo-3.1-generate-preview';
+
+    try {
+        if (!previousVideoObject) {
+            throw new Error('This video was not generated by Veo and cannot be extended. Only Veo-generated videos can be extended.');
+        }
+
+        if (!aspectRatio) {
+            throw new Error('Could not determine aspect ratio from the previous video.');
+        }
+
+        onProgress("Preparing video extension request...");
+
+        // Resolution must be 720p and duration must be 8 seconds for extension
+        const resolution = '720p';
+        const duration = '8';
+
+        onProgress("Starting video extension...");
+
+        let operation = await aiClient.models.generateVideos({
+            model,
+            prompt, // Prompt is required
+            video: previousVideoObject, // Pass the entire video object
+            config: {
+                numberOfVideos: 1,
+                resolution,
+                aspectRatio,
+                duration,
+            }
+        });
+
+        let messageIndex = 0;
+        const totalMessages = VIDEO_GENERATION_MESSAGES.length;
+
+        while (!operation.done) {
+            onProgress(VIDEO_GENERATION_MESSAGES[messageIndex % totalMessages]);
+            messageIndex++;
+            await sleep(10000); // Poll every 10 seconds
+            operation = await aiClient.operations.getVideosOperation({ operation });
+        }
+
+        if (operation.error) {
+            throw new Error(`Video extension failed: ${operation.error.message}`);
+        }
+
+        const videoObject = operation.response?.generatedVideos?.[0]?.video;
+        if (!videoObject?.uri) {
+            throw new Error('Video extension finished, but no video was returned. This may be due to safety filters or an issue with the prompt.');
+        }
+
+        onProgress("Downloading extended video...");
+
+        // The API key is required to download the video
+        const videoResponse = await fetch(`${videoObject.uri}&key=${apiKey}`);
+        if (!videoResponse.ok) {
+            throw new Error(`Failed to download video: ${videoResponse.statusText}`);
+        }
+
+        const videoBlob = await videoResponse.blob();
+
+        // Convert Blob to data URL to display in the app
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(videoBlob);
+        });
+
+        return { dataUrl, videoObject, model };
 
     } catch (error) {
         throw new Error(getFriendlyErrorMessage(error));

@@ -151,18 +151,16 @@ const GalleryPanel: React.FC<GalleryPanelProps> = ({
             key={`${item.id}-${videoAutoplayEnabled}`}
             role="button"
             tabIndex={0}
-            draggable={item.type === 'image'}
+            draggable={true}
             onDragStart={(event) => {
-              if (item.type !== 'image') {
-                event.preventDefault();
-                return;
-              }
               event.dataTransfer.effectAllowed = 'copy';
               event.dataTransfer.setData('application/json', JSON.stringify({
-                type: 'gallery-image',
+                type: item.type === 'image' ? 'gallery-image' : 'gallery-video',
                 fileName: item.fileName,
                 url: item.url,
                 itemType: item.type,
+                veoVideoObject: item.veoVideoObject,
+                veoModel: item.veoModel,
               }));
             }}
             onClick={(event) => {
@@ -249,25 +247,23 @@ const GalleryPanel: React.FC<GalleryPanelProps> = ({
           <button
             key={`${item.id}-${videoAutoplayEnabled}`}
             type="button"
-            draggable={item.type === 'image'}
+            draggable={true}
             onDragStart={(event) => {
-              if (item.type !== 'image') {
-                event.preventDefault();
-                return;
-              }
               event.dataTransfer.effectAllowed = 'copy';
               event.dataTransfer.setData('application/json', JSON.stringify({
-                type: 'gallery-image',
+                type: item.type === 'image' ? 'gallery-image' : 'gallery-video',
                 fileName: item.fileName,
                 url: item.url,
                 itemType: item.type,
+                veoVideoObject: item.veoVideoObject,
+                veoModel: item.veoModel,
               }));
             }}
             onClick={(event) => {
               event.stopPropagation();
               onSelectItem(item);
             }}
-            className={`group relative w-12 h-12 flex-shrink-0 rounded-md overflow-hidden ${styles.node.imagePlaceholderBg} border ${styles.node.imagePlaceholderBorder} hover:ring-2 focus-visible:outline-none focus-visible:ring-2 transition ${styles.gallery.itemHoverRing} ${styles.gallery.itemFocusRing} ${item.type === 'image' ? 'cursor-grab active:cursor-grabbing' : ''}`}
+            className={`group relative w-12 h-12 flex-shrink-0 rounded-md overflow-hidden ${styles.node.imagePlaceholderBg} border ${styles.node.imagePlaceholderBorder} hover:ring-2 focus-visible:outline-none focus-visible:ring-2 transition ${styles.gallery.itemHoverRing} ${styles.gallery.itemFocusRing} cursor-grab active:cursor-grabbing`}
             aria-label={`Preview ${item.fileName}`}
           >
             {renderMediaPreview(item, true)}

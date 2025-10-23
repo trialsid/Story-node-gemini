@@ -83,6 +83,22 @@ export const NODE_SPEC: { [key in NodeType]: NodeSpec } = {
     ],
     outputs: [{ id: 'video_output', type: HandleType.Video, label: 'Output Video' }],
   },
+  [NodeType.VideoComposer]: {
+    inputs: [
+      { id: 'reference_image_1_input', type: HandleType.Image, label: 'Reference 1' },
+      { id: 'reference_image_2_input', type: HandleType.Image, label: 'Reference 2' },
+      { id: 'reference_image_3_input', type: HandleType.Image, label: 'Reference 3' },
+      { id: 'prompt_input', type: HandleType.Text, label: 'Prompt' },
+    ],
+    outputs: [{ id: 'video_output', type: HandleType.Video, label: 'Output Video' }],
+  },
+  [NodeType.VideoExtender]: {
+    inputs: [
+      { id: 'video_input', type: HandleType.Video, label: 'Input Video' },
+      { id: 'prompt_input', type: HandleType.Text, label: 'Prompt' },
+    ],
+    outputs: [{ id: 'video_output', type: HandleType.Video, label: 'Output Video' }],
+  },
 };
 
 // Compatibility check

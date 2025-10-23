@@ -36,6 +36,7 @@ interface CanvasProps {
   onEditImage: (nodeId: string) => void;
   onMixImages: (nodeId: string) => void;
   onGenerateVideo: (nodeId: string) => void;
+  onExtendVideo: (nodeId: string) => void;
   onGenerateText: (nodeId: string) => void;
   onGenerateCharacters: (nodeId: string) => void;
   onGenerateCharacterPortfolio: (nodeId: string) => void;
@@ -82,6 +83,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
   onEditImage,
   onMixImages,
   onGenerateVideo,
+  onExtendVideo,
   onGenerateText,
   onGenerateCharacters,
   onGenerateCharacterPortfolio,
@@ -185,6 +187,7 @@ const Canvas = forwardRef<HTMLDivElement, CanvasProps>(({
             onEditImage={onEditImage}
             onMixImages={onMixImages}
             onGenerateVideo={onGenerateVideo}
+            onExtendVideo={onExtendVideo}
             onGenerateText={onGenerateText}
             onGenerateCharacters={onGenerateCharacters}
             onGenerateCharacterPortfolio={onGenerateCharacterPortfolio}
