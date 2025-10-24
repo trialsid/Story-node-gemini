@@ -5,6 +5,7 @@ export interface UserPreferences {
   theme: Theme;
   showLauncherOnStartup: boolean;
   enableVideoAutoplayInGallery: boolean;
+  showMinimap: boolean;
 }
 
 interface UserPreferencesContextType {
@@ -20,6 +21,7 @@ export const UserPreferencesProvider: React.FC<{ children: ReactNode }> = ({ chi
     theme: 'dark',
     showLauncherOnStartup: true,
     enableVideoAutoplayInGallery: false,
+    showMinimap: true,
   });
   const [isLoading, setIsLoading] = useState(true);
 

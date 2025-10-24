@@ -9,6 +9,8 @@ interface SettingsModalProps {
   onShowLauncherOnStartupChange: (value: boolean) => void;
   videoAutoplayEnabled: boolean;
   onVideoAutoplayEnabledChange: (value: boolean) => void;
+  showMinimap: boolean;
+  onShowMinimapChange: (value: boolean) => void;
 }
 
 const ToggleSwitch: React.FC<{
@@ -36,7 +38,7 @@ const ToggleSwitch: React.FC<{
   );
 };
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, showLauncherOnStartup, onShowLauncherOnStartupChange, videoAutoplayEnabled, onVideoAutoplayEnabledChange }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, showLauncherOnStartup, onShowLauncherOnStartupChange, videoAutoplayEnabled, onVideoAutoplayEnabledChange, showMinimap, onShowMinimapChange }) => {
   const { styles } = useTheme();
   const [activeTab, setActiveTab] = useState<'general' | 'shortcuts'>('general');
 
@@ -97,6 +99,21 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, showLaun
           </div>
           <p className={`text-xs mt-2 ${styles.node.labelText} opacity-70`}>
             Videos in the gallery will automatically play when autoplay is enabled
+          </p>
+        </div>
+        <div className={`border-t ${styles.modal.border} pt-4`}>
+          <div className="flex items-center justify-between">
+            <span id="minimap-label" className={styles.modal.messageText}>
+              Show minimap
+            </span>
+            <ToggleSwitch
+              checked={showMinimap}
+              onChange={onShowMinimapChange}
+              labelId="minimap-label"
+            />
+          </div>
+          <p className={`text-xs mt-2 ${styles.node.labelText} opacity-70`}>
+            Display a minimap for easy navigation across the canvas
           </p>
         </div>
       </div>

@@ -25,6 +25,7 @@ import { fetchProjects as fetchProjectsApi, fetchProject as fetchProjectApi, cre
 import { getHandleSpec } from './utils/handlePositions';
 import { buildAllNodeMenuCategories } from './utils/nodeMenuConfig';
 import ProjectNameModal from './components/ProjectNameModal';
+import MiniMap from './components/MiniMap';
 
 
 const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } } = {
@@ -263,6 +264,7 @@ const AppContent: React.FC = () => {
 
   const showLauncherOnStartup = preferences.showLauncherOnStartup;
   const videoAutoplayEnabled = preferences.enableVideoAutoplayInGallery;
+  const showMinimap = preferences.showMinimap;
 
   const [projects, setProjects] = useState<ProjectMetadata[]>([]);
   const [currentProject, setCurrentProject] = useState<ProjectMetadata | null>(null);
@@ -1938,6 +1940,10 @@ const AppContent: React.FC = () => {
     setCanvasOffset({ x: newOffsetX, y: newOffsetY });
   }, [zoom, canvasOffset]);
 
+  const handleMinimapNavigate = useCallback((x: number, y: number) => {
+    setCanvasOffset({ x, y });
+  }, []);
+
   const handleOutputMouseDown = useCallback((nodeId: string, handleId: string) => {
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
@@ -3016,6 +3022,8 @@ const AppContent: React.FC = () => {
         onShowLauncherOnStartupChange={(value) => updatePreferences({ showLauncherOnStartup: value })}
         videoAutoplayEnabled={videoAutoplayEnabled}
         onVideoAutoplayEnabledChange={(value) => updatePreferences({ enableVideoAutoplayInGallery: value })}
+        showMinimap={showMinimap}
+        onShowMinimapChange={(value) => updatePreferences({ showMinimap: value })}
       />}
 
       <HelpModal
@@ -3140,6 +3148,18 @@ const AppContent: React.FC = () => {
           position={{ x: contextMenu.x, y: contextMenu.y }}
           categories={contextMenuCategories}
           onClose={handleCloseContextMenu}
+        />
+      )}
+      {showMinimap && (
+        <MiniMap
+          nodes={nodes}
+          connections={connections}
+          nodeDimensions={NODE_DIMENSIONS}
+          canvasOffset={canvasOffset}
+          zoom={zoom}
+          viewportWidth={typeof window !== 'undefined' ? window.innerWidth : 1920}
+          viewportHeight={typeof window !== 'undefined' ? window.innerHeight : 1080}
+          onNavigate={handleMinimapNavigate}
         />
       )}
     </div>
