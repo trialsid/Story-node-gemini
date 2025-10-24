@@ -938,33 +938,6 @@ const AppContent: React.FC = () => {
     refreshGalleryItems();
   }, [refreshGalleryItems]);
 
-  useEffect(() => {
-    if (galleryItems.length === 0) {
-      return;
-    }
-    const itemsById = new Map(galleryItems.map(item => [item.id, item]));
-    nodes.forEach(node => {
-      const galleryItemId = node.data?.videoGalleryItemId;
-      if (!galleryItemId) {
-        return;
-      }
-      const galleryItem = itemsById.get(galleryItemId);
-      if (!galleryItem?.url) {
-        return;
-      }
-      const currentUrl = node.data.videoUrl;
-      if (currentUrl === galleryItem.url) {
-        return;
-      }
-      updateNodeData(node.id, {
-        videoUrl: galleryItem.url,
-        veoVideoObject: node.data.veoVideoObject ?? galleryItem.veoVideoObject,
-        veoModel: node.data.veoModel ?? galleryItem.veoModel,
-        videoAspectRatio: node.data.videoAspectRatio ?? galleryItem.videoAspectRatio,
-      });
-    });
-  }, [galleryItems, nodes, updateNodeData]);
-
   const handleStartFresh = useCallback(() => {
     resetHistory({ nodes: [], connections: [] });
     setShowLauncherModal(false);
@@ -1859,6 +1832,33 @@ const AppContent: React.FC = () => {
         return { ...prevState, nodes: newNodes, connections: newConnections };
     }, { skipHistory: isTransientUpdate });
   }, [setCanvasState]);
+
+  useEffect(() => {
+    if (galleryItems.length === 0) {
+      return;
+    }
+    const itemsById = new Map(galleryItems.map(item => [item.id, item]));
+    nodes.forEach(node => {
+      const galleryItemId = node.data?.videoGalleryItemId;
+      if (!galleryItemId) {
+        return;
+      }
+      const galleryItem = itemsById.get(galleryItemId);
+      if (!galleryItem?.url) {
+        return;
+      }
+      const currentUrl = node.data.videoUrl;
+      if (currentUrl === galleryItem.url) {
+        return;
+      }
+      updateNodeData(node.id, {
+        videoUrl: galleryItem.url,
+        veoVideoObject: node.data.veoVideoObject ?? galleryItem.veoVideoObject,
+        veoModel: node.data.veoModel ?? galleryItem.veoModel,
+        videoAspectRatio: node.data.videoAspectRatio ?? galleryItem.videoAspectRatio,
+      });
+    });
+  }, [galleryItems, nodes, updateNodeData]);
 
   const handleNodeDragStart = useCallback((nodeId: string, e: React.MouseEvent) => {
     // If not holding Ctrl and node is not selected, clear selection
