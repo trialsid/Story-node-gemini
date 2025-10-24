@@ -7,6 +7,7 @@ import { areHandlesCompatible, NodeHandleSpec } from '../utils/node-spec';
 import ExpandableTextArea from './ExpandableTextArea';
 import { getHandlesForSide, getMinimizedHandleY, SLICE_HEIGHT_PX, DEFAULT_MINIMIZED_PREVIEW_HEIGHT } from '../utils/handlePositions';
 import NodeContextMenu from './NodeContextMenu';
+import { inferVideoAspectRatio } from '../utils/videoHelpers';
 
 interface TempConnectionInfo {
   startNodeId: string;
@@ -594,6 +595,36 @@ const Node: React.FC<NodeProps> = ({
         reader.readAsDataURL(file);
     }
   };
+
+  useEffect(() => {
+    if (node.type !== NodeType.Video) {
+      return;
+    }
+    if (!node.data.videoUrl) {
+      return;
+    }
+    if (node.data.videoAspectRatio) {
+      return;
+    }
+
+    let isMounted = true;
+
+    inferVideoAspectRatio(node.data.videoUrl)
+      .then((aspect) => {
+        if (isMounted) {
+          onUpdateData(node.id, { videoAspectRatio: aspect });
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          onUpdateData(node.id, { videoAspectRatio: '16:9' });
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [node.id, node.type, node.data.videoUrl, node.data.videoAspectRatio, onUpdateData]);
 
   const handleDragOver = (e: React.DragEvent) => {
       e.preventDefault();
