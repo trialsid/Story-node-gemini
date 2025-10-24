@@ -156,15 +156,16 @@ const GalleryPanel: React.FC<GalleryPanelProps> = ({
             draggable={true}
             onDragStart={(event) => {
               event.dataTransfer.effectAllowed = 'copy';
-              event.dataTransfer.setData('application/json', JSON.stringify({
-                type: item.type === 'image' ? 'gallery-image' : 'gallery-video',
-                fileName: item.fileName,
-                url: item.url,
-                itemType: item.type,
-                veoVideoObject: item.veoVideoObject,
-                veoModel: item.veoModel,
-                videoAspectRatio: item.videoAspectRatio,
-              }));
+                event.dataTransfer.setData('application/json', JSON.stringify({
+                  type: item.type === 'image' ? 'gallery-image' : 'gallery-video',
+                  fileName: item.fileName,
+                  url: item.url,
+                  itemType: item.type,
+                  veoVideoObject: item.veoVideoObject,
+                  veoModel: item.veoModel,
+                  itemId: item.id,
+                  videoAspectRatio: item.videoAspectRatio,
+                }));
             }}
             onClick={(event) => {
               event.stopPropagation();
@@ -253,15 +254,16 @@ const GalleryPanel: React.FC<GalleryPanelProps> = ({
             draggable={true}
             onDragStart={(event) => {
               event.dataTransfer.effectAllowed = 'copy';
-              event.dataTransfer.setData('application/json', JSON.stringify({
-                type: item.type === 'image' ? 'gallery-image' : 'gallery-video',
-                fileName: item.fileName,
-                url: item.url,
-                itemType: item.type,
-                veoVideoObject: item.veoVideoObject,
-                veoModel: item.veoModel,
-                videoAspectRatio: item.videoAspectRatio,
-              }));
+                event.dataTransfer.setData('application/json', JSON.stringify({
+                  type: item.type === 'image' ? 'gallery-image' : 'gallery-video',
+                  fileName: item.fileName,
+                  url: item.url,
+                  itemType: item.type,
+                  veoVideoObject: item.veoVideoObject,
+                  veoModel: item.veoModel,
+                  itemId: item.id,
+                  videoAspectRatio: item.videoAspectRatio,
+                }));
             }}
             onClick={(event) => {
               event.stopPropagation();

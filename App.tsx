@@ -340,9 +340,24 @@ const AppContent: React.FC = () => {
     }
   }, [resetHistory]);
 
-  const getCanvasSnapshot = useCallback((): ProjectState => ({
-    canvas: JSON.parse(JSON.stringify(canvasState)) as CanvasState,
-  }), [canvasState]);
+  const getCanvasSnapshot = useCallback((): ProjectState => {
+    const canvasClone = JSON.parse(JSON.stringify(canvasState)) as CanvasState;
+
+    const sanitizedNodes = canvasClone.nodes.map(node => {
+      const data = { ...node.data };
+      if (typeof data.videoUrl === 'string' && data.videoUrl.startsWith('data:') && data.videoGalleryItemId) {
+        delete data.videoUrl;
+      }
+      return { ...node, data };
+    });
+
+    return {
+      canvas: {
+        ...canvasClone,
+        nodes: sanitizedNodes,
+      },
+    };
+  }, [canvasState]);
 
   const runWithUnsavedChangesGuard = useCallback((
     action: () => Promise<boolean>,
@@ -424,6 +439,7 @@ const AppContent: React.FC = () => {
       const draftItems = galleryItems.filter(item => item.projectId === 'draft');
       const convertedItems: GalleryItem[] = [];
       const successfulDraftIds = new Set<string>();
+      const draftIdToRealItem = new Map<string, GalleryItem>();
 
       for (const draftItem of draftItems) {
         try {
@@ -441,6 +457,7 @@ const AppContent: React.FC = () => {
           });
           convertedItems.push(realItem);
           successfulDraftIds.add(draftItem.id);
+          draftIdToRealItem.set(draftItem.id, realItem);
         } catch (error) {
           console.error('Failed to convert draft item', error);
         }
@@ -451,6 +468,27 @@ const AppContent: React.FC = () => {
         ...convertedItems,
         ...prevItems.filter(item => item.projectId !== 'draft' || !successfulDraftIds.has(item.id))
       ]);
+
+      if (draftIdToRealItem.size > 0) {
+        setCanvasState(prev => {
+          const updatedNodes = prev.nodes.map(node => {
+            const draftId = node.data.videoGalleryItemId;
+            if (draftId && draftIdToRealItem.has(draftId)) {
+              const realItem = draftIdToRealItem.get(draftId)!;
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  videoGalleryItemId: realItem.id,
+                  videoUrl: realItem.url || node.data.videoUrl,
+                },
+              };
+            }
+            return node;
+          });
+          return { ...prev, nodes: updatedNodes };
+        });
+      }
 
       setProjects(prev => sortProjectsByUpdatedAt([metadata, ...prev.filter(item => item.id !== metadata.id)]));
       setCurrentProject(metadata);
@@ -830,8 +868,8 @@ const AppContent: React.FC = () => {
     veoVideoObject?: any;
     veoModel?: string;
     videoAspectRatio?: '16:9' | '9:16';
-  }>) => {
-    if (itemsData.length === 0) return;
+  }>): Promise<GalleryItem[]> => {
+    if (itemsData.length === 0) return [];
 
     try {
       const newItems: GalleryItem[] = [];
@@ -867,8 +905,10 @@ const AppContent: React.FC = () => {
       updateGalleryState(prevItems => [...newItems, ...prevItems]);
       setGalleryStatus('ready');
       setGalleryError(null);
+      return newItems;
     } catch (error) {
       handleGalleryError(error);
+      return [];
     }
   }, [currentProject, handleGalleryError, updateGalleryState]);
 
@@ -881,8 +921,9 @@ const AppContent: React.FC = () => {
     veoVideoObject?: any;
     veoModel?: string;
     videoAspectRatio?: '16:9' | '9:16';
-  }) => {
-    return persistGalleryItems([params]);
+  }): Promise<GalleryItem | null> => {
+    const [item] = await persistGalleryItems([params]);
+    return item ?? null;
   }, [persistGalleryItems]);
 
   const handleSelectGalleryItem = useCallback((item: GalleryItem) => {
@@ -896,6 +937,33 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     refreshGalleryItems();
   }, [refreshGalleryItems]);
+
+  useEffect(() => {
+    if (galleryItems.length === 0) {
+      return;
+    }
+    const itemsById = new Map(galleryItems.map(item => [item.id, item]));
+    nodes.forEach(node => {
+      const galleryItemId = node.data?.videoGalleryItemId;
+      if (!galleryItemId) {
+        return;
+      }
+      const galleryItem = itemsById.get(galleryItemId);
+      if (!galleryItem?.url) {
+        return;
+      }
+      const currentUrl = node.data.videoUrl;
+      if (currentUrl === galleryItem.url) {
+        return;
+      }
+      updateNodeData(node.id, {
+        videoUrl: galleryItem.url,
+        veoVideoObject: node.data.veoVideoObject ?? galleryItem.veoVideoObject,
+        veoModel: node.data.veoModel ?? galleryItem.veoModel,
+        videoAspectRatio: node.data.videoAspectRatio ?? galleryItem.videoAspectRatio,
+      });
+    });
+  }, [galleryItems, nodes, updateNodeData]);
 
   const handleStartFresh = useCallback(() => {
     resetHistory({ nodes: [], connections: [] });
@@ -1677,10 +1745,10 @@ const AppContent: React.FC = () => {
                     }
                 }
                 
-                if ((updatedNode.type === NodeType.CharacterGenerator || updatedNode.type === NodeType.ImageEditor || updatedNode.type === NodeType.Image || updatedNode.type === NodeType.ImageMixer) && 'imageUrl' in data) {
-                  if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && conn.toHandleId === 'image_input') {
-                      dataToUpdate = { inputImageUrl: data.imageUrl };
-                  }
+        if ((updatedNode.type === NodeType.CharacterGenerator || updatedNode.type === NodeType.ImageEditor || updatedNode.type === NodeType.Image || updatedNode.type === NodeType.ImageMixer) && 'imageUrl' in data) {
+          if ((toNode.type === NodeType.ImageEditor || toNode.type === NodeType.VideoGenerator) && conn.toHandleId === 'image_input') {
+              dataToUpdate = { inputImageUrl: data.imageUrl };
+          }
                   if (toNode.type === NodeType.VideoInterpolator && conn.toHandleId === 'start_image_input') {
                       dataToUpdate = { startImageUrl: data.imageUrl };
                   }
@@ -1698,19 +1766,20 @@ const AppContent: React.FC = () => {
                   }
                 }
 
-                // Video propagation for Video Extender
-                if ((updatedNode.type === NodeType.VideoGenerator || updatedNode.type === NodeType.VideoInterpolator ||
-                     updatedNode.type === NodeType.VideoComposer || updatedNode.type === NodeType.VideoExtender ||
-                     updatedNode.type === NodeType.Video) && 'videoUrl' in data) {
-                  if (toNode.type === NodeType.VideoExtender && conn.toHandleId === 'video_input') {
-                      dataToUpdate = {
-                        inputVideoUrl: data.videoUrl,
-                        veoVideoObject: data.veoVideoObject,
-                        veoModel: data.veoModel,
-                        videoAspectRatio: data.videoAspectRatio,
-                      };
-                  }
-                }
+        // Video propagation for Video Extender
+        if ((updatedNode.type === NodeType.VideoGenerator || updatedNode.type === NodeType.VideoInterpolator ||
+             updatedNode.type === NodeType.VideoComposer || updatedNode.type === NodeType.VideoExtender ||
+             updatedNode.type === NodeType.Video) && 'videoUrl' in data) {
+          if (toNode.type === NodeType.VideoExtender && conn.toHandleId === 'video_input') {
+              dataToUpdate = {
+                inputVideoUrl: data.videoUrl,
+                veoVideoObject: data.veoVideoObject,
+                veoModel: data.veoModel,
+                videoAspectRatio: data.videoAspectRatio,
+                videoGalleryItemId: data.videoGalleryItemId,
+              };
+          }
+        }
 
                 if (updatedNode.type === NodeType.ImageGenerator && 'imageUrls' in data && Array.isArray(data.imageUrls)) {
                     const match = conn.fromHandleId.match(/_(\d+)$/);
@@ -1885,6 +1954,7 @@ const AppContent: React.FC = () => {
             videoUrl: data.url,
             veoVideoObject: data.veoVideoObject,
             veoModel: data.veoModel,
+            videoGalleryItemId: data.itemId,
             videoAspectRatio: data.videoAspectRatio,
           },
         };
@@ -2119,6 +2189,7 @@ const AppContent: React.FC = () => {
                       veoVideoObject: fromNode.data.veoVideoObject,
                       veoModel: fromNode.data.veoModel,
                       videoAspectRatio: fromNode.data.videoAspectRatio,
+                      videoGalleryItemId: fromNode.data.videoGalleryItemId,
                     };
                 }
             } else if (fromNode.type === NodeType.ImageGenerator && fromNode.data.imageUrls) {
@@ -2583,7 +2654,7 @@ const AppContent: React.FC = () => {
 
           // Save to gallery separately
           try {
-            await persistGalleryItem({
+            const savedItem = await persistGalleryItem({
               dataUrl: videoUrl,
               type: 'video',
               prompt: editDescription || 'Video interpolation',
@@ -2593,6 +2664,12 @@ const AppContent: React.FC = () => {
               veoModel,
               videoAspectRatio: aspectRatio,
             });
+            if (savedItem) {
+              updateNodeData(nodeId, {
+                videoGalleryItemId: savedItem.id,
+                videoUrl: savedItem.url || videoUrl,
+              });
+            }
           } catch (galleryError) {
             console.error('Failed to save to gallery:', galleryError);
           }
@@ -2665,7 +2742,7 @@ const AppContent: React.FC = () => {
 
           // Save to gallery separately
           try {
-            await persistGalleryItem({
+            const savedItem = await persistGalleryItem({
               dataUrl: videoUrl,
               type: 'video',
               prompt: editDescription,
@@ -2675,6 +2752,12 @@ const AppContent: React.FC = () => {
               veoModel,
               videoAspectRatio: '16:9', // Fixed for composition
             });
+            if (savedItem) {
+              updateNodeData(nodeId, {
+                videoGalleryItemId: savedItem.id,
+                videoUrl: savedItem.url || videoUrl,
+              });
+            }
           } catch (galleryError) {
             console.error('Failed to save to gallery:', galleryError);
           }
@@ -2743,7 +2826,7 @@ const AppContent: React.FC = () => {
 
         // Save to gallery separately - don't let gallery errors affect node display
         try {
-          await persistGalleryItem({
+          const savedItem = await persistGalleryItem({
             dataUrl: videoUrl,
             type: 'video',
             prompt: editDescription,
@@ -2753,6 +2836,12 @@ const AppContent: React.FC = () => {
             veoModel,
             videoAspectRatio: aspectRatio,
           });
+          if (savedItem) {
+            updateNodeData(nodeId, {
+              videoGalleryItemId: savedItem.id,
+              videoUrl: savedItem.url || videoUrl,
+            });
+          }
         } catch (galleryError) {
           console.error('Failed to save to gallery:', galleryError);
           // Don't update node with error - keep showing the successful result
@@ -2843,7 +2932,7 @@ const AppContent: React.FC = () => {
 
         // Save to gallery separately
         try {
-          await persistGalleryItem({
+          const savedItem = await persistGalleryItem({
             dataUrl: videoUrl,
             type: 'video',
             prompt: editDescription,
@@ -2853,6 +2942,12 @@ const AppContent: React.FC = () => {
             veoModel,
             videoAspectRatio: videoAspectRatio,
           });
+          if (savedItem) {
+            updateNodeData(nodeId, {
+              videoGalleryItemId: savedItem.id,
+              videoUrl: savedItem.url || videoUrl,
+            });
+          }
         } catch (galleryError) {
           console.error('Failed to save to gallery:', galleryError);
         }

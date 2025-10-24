@@ -79,6 +79,7 @@ export interface NodeData {
     videoDuration?: '4' | '6' | '8';
     videoAspectRatio?: '16:9' | '9:16';
     videoUrl?: string;
+    videoGalleryItemId?: string;
     generationProgressMessage?: string;
     generationStartTimeMs?: number;
     generationElapsedMs?: number;
