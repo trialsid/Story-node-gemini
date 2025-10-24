@@ -3014,6 +3014,7 @@ const AppContent: React.FC = () => {
         isLoading={isGalleryLoading}
         errorMessage={galleryError}
         videoAutoplayEnabled={videoAutoplayEnabled}
+        showMinimap={showMinimap}
       />
       {isSettingsModalOpen && <SettingsModal
         isOpen={isSettingsModalOpen}
@@ -3160,6 +3161,7 @@ const AppContent: React.FC = () => {
           viewportWidth={typeof window !== 'undefined' ? window.innerWidth : 1920}
           viewportHeight={typeof window !== 'undefined' ? window.innerHeight : 1080}
           onNavigate={handleMinimapNavigate}
+          selectedNodeIds={selectedNodeIds}
         />
       )}
     </div>

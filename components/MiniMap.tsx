@@ -1,5 +1,5 @@
-import React, { useRef, useEffect } from 'react';
-import { NodeData, Connection, NodeType } from '../types';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { NodeData, Connection, NodeType, HandleType } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface MiniMapProps {
@@ -11,6 +11,7 @@ interface MiniMapProps {
   viewportWidth: number;
   viewportHeight: number;
   onNavigate: (x: number, y: number) => void;
+  selectedNodeIds: Set<string>;
 }
 
 const MiniMap: React.FC<MiniMapProps> = ({
@@ -22,14 +23,52 @@ const MiniMap: React.FC<MiniMapProps> = ({
   viewportWidth,
   viewportHeight,
   onNavigate,
+  selectedNodeIds,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { styles } = useTheme();
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const MINIMAP_WIDTH = 200;
   const MINIMAP_HEIGHT = 150;
   const PADDING = 20;
+
+  // Get color for node type based on primary handle type
+  const getNodeColor = (nodeType: NodeType): string => {
+    // Map node types to their primary output type
+    switch (nodeType) {
+      // Text nodes
+      case NodeType.Text:
+      case NodeType.TextGenerator:
+      case NodeType.StoryCharacterCreator:
+      case NodeType.StoryExpander:
+      case NodeType.ShortStoryWriter:
+      case NodeType.ScreenplayWriter:
+        return styles.canvas.grid === '#4A5568' ? '#F59E0B' :  // Amber
+               styles.canvas.grid === '#D1D5DB' ? '#F59E0B' : '#F59E0B';
+
+      // Video nodes
+      case NodeType.VideoGenerator:
+      case NodeType.VideoInterpolator:
+      case NodeType.VideoComposer:
+      case NodeType.VideoExtender:
+        return styles.canvas.grid === '#4A5568' ? '#10B981' :  // Emerald
+               styles.canvas.grid === '#D1D5DB' ? '#10B981' : '#14B8A6';
+
+      // Image nodes (default)
+      case NodeType.Image:
+      case NodeType.ImageGenerator:
+      case NodeType.ImageEditor:
+      case NodeType.ImageMixer:
+      case NodeType.CharacterGenerator:
+      case NodeType.CharacterPortfolio:
+      default:
+        return styles.canvas.grid === '#4A5568' ? '#6366F1' :  // Indigo
+               styles.canvas.grid === '#D1D5DB' ? '#3B82F6' : '#6366F1';
+    }
+  };
 
   // Calculate bounds of all nodes
   const calculateBounds = () => {
@@ -152,17 +191,27 @@ const MiniMap: React.FC<MiniMapProps> = ({
       const pos = worldToMinimap(node.position.x, node.position.y);
       const width = nodeWidth * scale;
       const height = nodeHeight * scale;
+      const isSelected = selectedNodeIds.has(node.id);
 
-      // Node background
-      ctx.fillStyle = styles.canvas.grid === '#4A5568' ? '#374151' :
-                      styles.canvas.grid === '#D1D5DB' ? '#E5E7EB' : '#44403c';
+      // Node background - use color-coded type
+      const nodeColor = getNodeColor(node.type);
+      ctx.fillStyle = nodeColor;
+      ctx.globalAlpha = isSelected ? 0.9 : 0.6;
       ctx.fillRect(pos.x, pos.y, width, height);
+      ctx.globalAlpha = 1.0;
 
-      // Node border
-      ctx.strokeStyle = styles.canvas.grid === '#4A5568' ? '#6B7280' :
-                        styles.canvas.grid === '#D1D5DB' ? '#9CA3AF' : '#a8a29e';
-      ctx.lineWidth = 0.5;
-      ctx.strokeRect(pos.x, pos.y, width, height);
+      // Node border - highlight selected nodes
+      if (isSelected) {
+        ctx.strokeStyle = styles.canvas.grid === '#4A5568' ? '#60A5FA' :
+                          styles.canvas.grid === '#D1D5DB' ? '#2563EB' : '#FBBF24';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(pos.x - 0.5, pos.y - 0.5, width + 1, height + 1);
+      } else {
+        ctx.strokeStyle = styles.canvas.grid === '#4A5568' ? '#1F2937' :
+                          styles.canvas.grid === '#D1D5DB' ? '#D1D5DB' : '#44403c';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(pos.x, pos.y, width, height);
+      }
     });
 
     // Draw viewport rectangle
@@ -188,9 +237,26 @@ const MiniMap: React.FC<MiniMapProps> = ({
                     styles.canvas.grid === '#D1D5DB' ? 'rgba(37, 99, 235, 0.1)' : 'rgba(245, 158, 11, 0.1)';
     ctx.fillRect(viewportPos.x, viewportPos.y, viewportSize.width, viewportSize.height);
 
-  }, [nodes, connections, nodeDimensions, canvasOffset, zoom, viewportWidth, viewportHeight, bounds, scale, styles]);
+  }, [nodes, connections, nodeDimensions, canvasOffset, zoom, viewportWidth, viewportHeight, bounds, scale, styles, selectedNodeIds]);
 
-  const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  // Check if click is inside viewport rectangle
+  const isInsideViewport = useCallback((x: number, y: number): boolean => {
+    const viewportWorldWidth = viewportWidth / zoom;
+    const viewportWorldHeight = viewportHeight / zoom;
+    const viewportWorldX = -canvasOffset.x / zoom;
+    const viewportWorldY = -canvasOffset.y / zoom;
+
+    const viewportPos = worldToMinimap(viewportWorldX, viewportWorldY);
+    const viewportSize = {
+      width: viewportWorldWidth * scale,
+      height: viewportWorldHeight * scale,
+    };
+
+    return x >= viewportPos.x && x <= viewportPos.x + viewportSize.width &&
+           y >= viewportPos.y && y <= viewportPos.y + viewportSize.height;
+  }, [canvasOffset, zoom, viewportWidth, viewportHeight, worldToMinimap, scale]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -198,20 +264,65 @@ const MiniMap: React.FC<MiniMapProps> = ({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    const worldPos = minimapToWorld(x, y);
+    // Check if clicking inside viewport for dragging
+    if (isInsideViewport(x, y)) {
+      setIsDragging(true);
+      dragStartRef.current = { x, y };
+      e.preventDefault();
+    } else {
+      // Click outside viewport - navigate to that position
+      const worldPos = minimapToWorld(x, y);
+      const viewportWorldWidth = viewportWidth / zoom;
+      const viewportWorldHeight = viewportHeight / zoom;
 
-    // Center the viewport on the clicked position
-    const viewportWorldWidth = viewportWidth / zoom;
-    const viewportWorldHeight = viewportHeight / zoom;
+      const newWorldX = worldPos.x - viewportWorldWidth / 2;
+      const newWorldY = worldPos.y - viewportWorldHeight / 2;
 
-    const newWorldX = worldPos.x - viewportWorldWidth / 2;
-    const newWorldY = worldPos.y - viewportWorldHeight / 2;
+      const newOffsetX = -newWorldX * zoom;
+      const newOffsetY = -newWorldY * zoom;
 
-    const newOffsetX = -newWorldX * zoom;
-    const newOffsetY = -newWorldY * zoom;
+      onNavigate(newOffsetX, newOffsetY);
+    }
+  }, [isInsideViewport, minimapToWorld, viewportWidth, viewportHeight, zoom, onNavigate]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDragging || !dragStartRef.current) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const dx = x - dragStartRef.current.x;
+    const dy = y - dragStartRef.current.y;
+
+    // Convert minimap delta to world delta
+    const worldDx = (dx / scale);
+    const worldDy = (dy / scale);
+
+    // Update canvas offset (negative because offset moves opposite to viewport)
+    const newOffsetX = canvasOffset.x - worldDx * zoom;
+    const newOffsetY = canvasOffset.y - worldDy * zoom;
 
     onNavigate(newOffsetX, newOffsetY);
-  };
+
+    // Update drag start position for next frame
+    dragStartRef.current = { x, y };
+  }, [isDragging, scale, zoom, canvasOffset, onNavigate]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+    dragStartRef.current = null;
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    if (isDragging) {
+      setIsDragging(false);
+      dragStartRef.current = null;
+    }
+  }, [isDragging]);
 
   return (
     <div
@@ -230,8 +341,11 @@ const MiniMap: React.FC<MiniMapProps> = ({
     >
       <canvas
         ref={canvasRef}
-        onClick={handleClick}
-        className="cursor-pointer m-2"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+        className={`m-2 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
         style={{
           width: MINIMAP_WIDTH,
           height: MINIMAP_HEIGHT,

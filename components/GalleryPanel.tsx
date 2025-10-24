@@ -14,6 +14,7 @@ interface GalleryPanelProps {
   isLoading: boolean;
   errorMessage?: string | null;
   videoAutoplayEnabled: boolean;
+  showMinimap: boolean;
 }
 
 const formatRelativeTime = (timestamp: number): string => {
@@ -44,6 +45,7 @@ const GalleryPanel: React.FC<GalleryPanelProps> = ({
   isLoading,
   errorMessage,
   videoAutoplayEnabled,
+  showMinimap,
 }) => {
   const [isMinimized, setIsMinimized] = useState(true);
   const [activeTab, setActiveTab] = useState<GalleryTab>('history');
@@ -145,7 +147,7 @@ const GalleryPanel: React.FC<GalleryPanelProps> = ({
     }
 
     return (
-      <div className="grid grid-cols-2 gap-2 overflow-y-auto max-h-[calc(100vh-340px)] custom-scrollbar px-1 pb-1">
+      <div className={`grid grid-cols-2 gap-2 overflow-y-auto ${showMinimap ? 'max-h-[calc(100vh-520px)]' : 'max-h-[calc(100vh-400px)]'} custom-scrollbar px-1 pb-1`}>
         {mediaToShow.map((item) => (
           <div
             key={`${item.id}-${videoAutoplayEnabled}`}
