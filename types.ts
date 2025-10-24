@@ -3,6 +3,7 @@ export enum NodeType {
   ImageGenerator = 'IMAGE_GENERATOR',
   Text = 'TEXT_NODE',
   Image = 'IMAGE_NODE',
+  Video = 'VIDEO_NODE',
   ImageEditor = 'IMAGE_EDITOR',
   VideoGenerator = 'VIDEO_GENERATOR',
   VideoInterpolator = 'VIDEO_INTERPOLATOR',
@@ -76,7 +77,7 @@ export interface NodeData {
     videoModel?: string;
     videoResolution?: '720p' | '1080p';
     videoDuration?: '4' | '6' | '8';
-    videoAspectRatio?: '16:9' | '9:16' | '1:1';
+    videoAspectRatio?: '16:9' | '9:16';
     videoUrl?: string;
     generationProgressMessage?: string;
     generationStartTimeMs?: number;
@@ -115,6 +116,10 @@ export interface NodeData {
 
     // For Image Node
     // `imageUrl` is used for the uploaded image
+
+    // For Video Node
+    // `videoUrl` is used for the video source
+    // `veoVideoObject` and `veoModel` indicate if it's a Veo-generated video
 
     // For Image Generator
     numberOfImages?: number;
@@ -170,6 +175,7 @@ export interface GalleryItem {
   // Veo-specific metadata for video extension support
   veoVideoObject?: any; // Original video object from API response
   veoModel?: string; // Model that generated it (e.g., "veo-3.1-generate-preview")
+  videoAspectRatio?: '16:9' | '9:16'; // Aspect ratio of the video
 }
 
 export interface ProjectMetadata {

@@ -1,10 +1,11 @@
 import React from 'react';
-import { FileText, ScrollText, Edit3, Users as UsersIcon, PenTool, ImagePlus, Wand2, Layers, Clapperboard, UserCog, Sparkles, Film, Box, ChevronsRight } from 'lucide-react';
+import { FileText, ScrollText, Edit3, Users as UsersIcon, PenTool, ImagePlus, Wand2, Layers, Clapperboard, UserCog, Sparkles, Film, Box, ChevronsRight, Video } from 'lucide-react';
 
 export interface NodeMenuCallbacks {
   onAddTextNode: () => void;
   onAddTextGeneratorNode: () => void;
   onAddImageNode: () => void;
+  onAddVideoNode: () => void;
   onAddImageGeneratorNode: () => void;
   onAddCharacterGeneratorNode: () => void;
   onAddStoryCharacterCreatorNode: () => void;
@@ -57,6 +58,7 @@ export const buildNodeMenuCategories = (callbacks: NodeMenuCallbacks): NodeMenuC
       { label: 'Text', icon: <FileText className="w-5 h-5 text-yellow-400" />, action: callbacks.onAddTextNode },
       { label: 'Text Generator', icon: <PenTool className="w-5 h-5 text-indigo-400" />, action: callbacks.onAddTextGeneratorNode },
       { label: 'Image', icon: <ImagePlus className="w-5 h-5 text-orange-400" />, action: callbacks.onAddImageNode },
+      { label: 'Video', icon: <Video className="w-5 h-5 text-purple-400" />, action: callbacks.onAddVideoNode },
     ],
   },
   {
@@ -85,6 +87,7 @@ export const buildAllNodeMenuCategories = (callbacks: NodeMenuCallbacks): NodeMe
       { label: 'Text', icon: <FileText className="w-5 h-5 text-yellow-400" />, action: callbacks.onAddTextNode },
       { label: 'Text Generator', icon: <PenTool className="w-5 h-5 text-indigo-400" />, action: callbacks.onAddTextGeneratorNode },
       { label: 'Image', icon: <ImagePlus className="w-5 h-5 text-orange-400" />, action: callbacks.onAddImageNode },
+      { label: 'Video', icon: <Video className="w-5 h-5 text-purple-400" />, action: callbacks.onAddVideoNode },
     ],
   },
   ...buildStoryToolsCategories(callbacks),

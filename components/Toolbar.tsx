@@ -30,6 +30,7 @@ interface ToolbarProps {
   onAddShortStoryWriterNode: () => void;
   onAddScreenplayWriterNode: () => void;
   onAddImageNode: () => void;
+  onAddVideoNode: () => void;
   onAddImageEditorNode: () => void;
   onAddImageMixerNode: () => void;
   onAddVideoGeneratorNode: () => void;
@@ -65,9 +66,9 @@ const ToolbarButton: React.FC<{
     )
 };
 
-const Toolbar: React.FC<ToolbarProps> = ({ 
-    onNavigateHome, 
-    onClearCanvas, 
+const Toolbar: React.FC<ToolbarProps> = ({
+    onNavigateHome,
+    onClearCanvas,
     onExportProject,
     onImportProject,
     onCreateProject,
@@ -82,7 +83,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     isProjectBusy,
     isProjectListLoading,
     projectError,
-    onAddCharacterGeneratorNode, 
+    onAddCharacterGeneratorNode,
     onAddImageGeneratorNode,
     onAddTextNode,
     onAddTextGeneratorNode,
@@ -92,6 +93,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddShortStoryWriterNode,
     onAddScreenplayWriterNode,
     onAddImageNode,
+    onAddVideoNode,
     onAddImageEditorNode,
     onAddImageMixerNode,
     onAddVideoGeneratorNode,
@@ -166,6 +168,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddTextNode,
     onAddTextGeneratorNode,
     onAddImageNode,
+    onAddVideoNode,
     onAddImageGeneratorNode,
     onAddCharacterGeneratorNode,
     onAddStoryCharacterCreatorNode,
@@ -183,6 +186,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onAddTextNode,
     onAddTextGeneratorNode,
     onAddImageNode,
+    onAddVideoNode,
     onAddImageGeneratorNode,
     onAddCharacterGeneratorNode,
     onAddStoryCharacterCreatorNode,

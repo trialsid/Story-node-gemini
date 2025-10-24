@@ -596,7 +596,7 @@ const VIDEO_GENERATION_MESSAGES = [
 
 type VideoGenerationConfig = {
     resolution: '720p' | '1080p';
-    aspectRatio: '16:9' | '9:16' | '1:1';
+    aspectRatio: '16:9' | '9:16';
     duration: '4' | '6' | '8';
 };
 
@@ -623,6 +623,10 @@ export const generateVideoFromPrompt = async (
 
         const { resolution, aspectRatio, duration } = config;
         const normalizedDuration = resolution === '1080p' ? '8' : duration;
+        const durationSeconds = parseInt(normalizedDuration, 10);
+        if (Number.isNaN(durationSeconds)) {
+            throw new Error(`Invalid duration requested: ${normalizedDuration}`);
+        }
 
         let operation = await aiClient.models.generateVideos({
             model,
@@ -632,7 +636,7 @@ export const generateVideoFromPrompt = async (
                 numberOfVideos: 1,
                 resolution,
                 aspectRatio,
-                duration: normalizedDuration,
+                durationSeconds,
             }
         });
 
@@ -714,7 +718,7 @@ export const generateVideoWithInterpolation = async (
 
         const { resolution, aspectRatio } = config;
         // Duration must be "8" when using interpolation (start and end frames)
-        const duration = '8';
+        const durationSeconds = 8;
 
         onProgress("Starting interpolation generation...");
 
@@ -726,7 +730,7 @@ export const generateVideoWithInterpolation = async (
                 numberOfVideos: 1,
                 resolution,
                 aspectRatio,
-                duration,
+                durationSeconds,
                 lastFrame: endImageParam, // End frame for interpolation
             }
         });
@@ -809,7 +813,7 @@ export const generateVideoWithReferenceImages = async (
         const { resolution } = config;
         // Aspect ratio must be 16:9 and duration must be 8 seconds when using reference images
         const aspectRatio = '16:9';
-        const duration = '8';
+        const durationSeconds = 8;
 
         onProgress("Starting composition generation...");
 
@@ -821,7 +825,7 @@ export const generateVideoWithReferenceImages = async (
                 referenceImages: referenceImageParams,
                 resolution,
                 aspectRatio,
-                duration,
+                durationSeconds,
             }
         });
 
@@ -891,7 +895,7 @@ export const generateExtendedVideo = async (
 
         // Resolution must be 720p and duration must be 8 seconds for extension
         const resolution = '720p';
-        const duration = '8';
+        const durationSeconds = 8;
 
         onProgress("Starting video extension...");
 
@@ -903,7 +907,7 @@ export const generateExtendedVideo = async (
                 numberOfVideos: 1,
                 resolution,
                 aspectRatio,
-                duration,
+                durationSeconds,
             }
         });
 

@@ -301,7 +301,7 @@ app.get('/api/gallery', async (req, res) => {
 
 app.post('/api/gallery', async (req, res) => {
   try {
-    const { dataUrl, type, prompt, nodeType, nodeId, projectId } = req.body ?? {};
+    const { dataUrl, type, prompt, nodeType, nodeId, projectId, veoVideoObject, veoModel, videoAspectRatio } = req.body ?? {};
     if (!dataUrl || !type) {
       return res.status(400).send('Missing dataUrl or type');
     }
@@ -328,6 +328,9 @@ app.post('/api/gallery', async (req, res) => {
       mimeType,
       projectId: projectId || undefined,
       url: buildGalleryFileUrl(projectId, fileName),
+      veoVideoObject: veoVideoObject || undefined,
+      veoModel: veoModel || undefined,
+      videoAspectRatio: videoAspectRatio || undefined,
     };
     items.unshift(newItem);
     await writeMetadata(items);

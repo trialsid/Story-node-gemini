@@ -9,6 +9,7 @@ type CreateGalleryItemRequest = {
   projectId?: string;
   veoVideoObject?: any;
   veoModel?: string;
+  videoAspectRatio?: '16:9' | '9:16';
 };
 
 const handleResponse = async (response: Response) => {

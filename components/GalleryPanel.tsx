@@ -163,6 +163,7 @@ const GalleryPanel: React.FC<GalleryPanelProps> = ({
                 itemType: item.type,
                 veoVideoObject: item.veoVideoObject,
                 veoModel: item.veoModel,
+                videoAspectRatio: item.videoAspectRatio,
               }));
             }}
             onClick={(event) => {
@@ -259,6 +260,7 @@ const GalleryPanel: React.FC<GalleryPanelProps> = ({
                 itemType: item.type,
                 veoVideoObject: item.veoVideoObject,
                 veoModel: item.veoModel,
+                videoAspectRatio: item.videoAspectRatio,
               }));
             }}
             onClick={(event) => {

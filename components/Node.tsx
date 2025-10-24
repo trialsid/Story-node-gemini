@@ -278,6 +278,7 @@ const Node: React.FC<NodeProps> = ({
 
   const nodeRef = useRef<HTMLDivElement>(null);
   const imageUploadRef = useRef<HTMLInputElement>(null);
+  const videoUploadRef = useRef<HTMLInputElement>(null);
 
   // Refs for handle anchor elements
   const handleAnchorRefs = useRef<{ [handleId: string]: HTMLElement | null }>({});
@@ -582,6 +583,18 @@ const Node: React.FC<NodeProps> = ({
     }
   };
 
+  const handleVideoFileChange = (file: File | null) => {
+    if (file && file.type.startsWith('video/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            if (e.target?.result) {
+                onUpdateData(node.id, { videoUrl: e.target.result as string });
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
       e.preventDefault();
       setIsDraggingOver(true);
@@ -597,6 +610,14 @@ const Node: React.FC<NodeProps> = ({
       setIsDraggingOver(false);
       if (e.dataTransfer.files && e.dataTransfer.files[0]) {
           handleFileChange(e.dataTransfer.files[0]);
+      }
+  };
+
+  const handleVideoDrop = (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDraggingOver(false);
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          handleVideoFileChange(e.dataTransfer.files[0]);
       }
   };
   
@@ -1324,7 +1345,80 @@ const Node: React.FC<NodeProps> = ({
             )}
         </>
       )}
-      
+
+      {node.type === NodeType.Video && (
+        <>
+            <NodeHeader
+                title='Video Node'
+                icon={<Video className="w-4 h-4 text-purple-400" />}
+                isMinimized={isMinimized}
+                onToggleMinimize={() => onToggleMinimize(node.id)}
+                onDelete={handleDelete}
+                onShowDeleteConfirmation={handleShowDeleteConfirmation}
+                onMouseDown={handleHeaderMouseDown}
+                onContextMenu={handleHeaderContextMenu}
+            />
+            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'}`}>
+                <div className="p-2">
+                    <div ref={el => handleAnchorRefs.current['video_output'] = el}>
+                        <label className={labelClassName}>Source Video</label>
+                        {node.data.veoVideoObject && (
+                            <div className="flex items-center gap-1 mb-1">
+                                <span className="text-[10px] px-1.5 py-0.5 bg-purple-500/20 text-purple-300 rounded border border-purple-500/30">
+                                    Veo Generated
+                                </span>
+                                <span className="text-[9px] text-gray-400">
+                                    Can be extended
+                                </span>
+                            </div>
+                        )}
+                        <div
+                            className={`${imagePreviewBaseClassName} h-40 cursor-pointer ${isDraggingOver ? `ring-2 ring-offset-2 ${styles.node.inputFocusRing}` : ''}`}
+                            onClick={() => videoUploadRef.current?.click()}
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleVideoDrop}
+                        >
+                            <input
+                                ref={videoUploadRef}
+                                type="file"
+                                accept="video/*"
+                                className="hidden"
+                                onChange={(e) => handleVideoFileChange(e.target.files ? e.target.files[0] : null)}
+                            />
+                            {node.data.videoUrl ? (
+                                <video
+                                    src={node.data.videoUrl}
+                                    controls
+                                    muted
+                                    loop
+                                    className="w-full h-full object-cover rounded-md"
+                                />
+                            ) : (
+                                <div className="text-center flex flex-col items-center justify-center h-full">
+                                    <Upload className={`w-8 h-8 ${styles.node.imagePlaceholderIcon} mb-1`} />
+                                    <span className="text-xs">Click or drag & drop</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {isMinimized && (
+              <div
+                  className={`w-full ${styles.node.imagePlaceholderBg} rounded-b-md flex items-center justify-center border-t ${styles.node.imagePlaceholderBorder} transition-all duration-300 ease-in-out overflow-hidden`}
+                  style={{ height: node.data.minimizedHeight ? `${node.data.minimizedHeight}px` : '64px' }}
+              >
+                  {node.data.videoUrl ?
+                      <video src={node.data.videoUrl} muted loop className="w-full h-full object-contain" />
+                      : <Video className={`w-8 h-8 ${styles.node.imagePlaceholderIcon}`} />
+                  }
+              </div>
+            )}
+        </>
+      )}
+
       {node.type === NodeType.ImageGenerator && (
         <>
           <NodeHeader
@@ -1717,7 +1811,6 @@ const Node: React.FC<NodeProps> = ({
                         >
                             <option value="16:9">16:9 (Landscape)</option>
                             <option value="9:16">9:16 (Vertical)</option>
-                            <option value="1:1">1:1 (Square)</option>
                         </select>
                     </div>
                 </div>
@@ -1780,7 +1873,7 @@ const Node: React.FC<NodeProps> = ({
       })()}
       {node.type === NodeType.VideoInterpolator && (() => {
         const resolution = node.data.videoResolution || '720p';
-        const aspectRatio = node.data.videoAspectRatio || '1:1';
+        const aspectRatio = node.data.videoAspectRatio || '16:9';
         const duration = '8'; // Fixed to 8 seconds for interpolation
 
         return (
@@ -1834,7 +1927,6 @@ const Node: React.FC<NodeProps> = ({
                         >
                             <option value="16:9">16:9 (Landscape)</option>
                             <option value="9:16">9:16 (Vertical)</option>
-                            <option value="1:1">1:1 (Square)</option>
                         </select>
                     </div>
                 </div>
