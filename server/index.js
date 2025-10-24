@@ -21,7 +21,8 @@ const INIT_PROJECT_ID = 'init';
 const INIT_PROJECT_NAME = 'Init';
 const EMPTY_CANVAS_STATE = { nodes: [], connections: [] };
 
-app.use(express.json({ limit: '25mb' }));
+app.use(express.json({ limit: '200mb' }));
+app.use(express.urlencoded({ limit: '200mb', extended: true }));
 app.use('/generated', express.static(generatedDir, { fallthrough: true }));
 
 const ensureGeneratedDir = async () => {
