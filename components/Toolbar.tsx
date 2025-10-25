@@ -41,6 +41,8 @@ interface ToolbarProps {
   onRedo: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  showClearCanvasButton?: boolean;
+  showNodeMenus?: boolean;
 }
 
 const ToolbarButton: React.FC<{ 
@@ -55,7 +57,7 @@ const ToolbarButton: React.FC<{
         <button
             onClick={onClick}
             disabled={disabled}
-            className={`flex items-center justify-center p-2.5 ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed relative group ${className}`}
+            className={`flex items-center justify-center p-2 ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed relative group ${className}`}
             aria-label={tooltip}
         >
             {children}
@@ -104,6 +106,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
     onRedo,
     canUndo,
     canRedo,
+    showClearCanvasButton = true,
+    showNodeMenus = true,
 }) => {
   const { styles } = useTheme();
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
@@ -250,13 +254,15 @@ const Toolbar: React.FC<ToolbarProps> = ({
   };
 
   return (
-    <div className={`absolute top-4 left-4 z-20 p-2 ${styles.toolbar.bg} border ${styles.toolbar.border} rounded-lg shadow-lg`}>
+    <div
+      className={`absolute top-4 left-4 z-20 p-1 flex items-center gap-1 ${styles.toolbar.bg} border ${styles.toolbar.border} rounded-lg shadow-lg`}
+    >
       <div className="flex items-center space-x-1.5">
         {/* Group 1: Projects & Canvas */}
         <div className="relative" ref={projectMenuRef}>
           <button
             onClick={() => setIsProjectMenuOpen(prev => !prev)}
-            className={`flex items-center space-x-2 px-3 py-2 ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium group`}
+            className={`flex items-center space-x-2 px-3 py-1.5 ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium group`}
             title={currentProject ? currentProject.name : 'Unsaved'}
           >
             <FolderKanban className={`w-5 h-5 ${styles.gallery.accentText}`} />
@@ -376,9 +382,11 @@ const Toolbar: React.FC<ToolbarProps> = ({
         <ToolbarButton onClick={onNavigateHome} tooltip="Home" className={`${styles.gallery.accentText === 'text-cyan-300' ? 'hover:bg-cyan-500/20' : styles.gallery.accentText === 'text-blue-600' ? 'hover:bg-blue-500/20' : 'hover:bg-amber-500/20'}`}>
             <Home className={`w-5 h-5 ${styles.gallery.accentText}`} />
         </ToolbarButton>
-        <ToolbarButton onClick={onClearCanvas} tooltip="Clear Canvas">
-            <Eraser className="w-5 h-5 text-red-400" />
-        </ToolbarButton>
+        {showClearCanvasButton && (
+          <ToolbarButton onClick={onClearCanvas} tooltip="Clear Canvas">
+              <Eraser className="w-5 h-5 text-red-400" />
+          </ToolbarButton>
+        )}
 
         <div className="w-px h-6 bg-gray-500/30 mx-1" />
 
@@ -390,93 +398,97 @@ const Toolbar: React.FC<ToolbarProps> = ({
             <Redo2 className={`w-5 h-5 ${styles.toolbar.iconColor}`} />
         </ToolbarButton>
         
-        <div className="w-px h-6 bg-gray-500/30 mx-1" />
+        {showNodeMenus && (
+          <>
+            <div className="w-px h-6 bg-gray-500/30 mx-1" />
 
-        {/* Group 3: Story Tools Dropdown */}
-        <div className="relative" ref={storyToolsMenuRef}>
-            <button
-                onClick={() => setIsStoryToolsMenuOpen(!isStoryToolsMenuOpen)}
-                className={`flex items-center space-x-2 px-3 py-2 ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium`}
-            >
-                <ScrollText className="w-5 h-5 text-purple-500" />
-                <span className={styles.toolbar.text}>Story Tools</span>
-                <ChevronDown className={`w-4 h-4 ${styles.toolbar.iconColor} transition-transform duration-200 ${isStoryToolsMenuOpen ? 'rotate-180' : ''}`} />
-            </button>
-            {isStoryToolsMenuOpen && (
-                <div
-                    className={`absolute top-full mt-2 w-56 p-1 ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-lg shadow-lg z-10`}
-                    role="menu"
+            {/* Group 3: Story Tools Dropdown */}
+            <div className="relative" ref={storyToolsMenuRef}>
+                <button
+                    onClick={() => setIsStoryToolsMenuOpen(!isStoryToolsMenuOpen)}
+                    className={`flex items-center space-x-2 px-3 py-1.5 ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium`}
                 >
-                    {storyToolsCategories.map((category, categoryIndex) => (
-                        <div key={category.title}>
-                            <div className={`px-3 py-1 text-xs font-semibold uppercase tracking-wide ${styles.modal.messageText}`}>
-                                {category.title}
+                    <ScrollText className="w-5 h-5 text-purple-500" />
+                    <span className={styles.toolbar.text}>Story Tools</span>
+                    <ChevronDown className={`w-4 h-4 ${styles.toolbar.iconColor} transition-transform duration-200 ${isStoryToolsMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isStoryToolsMenuOpen && (
+                    <div
+                        className={`absolute top-full mt-2 w-56 p-1 ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-lg shadow-lg z-10`}
+                        role="menu"
+                    >
+                        {storyToolsCategories.map((category, categoryIndex) => (
+                            <div key={category.title}>
+                                <div className={`px-3 py-1 text-xs font-semibold uppercase tracking-wide ${styles.modal.messageText}`}>
+                                    {category.title}
+                                </div>
+                                {category.items.map((item) => (
+                                    <button
+                                        key={item.label}
+                                        onClick={() => {
+                                            item.action();
+                                            setIsStoryToolsMenuOpen(false);
+                                        }}
+                                        className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium ${styles.toolbar.text}`}
+                                        role="menuitem"
+                                    >
+                                        {item.icon}
+                                        <span>{item.label}</span>
+                                    </button>
+                                ))}
+                                {categoryIndex < storyToolsCategories.length - 1 && (
+                                    <div className="h-px bg-gray-500/20 my-1" aria-hidden="true" />
+                                )}
                             </div>
-                            {category.items.map((item) => (
-                                <button
-                                    key={item.label}
-                                    onClick={() => {
-                                        item.action();
-                                        setIsStoryToolsMenuOpen(false);
-                                    }}
-                                    className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium ${styles.toolbar.text}`}
-                                    role="menuitem"
-                                >
-                                    {item.icon}
-                                    <span>{item.label}</span>
-                                </button>
-                            ))}
-                            {categoryIndex < storyToolsCategories.length - 1 && (
-                                <div className="h-px bg-gray-500/20 my-1" aria-hidden="true" />
-                            )}
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
+                        ))}
+                    </div>
+                )}
+            </div>
 
-        {/* Group 4: Add Node Dropdown */}
-        <div className="relative" ref={addMenuRef}>
-            <button
-                onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
-                className={`flex items-center space-x-2 px-3 py-2 ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium`}
-            >
-                <Plus className={`w-5 h-5 ${styles.toolbar.iconColor}`} />
-                <span className={styles.toolbar.text}>Add Node</span>
-                <ChevronDown className={`w-4 h-4 ${styles.toolbar.iconColor} transition-transform duration-200 ${isAddMenuOpen ? 'rotate-180' : ''}`} />
-            </button>
-            {isAddMenuOpen && (
-                <div 
-                    className={`absolute top-full mt-2 w-56 p-1 ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-lg shadow-lg z-10`}
-                    role="menu"
+            {/* Group 4: Add Node Dropdown */}
+            <div className="relative" ref={addMenuRef}>
+                <button
+                    onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
+                    className={`flex items-center space-x-2 px-3 py-1.5 ${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium`}
                 >
-                    {menuCategories.map((category, categoryIndex) => (
-                        <div key={category.title}>
-                            <div className={`px-3 py-1 text-xs font-semibold uppercase tracking-wide ${styles.modal.messageText}`}>
-                                {category.title}
+                    <Plus className={`w-5 h-5 ${styles.toolbar.iconColor}`} />
+                    <span className={styles.toolbar.text}>Add Node</span>
+                    <ChevronDown className={`w-4 h-4 ${styles.toolbar.iconColor} transition-transform duration-200 ${isAddMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isAddMenuOpen && (
+                    <div 
+                        className={`absolute top-full mt-2 w-56 p-1 ${styles.toolbar.bg} backdrop-blur-sm border ${styles.toolbar.border} rounded-lg shadow-lg z-10`}
+                        role="menu"
+                    >
+                        {menuCategories.map((category, categoryIndex) => (
+                            <div key={category.title}>
+                                <div className={`px-3 py-1 text-xs font-semibold uppercase tracking-wide ${styles.modal.messageText}`}>
+                                    {category.title}
+                                </div>
+                                {category.items.map((item) => (
+                                    <button
+                                        key={item.label}
+                                        onClick={() => {
+                                            item.action();
+                                            setIsAddMenuOpen(false);
+                                        }}
+                                        className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium ${styles.toolbar.text}`}
+                                        role="menuitem"
+                                    >
+                                        {item.icon}
+                                        <span>{item.label}</span>
+                                    </button>
+                                ))}
+                                {categoryIndex < menuCategories.length - 1 && (
+                                    <div className="h-px bg-gray-500/20 my-1" aria-hidden="true" />
+                                )}
                             </div>
-                            {category.items.map((item) => (
-                                <button
-                                    key={item.label}
-                                    onClick={() => {
-                                        item.action();
-                                        setIsAddMenuOpen(false);
-                                    }}
-                                    className={`w-full flex items-center space-x-3 px-3 py-2 text-left ${styles.toolbar.buttonHoverBg} rounded-md transition-colors text-sm font-medium ${styles.toolbar.text}`}
-                                    role="menuitem"
-                                >
-                                    {item.icon}
-                                    <span>{item.label}</span>
-                                </button>
-                            ))}
-                            {categoryIndex < menuCategories.length - 1 && (
-                                <div className="h-px bg-gray-500/20 my-1" aria-hidden="true" />
-                            )}
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

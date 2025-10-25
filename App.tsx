@@ -27,6 +27,7 @@ import { buildAllNodeMenuCategories } from './utils/nodeMenuConfig';
 import { inferVideoAspectRatio } from './utils/videoHelpers';
 import ProjectNameModal from './components/ProjectNameModal';
 import MiniMap from './components/MiniMap';
+import VideoEditorMock from './components/VideoEditorMock';
 
 
 const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } } = {
@@ -50,6 +51,13 @@ const NODE_DIMENSIONS: { [key in NodeType]: { width: number; height?: number } }
 };
 
 const EMPTY_CANVAS_STATE: CanvasState = { nodes: [], connections: [] };
+
+type AppMode = 'canvas' | 'video-editor';
+
+const MODE_OPTIONS: { id: AppMode; label: string }[] = [
+  { id: 'canvas', label: 'Canvas' },
+  { id: 'video-editor', label: 'Video Editor' },
+];
 
 const normalizeCanvasState = (state: CanvasState | null | undefined): CanvasState => ({
   nodes: Array.isArray(state?.nodes) ? state!.nodes : [],
@@ -240,6 +248,7 @@ const AppContent: React.FC = () => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [nodeToDelete, setNodeToDelete] = useState<string | null>(null);
   const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
+  const [activeMode, setActiveMode] = useState<AppMode>('canvas');
 
   // State for canvas transform
   const [isPanning, setIsPanning] = useState(false);
@@ -3018,6 +3027,7 @@ const AppContent: React.FC = () => {
   const handleCloseTextModal = useCallback(() => setTextModalData(null), []);
 
   const isDragging = draggingNodeId !== null || tempConnectionInfo !== null;
+  const isCanvasMode = activeMode === 'canvas';
 
   const contextMenuCategories = useMemo(() => {
     if (!contextMenu) {
@@ -3120,8 +3130,10 @@ const AppContent: React.FC = () => {
         onRedo={redo}
         canUndo={canUndo}
         canRedo={canRedo}
+        showClearCanvasButton={isCanvasMode}
+        showNodeMenus={isCanvasMode}
       />
-       <input
+      <input
         type="file"
         accept=".json,application/json"
         ref={fileInputRef}
@@ -3129,7 +3141,27 @@ const AppContent: React.FC = () => {
         className="hidden"
         aria-hidden="true"
       />
-      <div className="absolute top-4 right-4 z-20">
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-3">
+        <div className={`flex items-center gap-1 p-1 rounded-full border ${styles.toolbar.border} ${styles.toolbar.bg} backdrop-blur-sm shadow-lg`}>
+          {MODE_OPTIONS.map(option => {
+            const isActive = activeMode === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setActiveMode(option.id)}
+                aria-pressed={isActive}
+                className={`px-4 py-1.5 text-sm font-medium rounded-full transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
+                  isActive
+                    ? `${styles.gallery.accentBadge} shadow`
+                    : `${styles.toolbar.buttonBg} ${styles.toolbar.buttonHoverBg} ${styles.toolbar.text}`
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
         <ThemeSwitcher />
       </div>
       <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2">
@@ -3175,53 +3207,59 @@ const AppContent: React.FC = () => {
         onClose={handleCloseHelpModal}
       />
 
-      <Canvas
-        ref={canvasRef}
-        allNodes={draggingNodeId ? localNodes : nodes}
-        connections={connections}
-        onMouseDown={handleCanvasMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onWheel={handleWheel}
-        onContextMenu={handleContextMenu}
-        onDrop={handleCanvasDrop}
-        onDragOver={handleCanvasDragOver}
-        onNodeDragStart={handleNodeDragStart}
-        onNodeClick={handleNodeClick}
-        selectedNodeIds={selectedNodeIds}
-        onUpdateSelection={setSelectedNodeIds}
-        onUpdateNodeData={updateNodeData}
-        onGenerateCharacterImage={handleGenerateCharacterImage}
-        onGenerateImages={handleGenerateImages}
-        onGenerateText={handleGenerateText}
-        onGenerateCharacters={handleGenerateCharacters}
-        onGenerateCharacterPortfolio={handleGenerateCharacterPortfolio}
-        onExpandStory={handleExpandStory}
-        onGenerateShortStory={handleGenerateShortStory}
-        onGenerateScreenplay={handleGenerateScreenplay}
-        onOpenTextModal={handleOpenTextModal}
-        onEditImage={handleEditImage}
-        onMixImages={handleMixImages}
-        onGenerateVideo={handleGenerateVideo}
-        onExtendVideo={handleExtendVideo}
-        onImageClick={handleImageClick}
-        onOutputMouseDown={handleOutputMouseDown}
-        onInputMouseDown={handleInputMouseDown}
-        onInputMouseUp={handleInputMouseUp}
-        onDeleteNode={requestDeleteNode}
-        onDeleteNodeDirectly={deleteNodeDirectly}
-        onDuplicateNode={duplicateNode}
-        onDuplicateNodes={duplicateNodesBatch}
-        onResetNode={resetNode}
-        onToggleNodeMinimization={toggleNodeMinimization}
-        nodeDimensions={NODE_DIMENSIONS}
-        canvasOffset={canvasOffset}
-        zoom={zoom}
-        tempConnectionInfo={tempConnectionInfo}
-        mousePosition={mousePosition}
-        hoveredInputHandle={hoveredInputHandle}
-        setHoveredInputHandle={setHoveredInputHandle}
-      />
+      {isCanvasMode ? (
+        <Canvas
+          ref={canvasRef}
+          allNodes={draggingNodeId ? localNodes : nodes}
+          connections={connections}
+          onMouseDown={handleCanvasMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onWheel={handleWheel}
+          onContextMenu={handleContextMenu}
+          onDrop={handleCanvasDrop}
+          onDragOver={handleCanvasDragOver}
+          onNodeDragStart={handleNodeDragStart}
+          onNodeClick={handleNodeClick}
+          selectedNodeIds={selectedNodeIds}
+          onUpdateSelection={setSelectedNodeIds}
+          onUpdateNodeData={updateNodeData}
+          onGenerateCharacterImage={handleGenerateCharacterImage}
+          onGenerateImages={handleGenerateImages}
+          onGenerateText={handleGenerateText}
+          onGenerateCharacters={handleGenerateCharacters}
+          onGenerateCharacterPortfolio={handleGenerateCharacterPortfolio}
+          onExpandStory={handleExpandStory}
+          onGenerateShortStory={handleGenerateShortStory}
+          onGenerateScreenplay={handleGenerateScreenplay}
+          onOpenTextModal={handleOpenTextModal}
+          onEditImage={handleEditImage}
+          onMixImages={handleMixImages}
+          onGenerateVideo={handleGenerateVideo}
+          onExtendVideo={handleExtendVideo}
+          onImageClick={handleImageClick}
+          onOutputMouseDown={handleOutputMouseDown}
+          onInputMouseDown={handleInputMouseDown}
+          onInputMouseUp={handleInputMouseUp}
+          onDeleteNode={requestDeleteNode}
+          onDeleteNodeDirectly={deleteNodeDirectly}
+          onDuplicateNode={duplicateNode}
+          onDuplicateNodes={duplicateNodesBatch}
+          onResetNode={resetNode}
+          onToggleNodeMinimization={toggleNodeMinimization}
+          nodeDimensions={NODE_DIMENSIONS}
+          canvasOffset={canvasOffset}
+          zoom={zoom}
+          tempConnectionInfo={tempConnectionInfo}
+          mousePosition={mousePosition}
+          hoveredInputHandle={hoveredInputHandle}
+          setHoveredInputHandle={setHoveredInputHandle}
+        />
+      ) : (
+        <div className="flex-grow w-full h-full pt-20 pb-4 pl-4 pr-[20rem]">
+          <VideoEditorMock className="h-full" />
+        </div>
+      )}
 
       <GalleryPreviewModal item={selectedGalleryItem} onClose={handleCloseGalleryItem} />
       {modalImageUrl && <ImageModal imageUrl={modalImageUrl} onClose={handleCloseModal} />}
@@ -3286,7 +3324,7 @@ const AppContent: React.FC = () => {
           hideCancel={pendingAction.hideCancel}
         />
       )}
-      {contextMenu && (
+      {isCanvasMode && contextMenu && (
         <ContextMenuWithSubmenu
           isOpen={contextMenu.isOpen}
           position={{ x: contextMenu.x, y: contextMenu.y }}
@@ -3294,7 +3332,7 @@ const AppContent: React.FC = () => {
           onClose={handleCloseContextMenu}
         />
       )}
-      {showMinimap && (
+      {isCanvasMode && showMinimap && (
         <MiniMap
           nodes={nodes}
           connections={connections}
