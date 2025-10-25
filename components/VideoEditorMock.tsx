@@ -1,34 +1,53 @@
-import React, { useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Play, SkipBack, SkipForward, Scissors, Film } from 'lucide-react';
 import { Theme, useTheme } from '../contexts/ThemeContext';
 
-const markers = ['00:00', '00:05', '00:10', '00:15', '00:20'];
+const markersInSeconds = [0, 5, 10, 15, 20, 24];
+const TOTAL_DURATION = 24; // seconds
+const PLAYHEAD_TIME = 12; // seconds
 
-const timelineTracks = [
+interface TimelineSegment {
+  label: string;
+  duration: number;
+}
+
+interface TimelineTrack {
+  label: string;
+  color: string;
+  segments: TimelineSegment[];
+}
+
+type TimelineTrackWithPositions = Omit<TimelineTrack, 'segments'> & {
+  segments: Array<TimelineSegment & { start: number }>;
+};
+
+const SEGMENT_GAP = 6; // px gap between adjacent clips
+
+const timelineTracks: TimelineTrack[] = [
   {
     label: 'Video 1',
     color: 'bg-sky-500/70 border-sky-400/70',
     segments: [
-      { label: 'Intro', duration: 18 },
-      { label: 'Main Shot', duration: 32 },
-      { label: 'B-Roll', duration: 20 },
+      { label: 'Intro', duration: 6 },
+      { label: 'Main Shot', duration: 10 },
+      { label: 'B-Roll', duration: 8 },
     ],
   },
   {
     label: 'Audio',
     color: 'bg-emerald-500/70 border-emerald-400/70',
     segments: [
-      { label: 'Narration', duration: 45 },
-      { label: 'Ambience', duration: 25 },
+      { label: 'Narration', duration: 12 },
+      { label: 'Ambience', duration: 12 },
     ],
   },
   {
     label: 'Captions',
     color: 'bg-amber-500/70 border-amber-400/70',
     segments: [
-      { label: 'Line 1', duration: 15 },
-      { label: 'Line 2', duration: 18 },
-      { label: 'Line 3', duration: 22 },
+      { label: 'Line 1', duration: 6 },
+      { label: 'Line 2', duration: 8 },
+      { label: 'Line 3', duration: 10 },
     ],
   },
 ];
@@ -102,24 +121,58 @@ const themePalette: Record<Theme, {
 const VideoEditorMock: React.FC<VideoEditorMockProps> = ({ className = '' }) => {
   const { styles, theme } = useTheme();
   const palette = themePalette[theme];
-  const [timelineScale, setTimelineScale] = useState(1);
-  const textScale = 1 / timelineScale;
-  const leftAlignedTextScale = {
-    transform: `scaleX(${textScale})`,
-    transformOrigin: 'left center',
-  } as React.CSSProperties;
-  const centeredTextScale = {
-    transform: `scaleX(${textScale})`,
-    transformOrigin: 'center',
-  } as React.CSSProperties;
+  const MIN_PIXELS_PER_SECOND = 20;
+  const MAX_PIXELS_PER_SECOND = 140;
+  const [pixelsPerSecond, setPixelsPerSecond] = useState(40);
+  const timelineScrollRef = useRef<HTMLDivElement>(null);
+
+  const computedTracks = useMemo<TimelineTrackWithPositions[]>(() => {
+    return timelineTracks.map((track) => {
+      let current = 0;
+      const segmentsWithStart = track.segments.map((segment) => {
+        const withStart = { ...segment, start: current };
+        current += segment.duration;
+        return withStart;
+      });
+      return { ...track, segments: segmentsWithStart };
+    });
+  }, []);
+
+  const timelineWidth = TOTAL_DURATION * pixelsPerSecond;
+  const playheadPosition = Math.min(PLAYHEAD_TIME, TOTAL_DURATION) * pixelsPerSecond;
+
+  const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
   const handleTimelineWheel = (event: React.WheelEvent<HTMLDivElement>) => {
     event.preventDefault();
-    const delta = -event.deltaY;
-    setTimelineScale((prev) => {
-      const next = Math.min(2, Math.max(0.5, parseFloat((prev + delta * 0.001).toFixed(2))));
+    if (!timelineScrollRef.current) return;
+    const container = timelineScrollRef.current;
+    const rect = container.getBoundingClientRect();
+    const offsetX = event.clientX - rect.left;
+    const scrollLeft = container.scrollLeft;
+    const cursorTime = (scrollLeft + offsetX) / pixelsPerSecond;
+    const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9;
+
+    setPixelsPerSecond((prev) => {
+      const next = clamp(prev * zoomFactor, MIN_PIXELS_PER_SECOND, MAX_PIXELS_PER_SECOND);
+      requestAnimationFrame(() => {
+        if (timelineScrollRef.current) {
+          const newScrollLeft = Math.max(0, cursorTime * next - offsetX);
+          timelineScrollRef.current.scrollLeft = newScrollLeft;
+        }
+      });
       return next;
     });
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+      .toString()
+      .padStart(2, '0');
+    const secs = Math.floor(seconds % 60)
+      .toString()
+      .padStart(2, '0');
+    return `${mins}:${secs}`;
   };
 
   return (
@@ -175,58 +228,49 @@ const VideoEditorMock: React.FC<VideoEditorMockProps> = ({ className = '' }) => 
           <div className={`mt-4 border-t pt-3 space-y-2 relative ${palette.dividerColor}`}>
             <div className="flex items-center justify-between text-[11px] uppercase tracking-wide">
               <span className={`${palette.markerText}`}>Timeline Zoom</span>
-              <span className={`${palette.markerText}`}>{timelineScale.toFixed(2)}x</span>
+              <span className={`${palette.markerText}`}>{pixelsPerSecond.toFixed(0)} px/s</span>
             </div>
-            <div className="relative overflow-hidden" onWheel={handleTimelineWheel}>
-              <div
-                className="origin-left"
-                style={{ transform: `scaleX(${timelineScale})`, transformOrigin: 'left center' }}
-              >
-                <div className="relative space-y-3">
-                  <div className={`flex justify-between text-[11px] ${palette.markerText}`}>
-                    {markers.map((marker) => (
-                      <span key={marker} className="inline-block" style={leftAlignedTextScale}>
-                        {marker}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="absolute left-1/3 -translate-x-1/2 top-1 flex flex-col items-center pointer-events-none">
-                    <div
-                      className={`w-6 h-4 rounded-sm border ${palette.playheadHeadBorder} ${palette.playheadHeadBg} shadow shadow-black/30`}
-                      style={{ transform: `scaleX(${textScale})`, transformOrigin: 'center' }}
-                    />
-                    <div
-                      className={`w-px h-2 ${palette.playheadColor}`}
-                      style={{ transform: `scaleX(${textScale})`, transformOrigin: 'center' }}
-                    />
-                  </div>
+            <div
+              className="relative overflow-x-auto custom-scrollbar"
+              ref={timelineScrollRef}
+              onWheel={handleTimelineWheel}
+            >
+              <div className="relative pb-4" style={{ width: `${timelineWidth}px` }}>
+                <div className={`flex justify-between text-[11px] ${palette.markerText}`}>
+                  {markersInSeconds.map((marker) => (
+                    <span key={marker}>{formatTime(marker)}</span>
+                  ))}
                 </div>
-                <div className="space-y-4 mt-4 relative">
-                  <div
-                    className={`absolute inset-y-0 left-1/3 -translate-x-1/2 w-px ${palette.playheadColor} pointer-events-none`}
-                    style={{ transform: `scaleX(${textScale})`, transformOrigin: 'center' }}
-                  />
-                  {timelineTracks.map((track) => (
+                <div className="mt-4 space-y-4">
+                  {computedTracks.map((track) => (
                     <div key={track.label} className="flex items-center gap-3">
+                      <div className={`w-24 text-xs uppercase tracking-wide ${palette.timelineLabel}`}>{track.label}</div>
                       <div
-                        className={`w-24 text-xs uppercase tracking-wide ${palette.timelineLabel}`}
-                        style={leftAlignedTextScale}
+                        className={`relative h-12 rounded-xl ${palette.trackBg} ${palette.trackBorder} overflow-visible`}
+                        style={{ width: `${timelineWidth}px` }}
                       >
-                        {track.label}
-                      </div>
-                      <div className={`flex-1 h-12 rounded-xl flex items-center gap-2 px-2 ${palette.trackBg} ${palette.trackBorder}`}>
-                        {track.segments.map((segment) => (
+                        {track.segments.map((segment, index) => (
                           <div
-                            key={segment.label}
-                            className={`h-8 rounded-lg border px-3 flex items-center text-xs font-medium whitespace-nowrap ${track.color}`}
-                            style={{ flexBasis: `${segment.duration}%`, flexGrow: 0, flexShrink: 0 }}
+                            key={`${track.label}-${segment.label}`}
+                            className={`absolute top-1 bottom-1 rounded-lg border px-3 flex items-center text-xs font-medium whitespace-nowrap ${track.color}`}
+                            style={{
+                              left: `${segment.start * pixelsPerSecond + index * SEGMENT_GAP}px`,
+                              width: `${Math.max(segment.duration * pixelsPerSecond - SEGMENT_GAP, SEGMENT_GAP * 2)}px`,
+                            }}
                           >
-                            <span style={centeredTextScale}>{segment.label}</span>
+                            <span className="truncate">{segment.label}</span>
                           </div>
                         ))}
                       </div>
                     </div>
                   ))}
+                </div>
+                <div
+                  className="absolute top-0 bottom-0 flex flex-col items-center pointer-events-none"
+                  style={{ left: `${playheadPosition}px` }}
+                >
+                  <div className={`w-6 h-4 rounded-sm border ${palette.playheadHeadBorder} ${palette.playheadHeadBg} shadow shadow-black/30`} />
+                  <div className={`flex-1 w-px ${palette.playheadColor}`} />
                 </div>
               </div>
             </div>
